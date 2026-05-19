@@ -1,5 +1,5 @@
 import express from "express"
-import Anthropic from "@anthropic-ai/sdk"
+import OpenAI from "openai"
 import "dotenv/config"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
@@ -10,8 +10,8 @@ const app = express()
 app.use(express.json())
 app.use(express.static(join(__dirname, "../dist")))
 
-// ── Anthropic ──────────────────────────────────────────
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// ── OpenAI ─────────────────────────────────────────────
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const SYSTEM = `Eres el asistente de inteligencia artificial de "El Tianguis", un negocio familiar de bolsas, vasos y desechables con 3 ubicaciones: Sucursal Centro, Sucursal Repostero y Bodega central. El equipo usa este panel administrativo para gestionar ventas, inventario, pedidos a proveedores y pedidos de clientes.
 
@@ -31,21 +31,20 @@ app.post("/api/chat", async (req, res) => {
   res.setHeader("Connection", "keep-alive")
   res.setHeader("Access-Control-Allow-Origin", "*")
   try {
-    const stream = anthropic.messages.stream({
-      model: "claude-haiku-4-5-20251001",
+    const stream = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       max_tokens: 1024,
-      system: SYSTEM,
-      messages,
+      messages: [{ role: "system", content: SYSTEM }, ...messages],
+      stream: true,
     })
-    for await (const event of stream) {
-      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-        res.write(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`)
-      }
+    for await (const chunk of stream) {
+      const text = chunk.choices[0]?.delta?.content ?? ""
+      if (text) res.write(`data: ${JSON.stringify({ text })}\n\n`)
     }
     res.write("data: [DONE]\n\n")
     res.end()
   } catch (err) {
-    console.error("Error Anthropic:", err.message)
+    console.error("Error OpenAI:", err.message)
     res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`)
     res.write("data: [DONE]\n\n")
     res.end()
