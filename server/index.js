@@ -24,6 +24,53 @@ Tu rol es ayudar al equipo operativo con:
 
 Responde siempre en español, de manera concisa y profesional. Si necesitas datos en tiempo real que no tienes, indícalo y sugiere dónde encontrarlos en el panel.`
 
+async function buildContexto() {
+  try {
+    const [prods, stocks, ventas] = await Promise.all([
+      nocoGet(T.productos),
+      nocoGet(T.stock),
+      T.ventas ? nocoGet(T.ventas, "&sort=-Fecha&limit=20") : Promise.resolve([]),
+    ])
+    const stockMap = Object.fromEntries(stocks.map((s) => [s.Producto_Codigo, s]))
+
+    const resumen = { centro: { ok: 0, bajo: 0, agotado: 0 }, repostero: { ok: 0, bajo: 0, agotado: 0 }, bodega: { ok: 0, bajo: 0, agotado: 0 } }
+    const alertas = []
+
+    prods.forEach((p) => {
+      const s   = stockMap[p.Codigo] ?? {}
+      const min = p.Stock_Minimo || 5
+      ;["Centro", "Repostero", "Bodega"].forEach((campo) => {
+        const key = campo.toLowerCase()
+        const v   = s[campo] ?? 0
+        if      (v <= 0)   { resumen[key].agotado++; alertas.push(`${p.Descripcion} — ${campo}: AGOTADO`) }
+        else if (v < min)  { resumen[key].bajo++;    alertas.push(`${p.Descripcion} — ${campo}: BAJO (${v}, mín ${min})`) }
+        else               { resumen[key].ok++ }
+      })
+    })
+
+    const ventasTexto = ventas.length
+      ? ventas.slice(0, 10).map((v) => `  ${v.Fecha} | ${v.Cliente} | ${v.MetodoPago} | $${v.Total}`).join("\n")
+      : "  Sin ventas registradas aún."
+
+    return `
+=== DATOS EN TIEMPO REAL (${new Date().toLocaleDateString("es-MX")}) ===
+
+INVENTARIO — ${prods.length} productos totales
+  Centro:    ${resumen.centro.ok} normales, ${resumen.centro.bajo} bajos, ${resumen.centro.agotado} agotados
+  Repostero: ${resumen.repostero.ok} normales, ${resumen.repostero.bajo} bajos, ${resumen.repostero.agotado} agotados
+  Bodega:    ${resumen.bodega.ok} normales, ${resumen.bodega.bajo} bajos, ${resumen.bodega.agotado} agotados
+
+ALERTAS DE STOCK (primeras 30):
+${alertas.slice(0, 30).map((a) => "  • " + a).join("\n") || "  Sin alertas."}
+
+ÚLTIMAS VENTAS:
+${ventasTexto}
+`
+  } catch (err) {
+    return `(No se pudieron cargar datos en tiempo real: ${err.message})`
+  }
+}
+
 app.post("/api/chat", async (req, res) => {
   const { messages } = req.body
   res.setHeader("Content-Type", "text/event-stream; charset=utf-8")
@@ -31,10 +78,13 @@ app.post("/api/chat", async (req, res) => {
   res.setHeader("Connection", "keep-alive")
   res.setHeader("Access-Control-Allow-Origin", "*")
   try {
+    const contexto = await buildContexto()
+    const systemConContexto = SYSTEM + "\n\n" + contexto
+
     const stream = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: 1024,
-      messages: [{ role: "system", content: SYSTEM }, ...messages],
+      messages: [{ role: "system", content: systemConContexto }, ...messages],
       stream: true,
     })
     for await (const chunk of stream) {
