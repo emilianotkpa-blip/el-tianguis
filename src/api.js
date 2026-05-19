@@ -15,3 +15,12 @@ export const postMovimiento = (body) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
+
+export const getVentas = () => apiFetch("/api/ventas")
+
+export const postVenta = (body) =>
+  apiFetch("/api/ventas", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })

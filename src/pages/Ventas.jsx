@@ -1,24 +1,42 @@
-import { useState, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
-import { PRODUCTOS, CATEGORIAS, CLIENTES } from "../data"
-import { stockStatus, fmtMoney, todayISO } from "../utils"
+import { CLIENTES, SUCURSALES } from "../data"
+import { getCatalogo, postVenta } from "../api"
+import { fmtMoney, todayISO } from "../utils"
 
 export default function VentasPage({ addToast }) {
-  const [cart, setCart] = useState([])
-  const [search, setSearch] = useState("")
-  const [cat, setCat] = useState("all")
-  const [cliente, setCliente] = useState("Mostrador")
+  const [productos, setProductos] = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [cart, setCart]           = useState([])
+  const [search, setSearch]       = useState("")
+  const [cat, setCat]             = useState("all")
+  const [suc, setSuc]             = useState("centro")
+  const [cliente, setCliente]     = useState("Mostrador")
   const [metodoPago, setMetodoPago] = useState("Efectivo")
   const [showReceipt, setShowReceipt] = useState(null)
+  const [saving, setSaving]       = useState(false)
   const folioCounter = useRef(490)
 
+  useEffect(() => {
+    getCatalogo()
+      .then(setProductos)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const tipos = useMemo(() => {
+    const set = new Set(productos.map((p) => p.tipo).filter(Boolean))
+    return [{ id: "all", name: "Todos" }, ...[...set].sort().map((t) => ({ id: t, name: t }))]
+  }, [productos])
+
+  const sucObj = SUCURSALES.find((s) => s.id === suc)
+
   const filtered = useMemo(() =>
-    PRODUCTOS.filter((p) => {
-      if (cat !== "all" && p.cat !== cat) return false
-      if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.sku.toLowerCase().includes(search.toLowerCase())) return false
+    productos.filter((p) => {
+      if (cat !== "all" && p.tipo !== cat) return false
+      if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.sku.includes(search)) return false
       return true
-    }), [search, cat])
+    }), [productos, search, cat])
 
   const addToCart = (p) => {
     setCart((c) => {
@@ -34,20 +52,40 @@ export default function VentasPage({ addToast }) {
   const removeItem = (sku) => setCart((c) => c.filter((it) => it.sku !== sku))
 
   const subtotal = cart.reduce((s, it) => s + it.precio * it.qty, 0)
-  const iva = subtotal * 0.16
-  const total = subtotal + iva
+  const iva      = subtotal * 0.16
+  const total    = subtotal + iva
 
   const finalizar = () => {
     if (cart.length === 0) return
     const folio = "F-2026-" + String(folioCounter.current++).padStart(4, "0")
-    setShowReceipt({ folio, fecha: todayISO(), cliente, metodo: metodoPago, items: cart, subtotal, iva, total })
+    setShowReceipt({ folio, fecha: todayISO(), cliente, metodo: metodoPago, sucursal: sucObj?.name ?? suc, items: cart, subtotal, iva, total })
   }
 
-  const cerrarTicket = () => {
-    setShowReceipt(null)
-    setCart([])
-    setCliente("Mostrador")
-    addToast({ kind: "ok", msg: "Venta registrada correctamente" })
+  const cerrarTicket = async () => {
+    if (!showReceipt) return
+    setSaving(true)
+    try {
+      await postVenta({
+        folio:      showReceipt.folio,
+        fecha:      showReceipt.fecha,
+        cliente:    showReceipt.cliente,
+        metodoPago: showReceipt.metodo,
+        sucursal:   suc,
+        items:      showReceipt.items,
+        subtotal:   showReceipt.subtotal,
+        iva:        showReceipt.iva,
+        total:      showReceipt.total,
+      })
+      addToast({ kind: "ok", msg: "Venta registrada correctamente" })
+    } catch {
+      addToast({ kind: "err", msg: "Venta guardada localmente (error de red)" })
+    } finally {
+      setSaving(false)
+      setShowReceipt(null)
+      setCart([])
+      setCliente("Mostrador")
+      setMetodoPago("Efectivo")
+    }
   }
 
   return (
@@ -55,53 +93,62 @@ export default function VentasPage({ addToast }) {
       <div className="page-header">
         <div>
           <h1 className="page-title">Ventas · Punto de venta</h1>
-          <p className="page-subtitle">Selecciona productos para armar la nota. Caja: <strong>Tianguis Centro</strong> · Cajero: Roberto M.</p>
+          <p className="page-subtitle">
+            Sucursal:&nbsp;
+            <select value={suc} onChange={(e) => setSuc(e.target.value)} style={{ fontSize: 12, border: "none", background: "transparent", color: "var(--text-muted)", cursor: "pointer" }}>
+              {SUCURSALES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </p>
         </div>
         <div className="page-actions">
-          <button className="btn btn-default btn-sm"><Icon name="receipt" size={13} /> Ver ventas del día</button>
-          <button className="btn btn-default btn-sm" onClick={() => { setCart([]); setCliente("Mostrador"); setMetodoPago("Efectivo") }}><Icon name="refresh" size={13} /> Cancelar nota</button>
+          <button className="btn btn-default btn-sm" onClick={() => { setCart([]); setCliente("Mostrador"); setMetodoPago("Efectivo") }}>
+            <Icon name="refresh" size={13} /> Cancelar nota
+          </button>
         </div>
       </div>
 
       <div className="sales-shell">
-        {/* Productos */}
         <div className="sales-products">
           <div className="filter-bar" style={{ marginBottom: 4 }}>
             <div className="search-input" style={{ flex: 1, maxWidth: 360 }}>
               <Icon name="search" size={14} className="icon" />
-              <input placeholder="Buscar por nombre o SKU…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input placeholder="Buscar por nombre o código…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
           </div>
           <div className="cart-cat-tabs">
-            {CATEGORIAS.map((c) => (
-              <button key={c.id} className={"cat-pill" + (cat === c.id ? " active" : "")} onClick={() => setCat(c.id)}>
-                {c.name}
+            {tipos.map((t) => (
+              <button key={t.id} className={"cat-pill" + (cat === t.id ? " active" : "")} onClick={() => setCat(t.id)}>
+                {t.name}
               </button>
             ))}
           </div>
 
           <div className="products-grid">
-            {filtered.map((p) => {
-              const st = stockStatus(p, "centro")
+            {loading ? (
+              <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando productos…</div>
+            ) : filtered.map((p) => {
+              const stock = p.stock[suc] ?? 0
+              const out   = stock <= 0
+              const low   = !out && stock < p.min
               return (
                 <button
                   key={p.sku}
-                  className={"product-tile" + (st.kind === "out" ? " disabled" : "")}
-                  onClick={() => st.kind !== "out" && addToCart(p)}
+                  className={"product-tile" + (out ? " disabled" : "")}
+                  onClick={() => !out && addToCart(p)}
                 >
                   <div className="sku">{p.sku}</div>
                   <div className="name">{p.name}</div>
                   <div className="meta">
-                    <span>{p.unidad}</span>
-                    <span>{st.value} en stock</span>
+                    <span>{p.unidad || "—"}</span>
+                    <span>{stock} en stock</span>
                   </div>
-                  <div className="price">{fmtMoney(p.precio)}</div>
-                  {st.kind === "low" && <div className="stock-low">⚠ Stock bajo</div>}
-                  {st.kind === "out" && <div className="stock-out">● Sin stock</div>}
+                  <div className="price">{p.precio > 0 ? fmtMoney(p.precio) : <span style={{ fontSize: 11, opacity: .5 }}>Sin precio</span>}</div>
+                  {low && <div className="stock-low">⚠ Stock bajo</div>}
+                  {out && <div className="stock-out">● Sin stock</div>}
                 </button>
               )
             })}
-            {filtered.length === 0 && (
+            {!loading && filtered.length === 0 && (
               <div style={{ gridColumn: "1/-1" }} className="empty-state">
                 <div className="icon-big">∅</div>
                 <div className="title">Sin resultados</div>
@@ -111,7 +158,6 @@ export default function VentasPage({ addToast }) {
           </div>
         </div>
 
-        {/* Carrito */}
         <div className="sales-cart">
           <div className="cart-card">
             <div className="cart-header">
@@ -176,7 +222,7 @@ export default function VentasPage({ addToast }) {
               <button className="btn btn-default" onClick={() => setCart([])} disabled={cart.length === 0}>
                 <Icon name="trash" size={13} /> Vaciar
               </button>
-              <button className="btn btn-wine" onClick={finalizar} disabled={cart.length === 0}>
+              <button className="btn btn-wine" onClick={finalizar} disabled={cart.length === 0 || saving}>
                 <Icon name="check" size={13} /> Cobrar y emitir
               </button>
             </div>
@@ -190,19 +236,20 @@ export default function VentasPage({ addToast }) {
         title="Nota generada"
         footer={
           <>
-            <button className="btn btn-default" onClick={cerrarTicket}>Cerrar</button>
+            <button className="btn btn-default" onClick={cerrarTicket} disabled={saving}>
+              {saving ? "Guardando…" : "Cerrar"}
+            </button>
             <button className="btn btn-default"><Icon name="print" size={13} /> Imprimir</button>
-            <button className="btn btn-wine"><Icon name="receipt" size={13} /> Generar factura</button>
           </>
         }
       >
         {showReceipt && (
           <div className="receipt">
             <h3>EL TIANGUIS</h3>
-            <div className="center small">Bolsas, vasos y desechables<br />Av. Hidalgo 245, Centro · RFC: ETI920512K11</div>
+            <div className="center small">Bolsas, vasos y desechables<br />{showReceipt.sucursal}</div>
             <hr />
             <div>FOLIO: <strong>{showReceipt.folio}</strong></div>
-            <div>FECHA: {showReceipt.fecha} 14:32</div>
+            <div>FECHA: {showReceipt.fecha}</div>
             <div>CLIENTE: {showReceipt.cliente}</div>
             <div>PAGO: {showReceipt.metodo}</div>
             <hr />

@@ -1,17 +1,24 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Icon from "../components/Icon"
-import { PRODUCTOS, SUCURSALES, PEDIDOS_MERCANCIA } from "../data"
+import { SUCURSALES, PEDIDOS_MERCANCIA } from "../data"
+import { getCatalogo } from "../api"
 import { fmtMoney } from "../utils"
 
 export default function PedidosMercanciaPage({ addToast }) {
-  const [view, setView] = useState("welcome") // welcome | cart | destino | history
-  const [cart, setCart] = useState([])
-  const [destino, setDestino] = useState(null)
-  const [search, setSearch] = useState("")
+  const [view, setView]         = useState("welcome")
+  const [cart, setCart]         = useState([])
+  const [destino, setDestino]   = useState(null)
+  const [search, setSearch]     = useState("")
   const [proveedor, setProveedor] = useState("Distribuidora Polpusa S.A.")
+  const [productos, setProductos] = useState([])
+  const [loading, setLoading]   = useState(true)
 
-  const filtered = PRODUCTOS.filter((p) =>
-    !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())
+  useEffect(() => {
+    getCatalogo().then(setProductos).finally(() => setLoading(false))
+  }, [])
+
+  const filtered = productos.filter((p) =>
+    !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.includes(search)
   )
 
   const addToCart = (p) => {
@@ -212,8 +219,9 @@ export default function PedidosMercanciaPage({ addToast }) {
           </div>
 
           <div className="products-grid">
+            {loading && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando productos…</div>}
             {filtered.map((p) => {
-              const totalStock = p.stock.centro + p.stock.repostero + p.stock.bodega
+              const totalStock = (p.stock.centro ?? 0) + (p.stock.repostero ?? 0) + (p.stock.bodega ?? 0)
               const low = totalStock < p.min * 3
               return (
                 <button key={p.sku} className="product-tile" onClick={() => addToCart(p)}>

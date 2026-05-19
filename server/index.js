@@ -60,6 +60,7 @@ const T = {
   productos:   process.env.NOCO_TABLE_PRODUCTOS,
   stock:       process.env.NOCO_TABLE_STOCK,
   movimientos: process.env.NOCO_TABLE_MOVIMIENTOS,
+  ventas:      process.env.NOCO_TABLE_VENTAS,
 }
 
 async function nocoGet(tableId, params = "") {
@@ -113,8 +114,8 @@ app.get("/api/catalogo", async (req, res) => {
         color:    p.Color ?? "",
         marca:    p.Marca ?? "",
         min:      p.Stock_Minimo || 5,
-        costo:    0,
-        precio:   0,
+        costo:    p.Costo  ?? 0,
+        precio:   p.Precio ?? 0,
         stock: {
           centro:    s.Centro    ?? 0,
           repostero: s.Repostero ?? 0,
@@ -125,6 +126,48 @@ app.get("/api/catalogo", async (req, res) => {
     res.json(catalogo)
   } catch (err) {
     console.error("Error /api/catalogo:", err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/ventas
+app.get("/api/ventas", async (req, res) => {
+  try {
+    const data = await nocoGet(T.ventas, "&sort=-Fecha")
+    res.json(data)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/ventas — registra venta y descuenta stock
+app.post("/api/ventas", async (req, res) => {
+  const { folio, fecha, cliente, metodoPago, sucursal, items, subtotal, iva, total } = req.body
+  try {
+    await nocoPost(T.ventas, {
+      Folio:      folio,
+      Fecha:      fecha,
+      Cliente:    cliente,
+      MetodoPago: metodoPago,
+      Sucursal:   sucursal,
+      Subtotal:   subtotal,
+      IVA:        iva,
+      Total:      total,
+      Items_JSON: JSON.stringify(items),
+    })
+    // Descontar stock por cada item vendido
+    for (const item of items) {
+      const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
+      if (!rows.length) continue
+      const row   = rows[0]
+      const campo = sucursal.toLowerCase() === "centro" ? "Centro" : sucursal.toLowerCase() === "repostero" ? "Repostero" : "Bodega"
+      const nuevoSuc   = (row[campo] ?? 0) - item.qty
+      const nuevoTotal = (row.Total  ?? 0) - item.qty
+      await nocoPatch(T.stock, { Id: row.Id, [campo]: nuevoSuc, Total: nuevoTotal })
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error("Error /api/ventas:", err.message)
     res.status(500).json({ error: err.message })
   }
 })
