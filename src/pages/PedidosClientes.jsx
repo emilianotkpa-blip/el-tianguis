@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
-import { CLIENTES, SUCURSALES } from "../data"
-import { getPedidosClientes, postPedidoCliente, patchPedidoCliente } from "../api"
+import { getPedidosClientes, postPedidoCliente, patchPedidoCliente, getCatalogo, getClientes, postCliente } from "../api"
 import { fmtMoney, todayISO } from "../utils"
+
+const SUCURSALES = ["Centro", "Repostero", "Bodega"]
+const TIPOS_CLIENTE = ["Mayorista", "Frecuente", "Público", "General"]
 
 function badge(e) {
   if (e === "preparando") return <span className="badge badge-info">● Preparando</span>
@@ -14,20 +16,35 @@ function badge(e) {
 }
 
 export default function PedidosClientesPage({ addToast }) {
-  const [pedidos, setPedidos]   = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [search, setSearch]     = useState("")
-  const [estado, setEstado]     = useState("todos")
-  const [showNew, setShowNew]   = useState(false)
-  const [saving, setSaving]     = useState(false)
-  const [form, setForm]         = useState({ cliente: "Mostrador", sucursal: "Centro", fechaEntrega: "", total: "", observaciones: "" })
-  const folioRef = useRef(1043)
-  const setF = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+  const [view, setView]             = useState("list")
+  const [pedidos, setPedidos]       = useState([])
+  const [catalogo, setCatalogo]     = useState([])
+  const [clientes, setClientes]     = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [search, setSearch]         = useState("")
+  const [prodSearch, setProdSearch] = useState("")
+  const [estado, setEstado]         = useState("todos")
+  const [saving, setSaving]         = useState(false)
+
+  // Cart state
+  const [cart, setCart]                   = useState([])
+  const [clienteId, setClienteId]         = useState("")
+  const [sucursal, setSucursal]           = useState("Centro")
+  const [fechaEntrega, setFechaEntrega]   = useState("")
+  const [observaciones, setObservaciones] = useState("")
+
+  // Quick-create client
+  const [showNuevoCliente, setShowNuevoCliente] = useState(false)
+  const [ncForm, setNcForm] = useState({ nombre: "", rfc: "", tipo: "General", telefono: "" })
+  const [ncSaving, setNcSaving] = useState(false)
+  const setNcF = (k) => (e) => setNcForm((f) => ({ ...f, [k]: e.target.value }))
 
   const cargar = async () => {
     setLoading(true)
-    try { setPedidos(await getPedidosClientes()) }
-    catch (err) { addToast({ kind: "err", msg: err.message }) }
+    try {
+      const [p, c, cl] = await Promise.all([getPedidosClientes(), getCatalogo(), getClientes()])
+      setPedidos(p); setCatalogo(c); setClientes(cl)
+    } catch (err) { addToast({ kind: "err", msg: err.message }) }
     finally { setLoading(false) }
   }
   useEffect(() => { cargar() }, [])
@@ -38,18 +55,47 @@ export default function PedidosClientesPage({ addToast }) {
     return true
   })
 
-  const crearPedido = async () => {
-    if (!form.cliente) return
+  const prodFiltered = useMemo(
+    () => catalogo.filter((p) => !prodSearch || (p.Nombre ?? "").toLowerCase().includes(prodSearch.toLowerCase())),
+    [catalogo, prodSearch]
+  )
+
+  const addToCart = (prod) => {
+    setCart((prev) => {
+      const existing = prev.find((x) => x.id === prod.Id)
+      if (existing) return prev.map((x) => x.id === prod.Id ? { ...x, qty: x.qty + 1 } : x)
+      return [...prev, { id: prod.Id, nombre: prod.Nombre, precio: prod.Precio ?? 0, qty: 1 }]
+    })
+  }
+  const removeFromCart = (id) => setCart((prev) => prev.filter((x) => x.id !== id))
+  const setQty = (id, qty) => {
+    if (qty <= 0) { removeFromCart(id); return }
+    setCart((prev) => prev.map((x) => x.id === id ? { ...x, qty } : x))
+  }
+
+  const cartTotal = cart.reduce((s, x) => s + x.precio * x.qty, 0)
+  const clienteSeleccionado = clientes.find((c) => String(c.Id) === String(clienteId))
+
+  const resetCart = () => {
+    setCart([]); setClienteId(""); setSucursal("Centro")
+    setFechaEntrega(""); setObservaciones(""); setProdSearch("")
+  }
+
+  const confirmarPedido = async () => {
+    if (cart.length === 0) return addToast({ kind: "err", msg: "Agrega al menos un producto" })
     setSaving(true)
     try {
+      const folio = "PC-" + String(Date.now()).slice(-6)
       await postPedidoCliente({
-        folio: "PC-" + String(folioRef.current++).padStart(4, "0"),
-        fecha: todayISO(), cliente: form.cliente, sucursal: form.sucursal,
-        estado: "preparando", fechaEntrega: form.fechaEntrega || null,
-        total: Number(form.total) || 0, observaciones: form.observaciones,
+        folio, fecha: todayISO(),
+        cliente: clienteSeleccionado?.Nombre ?? "Mostrador",
+        sucursal, estado: "preparando",
+        fechaEntrega: fechaEntrega || null,
+        total: cartTotal, observaciones,
+        items: JSON.stringify(cart.map((x) => ({ id: x.id, nombre: x.nombre, precio: x.precio, qty: x.qty }))),
       })
-      addToast({ kind: "ok", msg: "Pedido creado" })
-      setShowNew(false); cargar()
+      addToast({ kind: "ok", msg: "Pedido creado correctamente" })
+      resetCart(); setView("list"); cargar()
     } catch (err) { addToast({ kind: "err", msg: err.message }) }
     finally { setSaving(false) }
   }
@@ -61,6 +107,173 @@ export default function PedidosClientesPage({ addToast }) {
     } catch (err) { addToast({ kind: "err", msg: err.message }) }
   }
 
+  const crearNuevoCliente = async () => {
+    if (!ncForm.nombre) return addToast({ kind: "err", msg: "Nombre es obligatorio" })
+    setNcSaving(true)
+    try {
+      await postCliente({ nombre: ncForm.nombre, rfc: ncForm.rfc, tipo: ncForm.tipo, telefono: ncForm.telefono, email: "", direccion: "", limiteCredito: 0, saldo: 0, notas: "" })
+      addToast({ kind: "ok", msg: "Cliente creado" })
+      const cl = await getClientes()
+      setClientes(cl)
+      const creado = [...cl].reverse().find((c) => c.Nombre === ncForm.nombre)
+      if (creado) setClienteId(String(creado.Id))
+      setShowNuevoCliente(false)
+      setNcForm({ nombre: "", rfc: "", tipo: "General", telefono: "" })
+    } catch (err) { addToast({ kind: "err", msg: err.message }) }
+    finally { setNcSaving(false) }
+  }
+
+  // ── Cart View ──────────────────────────────────────────────────────────────
+  if (view === "cart") {
+    return (
+      <div className="page">
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Nuevo pedido de cliente</h1>
+            <p className="page-subtitle">Selecciona productos y asigna al cliente</p>
+          </div>
+          <div className="page-actions">
+            <button className="btn btn-default btn-sm" onClick={() => { resetCart(); setView("list") }}>
+              <Icon name="x" size={13} /> Cancelar
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, alignItems: "start" }}>
+          {/* Product grid */}
+          <div className="card">
+            <div className="card-body" style={{ paddingBottom: 0 }}>
+              <div className="filter-bar">
+                <div className="search-input">
+                  <Icon name="search" size={14} className="icon" />
+                  <input placeholder="Buscar producto…" value={prodSearch} onChange={(e) => setProdSearch(e.target.value)} />
+                </div>
+                <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{prodFiltered.length} productos</span>
+              </div>
+            </div>
+            <div className="card-body flush" style={{ maxHeight: 520, overflowY: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr><th>Producto</th><th className="num">Precio</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {prodFiltered.map((p) => {
+                    const inCart = cart.find((x) => x.id === p.Id)
+                    return (
+                      <tr key={p.Id}>
+                        <td>{p.Nombre}</td>
+                        <td className="num">{p.Precio > 0 ? fmtMoney(p.Precio) : <span className="muted">Sin precio</span>}</td>
+                        <td className="actions-cell">
+                          {inCart
+                            ? <span className="badge badge-ok">{inCart.qty} en carrito</span>
+                            : <button className="btn btn-ghost btn-sm" onClick={() => addToCart(p)}><Icon name="plus" size={12} /></button>
+                          }
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Cart + order panel */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="card">
+              <div className="card-body">
+                <div style={{ fontWeight: 600, marginBottom: 10 }}>Carrito</div>
+                {cart.length === 0
+                  ? <p className="muted" style={{ fontSize: 13, textAlign: "center", padding: "12px 0" }}>Sin productos agregados</p>
+                  : cart.map((x) => (
+                    <div key={x.id} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                      <div style={{ flex: 1, fontSize: 13, lineHeight: 1.3 }}>{x.nombre}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <button className="btn btn-ghost btn-sm" style={{ padding: "0 6px" }} onClick={() => setQty(x.id, x.qty - 1)}>−</button>
+                        <span style={{ minWidth: 22, textAlign: "center", fontSize: 13 }}>{x.qty}</span>
+                        <button className="btn btn-ghost btn-sm" style={{ padding: "0 6px" }} onClick={() => setQty(x.id, x.qty + 1)}>+</button>
+                      </div>
+                      <div style={{ width: 60, textAlign: "right", fontSize: 13 }}>{fmtMoney(x.precio * x.qty)}</div>
+                      <button className="btn btn-ghost btn-sm" onClick={() => removeFromCart(x.id)}><Icon name="x" size={11} /></button>
+                    </div>
+                  ))
+                }
+                {cart.length > 0 && (
+                  <div style={{ borderTop: "1px solid var(--border)", marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
+                    <span>Total</span><span>{fmtMoney(cartTotal)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-body">
+                <div style={{ fontWeight: 600, marginBottom: 10 }}>Datos del pedido</div>
+                <div className="form-grid" style={{ gap: 8 }}>
+                  <div className="form-row">
+                    <label>Cliente</label>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} style={{ flex: 1 }}>
+                        <option value="">Mostrador</option>
+                        {clientes.map((c) => <option key={c.Id} value={String(c.Id)}>{c.Nombre}</option>)}
+                      </select>
+                      <button className="btn btn-default btn-sm" title="Nuevo cliente" onClick={() => setShowNuevoCliente(true)}>
+                        <Icon name="plus" size={12} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <label>Sucursal</label>
+                    <select value={sucursal} onChange={(e) => setSucursal(e.target.value)}>
+                      {SUCURSALES.map((s) => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-row">
+                    <label>Fecha de entrega</label>
+                    <input type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
+                  </div>
+                  <div className="form-row">
+                    <label>Observaciones</label>
+                    <textarea rows="2" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Indicaciones especiales…" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button className="btn btn-wine" style={{ width: "100%" }} onClick={confirmarPedido} disabled={saving || cart.length === 0}>
+              <Icon name="check" size={13} /> {saving ? "Guardando…" : `Confirmar pedido · ${fmtMoney(cartTotal)}`}
+            </button>
+          </div>
+        </div>
+
+        <Modal
+          open={showNuevoCliente}
+          onClose={() => setShowNuevoCliente(false)}
+          title="Nuevo cliente"
+          footer={
+            <>
+              <button className="btn btn-default" onClick={() => setShowNuevoCliente(false)} disabled={ncSaving}>Cancelar</button>
+              <button className="btn btn-wine" onClick={crearNuevoCliente} disabled={ncSaving}>
+                <Icon name="check" size={13} /> {ncSaving ? "Guardando…" : "Crear"}
+              </button>
+            </>
+          }
+        >
+          <div className="form-grid cols-2">
+            <div className="form-row" style={{ gridColumn: "1/-1" }}><label>Nombre *</label><input value={ncForm.nombre} onChange={setNcF("nombre")} /></div>
+            <div className="form-row"><label>RFC</label><input value={ncForm.rfc} onChange={setNcF("rfc")} placeholder="XAXX010101000" /></div>
+            <div className="form-row"><label>Tipo</label>
+              <select value={ncForm.tipo} onChange={setNcF("tipo")}>
+                {TIPOS_CLIENTE.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="form-row" style={{ gridColumn: "1/-1" }}><label>Teléfono</label><input value={ncForm.telefono} onChange={setNcF("telefono")} /></div>
+          </div>
+        </Modal>
+      </div>
+    )
+  }
+
+  // ── List View ──────────────────────────────────────────────────────────────
   return (
     <div className="page">
       <div className="page-header">
@@ -70,7 +283,7 @@ export default function PedidosClientesPage({ addToast }) {
         </div>
         <div className="page-actions">
           <button className="btn btn-default btn-sm" onClick={cargar}><Icon name="refresh" size={13} /> Actualizar</button>
-          <button className="btn btn-wine btn-sm" onClick={() => setShowNew(true)}><Icon name="plus" size={13} /> Nuevo pedido</button>
+          <button className="btn btn-wine btn-sm" onClick={() => setView("cart")}><Icon name="plus" size={13} /> Nuevo pedido</button>
         </div>
       </div>
 
@@ -133,47 +346,6 @@ export default function PedidosClientesPage({ addToast }) {
           }
         </div>
       </div>
-
-      <Modal
-        open={showNew}
-        onClose={() => setShowNew(false)}
-        title="Nuevo pedido de cliente"
-        footer={
-          <>
-            <button className="btn btn-default" onClick={() => setShowNew(false)} disabled={saving}>Cancelar</button>
-            <button className="btn btn-wine" onClick={crearPedido} disabled={saving}>
-              <Icon name="check" size={13} /> {saving ? "Guardando…" : "Crear pedido"}
-            </button>
-          </>
-        }
-      >
-        <div className="form-grid cols-2">
-          <div className="form-row">
-            <label>Cliente</label>
-            <select value={form.cliente} onChange={setF("cliente")}>
-              {CLIENTES.map((c) => <option key={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-          <div className="form-row">
-            <label>Sucursal</label>
-            <select value={form.sucursal} onChange={setF("sucursal")}>
-              {SUCURSALES.map((s) => <option key={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-          <div className="form-row">
-            <label>Fecha de entrega</label>
-            <input type="date" value={form.fechaEntrega} onChange={setF("fechaEntrega")} />
-          </div>
-          <div className="form-row">
-            <label>Total estimado</label>
-            <input type="number" step="0.01" value={form.total} onChange={setF("total")} placeholder="0.00" />
-          </div>
-          <div className="form-row" style={{ gridColumn: "1/-1" }}>
-            <label>Observaciones</label>
-            <textarea rows="2" value={form.observaciones} onChange={setF("observaciones")} placeholder="Indicaciones especiales…" />
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }

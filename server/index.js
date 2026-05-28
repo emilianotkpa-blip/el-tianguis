@@ -35,6 +35,7 @@ const T = {
   ventas:           process.env.NOCO_TABLE_VENTAS,
   pedidosClientes:  process.env.NOCO_TABLE_PEDIDOS_CLIENTES,
   pedidosMercancia: process.env.NOCO_TABLE_PEDIDOS_MERCANCIA,
+  clientes:         process.env.NOCO_TABLE_CLIENTES,
 }
 
 async function nocoGet(tableId, params = "") {
@@ -336,6 +337,32 @@ app.patch("/api/pedidos-mercancia/:id", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
+})
+
+// ── Clientes ───────────────────────────────────────────
+app.get("/api/clientes", async (req, res) => {
+  try { res.json(await nocoGet(T.clientes, "&sort=Nombre")) }
+  catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.post("/api/clientes", async (req, res) => {
+  const { nombre, rfc, tipo, telefono, email, direccion, limiteCredito, saldo, notas } = req.body
+  try {
+    const r = await nocoPost(T.clientes, {
+      Nombre: nombre, RFC: rfc ?? "", Tipo: tipo ?? "General",
+      Telefono: telefono ?? "", Email: email ?? "", Direccion: direccion ?? "",
+      LimiteCredito: Number(limiteCredito) || 0, Saldo: Number(saldo) || 0,
+      Notas: notas ?? "",
+    })
+    res.json({ ok: true, id: r.Id })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.patch("/api/clientes/:id", async (req, res) => {
+  try {
+    await nocoPatch(T.clientes, { Id: parseInt(req.params.id), ...req.body })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 app.get("/{*splat}", (req, res) => {

@@ -26,3 +26,7 @@ export const patchPedidoCliente  = (id, b) => apiFetch(`/api/pedidos-clientes/${
 export const getPedidosMercancia  = ()      => apiFetch("/api/pedidos-mercancia")
 export const postPedidoMercancia  = (b)     => apiFetch("/api/pedidos-mercancia", json(b))
 export const patchPedidoMercancia = (id, b) => apiFetch(`/api/pedidos-mercancia/${id}`, patch(b))
+
+export const getClientes  = ()      => apiFetch("/api/clientes")
+export const postCliente  = (b)     => apiFetch("/api/clientes", json(b))
+export const patchCliente = (id, b) => apiFetch(`/api/clientes/${id}`, patch(b))

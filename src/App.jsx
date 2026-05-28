@@ -10,6 +10,7 @@ import PedidosClientesPage from "./pages/PedidosClientes"
 import InventariosPage from "./pages/Inventarios"
 import UtilidadesPage from "./pages/Utilidades"
 import TianguisIAPage from "./pages/TianguisIA"
+import ClientesPage from "./pages/Clientes"
 import { NOTIFICATIONS } from "./data"
 import logoUrl from "./assets/logo.jpeg"
 
@@ -21,6 +22,7 @@ const NAV = [
   { section: "Logística" },
   { id: "pedidos-mercancia", label: "Pedidos Mercancía",icon: "truck",    badge: "1" },
   { id: "pedidos-clientes",  label: "Pedidos Clientes", icon: "users",    badge: "2" },
+  { id: "clientes",          label: "Clientes",         icon: "user" },
   { id: "inventarios",       label: "Inventarios",      icon: "warehouse", alert: 3 },
   { section: "Reportes" },
   { id: "utilidades",        label: "Utilidades",       icon: "chart" },
@@ -34,7 +36,8 @@ const PAGE_INFO = {
   facturas:          { title: "Facturas",         parent: "Operación" },
   "pedidos-mercancia": { title: "Pedidos Mercancía", parent: "Logística" },
   "pedidos-clientes":  { title: "Pedidos Clientes",  parent: "Logística" },
-  inventarios:       { title: "Inventarios",      parent: "Logística" },
+  clientes:          { title: "Clientes",          parent: "Logística" },
+  inventarios:       { title: "Inventarios",       parent: "Logística" },
   utilidades:        { title: "Utilidades",       parent: "Reportes" },
   ia:                { title: "Tianguis IA",      parent: "Inteligencia" },
 }
@@ -58,6 +61,7 @@ function AppShell({ user, onLogout, theme, setTheme }) {
       case "facturas":           return <FacturasPage addToast={addToast} />
       case "pedidos-mercancia":  return <PedidosMercanciaPage addToast={addToast} />
       case "pedidos-clientes":   return <PedidosClientesPage addToast={addToast} />
+      case "clientes":           return <ClientesPage addToast={addToast} />
       case "inventarios":        return <InventariosPage addToast={addToast} />
       case "utilidades":         return <UtilidadesPage />
       case "ia":                 return <TianguisIAPage />
