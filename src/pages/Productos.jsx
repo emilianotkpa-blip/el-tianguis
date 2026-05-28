@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
-import { getCatalogo } from "../api"
+import { getCatalogo, patchProducto, postProducto } from "../api"
+
+const emptyForm = { sku: "", tipo: "", name: "", unidad: "", marca: "", min: 5, costo: "", precio: "" }
 import { fmtMoney, fmtNum } from "../utils"
 
 export default function ProductosPage({ addToast }) {
@@ -12,6 +14,16 @@ export default function ProductosPage({ addToast }) {
   const [tipo, setTipo]           = useState("all")
   const [editing, setEditing]     = useState(null)
   const [showNew, setShowNew]     = useState(false)
+  const [form, setForm]           = useState(emptyForm)
+  const [saving, setSaving]       = useState(false)
+
+  const setF = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  const openEdit = (p) => {
+    setEditing(p)
+    setForm({ sku: p.sku, tipo: p.tipo, name: p.name, unidad: p.unidad, marca: p.marca, min: p.min, costo: p.costo || "", precio: p.precio || "" })
+  }
+  const openNew = () => { setShowNew(true); setForm(emptyForm) }
 
   const cargar = async () => {
     setLoading(true)
@@ -41,9 +53,20 @@ export default function ProductosPage({ addToast }) {
     }), [productos, search, tipo])
 
   const closeModal = () => { setEditing(null); setShowNew(false) }
-  const saveModal  = () => {
-    closeModal()
-    addToast({ kind: "ok", msg: editing ? "Producto actualizado" : "Producto creado" })
+
+  const saveModal = async () => {
+    if (!form.name || !form.sku) return addToast({ kind: "err", msg: "Código y nombre son obligatorios" })
+    setSaving(true)
+    try {
+      if (editing) {
+        await patchProducto(editing._id, { nombre: form.name, tipo: form.tipo, unidad: form.unidad, marca: form.marca, min: form.min, costo: form.costo, precio: form.precio })
+      } else {
+        await postProducto({ sku: form.sku, nombre: form.name, tipo: form.tipo, unidad: form.unidad, marca: form.marca, min: form.min, costo: form.costo, precio: form.precio })
+      }
+      addToast({ kind: "ok", msg: editing ? "Producto actualizado" : "Producto creado" })
+      closeModal(); cargar()
+    } catch (err) { addToast({ kind: "err", msg: err.message }) }
+    finally { setSaving(false) }
   }
 
   if (loading) return (
@@ -77,7 +100,7 @@ export default function ProductosPage({ addToast }) {
         <div className="page-actions">
           <button className="btn btn-default btn-sm" onClick={cargar}><Icon name="refresh" size={13} /> Actualizar</button>
           <button className="btn btn-default btn-sm"><Icon name="download" size={13} /> Exportar</button>
-          <button className="btn btn-wine btn-sm" onClick={() => setShowNew(true)}><Icon name="plus" size={13} /> Nuevo producto</button>
+          <button className="btn btn-wine btn-sm" onClick={openNew}><Icon name="plus" size={13} /> Nuevo producto</button>
         </div>
       </div>
 
@@ -124,8 +147,7 @@ export default function ProductosPage({ addToast }) {
                       {status === "ok"  && <span className="badge badge-ok">● Normal</span>}
                     </td>
                     <td className="actions-cell">
-                      <button className="btn btn-ghost btn-sm" onClick={() => setEditing(p)}><Icon name="edit" size={12} /></button>
-                      <button className="btn btn-ghost btn-sm"><Icon name="eye" size={12} /></button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}><Icon name="edit" size={12} /></button>
                     </td>
                   </tr>
                 )
@@ -141,20 +163,20 @@ export default function ProductosPage({ addToast }) {
         title={editing ? `Editar: ${editing.name}` : "Nuevo producto"}
         footer={
           <>
-            <button className="btn btn-default" onClick={closeModal}>Cancelar</button>
-            <button className="btn btn-wine" onClick={saveModal}><Icon name="check" size={13} /> Guardar</button>
+            <button className="btn btn-default" onClick={closeModal} disabled={saving}>Cancelar</button>
+            <button className="btn btn-wine" onClick={saveModal} disabled={saving}><Icon name="check" size={13} /> {saving ? "Guardando…" : "Guardar"}</button>
           </>
         }
       >
         <div className="form-grid cols-2">
-          <div className="form-row"><label>Código</label><input defaultValue={editing?.sku ?? ""} placeholder="0001" /></div>
-          <div className="form-row"><label>Tipo</label><input defaultValue={editing?.tipo ?? ""} placeholder="vaso, bolsa…" /></div>
-          <div className="form-row" style={{ gridColumn: "1/-1" }}><label>Nombre del producto</label><input defaultValue={editing?.name ?? ""} /></div>
-          <div className="form-row"><label>Unidad de venta</label><input defaultValue={editing?.unidad ?? ""} placeholder="paq/50" /></div>
-          <div className="form-row"><label>Marca</label><input defaultValue={editing?.marca ?? ""} /></div>
-          <div className="form-row"><label>Stock mínimo</label><input type="number" defaultValue={editing?.min ?? 5} /></div>
-          <div className="form-row"><label>Costo</label><input type="number" step="0.01" defaultValue={editing?.costo || ""} placeholder="0.00" /></div>
-          <div className="form-row"><label>Precio venta</label><input type="number" step="0.01" defaultValue={editing?.precio || ""} placeholder="0.00" /></div>
+          <div className="form-row"><label>Código *</label><input value={form.sku} onChange={setF("sku")} placeholder="0001" disabled={!!editing} /></div>
+          <div className="form-row"><label>Tipo</label><input value={form.tipo} onChange={setF("tipo")} placeholder="vaso, bolsa…" /></div>
+          <div className="form-row" style={{ gridColumn: "1/-1" }}><label>Nombre del producto *</label><input value={form.name} onChange={setF("name")} /></div>
+          <div className="form-row"><label>Unidad de venta</label><input value={form.unidad} onChange={setF("unidad")} placeholder="paq/50" /></div>
+          <div className="form-row"><label>Marca</label><input value={form.marca} onChange={setF("marca")} /></div>
+          <div className="form-row"><label>Stock mínimo</label><input type="number" value={form.min} onChange={setF("min")} /></div>
+          <div className="form-row"><label>Costo</label><input type="number" step="0.01" value={form.costo} onChange={setF("costo")} placeholder="0.00" /></div>
+          <div className="form-row"><label>Precio venta</label><input type="number" step="0.01" value={form.precio} onChange={setF("precio")} placeholder="0.00" /></div>
         </div>
       </Modal>
     </div>

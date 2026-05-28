@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>El Tianguis — Desechables al Mayor y Menudeo</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Barlow+Condensed:wght@400;600;700;800&display=swap');
+
+    :root {
+      --vino: #6B0F1A;
+      --rojo: #E8001D;
+      --blanco: #FFFFFF;
+      --fondo: #1A0005;
+      --acento: #FFD700;
+      --card-border: rgba(232,0,29,0.22);
+      --card-bg: rgba(107,15,26,0.22);
+      --text-muted: rgba(255,255,255,0.45);
+      --text-dim: rgba(255,255,255,0.65);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--fondo); color: var(--blanco); font-family: 'DM Sans', sans-serif; overflow-x: hidden; }
+
+    /* ===========================
+       HERO
+    =========================== */
+    #hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem 1.5rem;
+      overflow: hidden;
+      animation: heroGrad 7s ease-in-out infinite;
+    }
+
+    @keyframes heroGrad {
+      0%, 100% { background: var(--vino); }
+      50%       { background: #C0001A; }
+    }
+
+    /* Particles */
+    .particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .p-dot {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.055);
+      animation: riseDot linear infinite;
+    }
+    @keyframes riseDot {
+      0%   { transform: translateY(110vh) scale(0.8); opacity: 0; }
+      8%   { opacity: 1; }
+      92%  { opacity: 1; }
+      100% { transform: translateY(-60px) scale(1.1); opacity: 0; }
+    }
+
+    /* Shapes */
+    .shapes { position: absolute; inset: 0; pointer-events: none; }
+    .geo {
+      position: absolute;
+      opacity: 0.07;
+      animation: geoFloat ease-in-out infinite;
+    }
+    .geo-circle { border-radius: 50%; border: 2px solid var(--acento); }
+    .geo-hex { clip-path: polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%); background: rgba(255,215,0,0.4); }
+    @keyframes geoFloat {
+      0%,100% { transform: translateY(0) rotate(0deg); }
+      50%      { transform: translateY(-28px) rotate(180deg); }
+    }
+
+    /* Grid overlay */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+
+    .hero-content { position: relative; z-index: 2; }
+
+    .hero-eyebrow {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      color: var(--acento);
+      text-transform: uppercase;
+      margin-bottom: 0.8rem;
+      opacity: 0.9;
+    }
+
+    .hero-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(5.5rem, 20vw, 13rem);
+      line-height: 0.88;
+      color: var(--blanco);
+      text-shadow:
+        0 0 60px rgba(232,0,29,0.7),
+        0 0 120px rgba(232,0,29,0.3),
+        5px 5px 0 rgba(0,0,0,0.45);
+      letter-spacing: 0.015em;
+    }
+
+    .hero-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .hero-divider-line {
+      flex: 1;
+      max-width: 80px;
+      height: 1px;
+      background: rgba(255,255,255,0.3);
+    }
+    .hero-divider-diamond {
+      width: 6px;
+      height: 6px;
+      background: var(--acento);
+      transform: rotate(45deg);
+    }
+
+    .hero-subtitle {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: clamp(1rem, 2.8vw, 1.4rem);
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.75);
+      text-transform: uppercase;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+      background: var(--acento);
+      color: var(--fondo);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      padding: 0.5rem 1.6rem;
+      border-radius: 4px;
+      animation: badgePulse 2s ease-in-out infinite;
+    }
+    .hero-badge-star {
+      font-size: 0.85rem;
+      line-height: 1;
+    }
+
+    @keyframes badgePulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(255,215,0,0.5); }
+      50%      { box-shadow: 0 0 0 12px rgba(255,215,0,0); }
+    }
+
+    .scroll-cta {
+      position: absolute;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      animation: ctaBounce 2.2s ease-in-out infinite;
+      opacity: 0.65;
+      transition: opacity 0.2s;
+    }
+    .scroll-cta:hover { opacity: 1; }
+    .scroll-cta span {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      color: rgba(255,255,255,0.7);
+    }
+    @keyframes ctaBounce {
+      0%,100% { transform: translateX(-50%) translateY(0); }
+      55%      { transform: translateX(-50%) translateY(8px); }
+    }
+
+    /* ===========================
+       STATS BAR
+    =========================== */
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      background: rgba(107,15,26,0.45);
+      border-bottom: 1px solid var(--card-border);
+      border-top: 1px solid var(--card-border);
+    }
+    .stat-item {
+      flex: 1;
+      min-width: 160px;
+      padding: 1.2rem 1.5rem;
+      text-align: center;
+      border-right: 1px solid var(--card-border);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem;
+      color: var(--acento);
+      letter-spacing: 0.05em;
+    }
+    .stat-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-top: 0.1rem;
+    }
+
+    /* ===========================
+       CATEGORÍAS
+    =========================== */
+    #categorias {
+      padding: 1.8rem 1.5rem;
+      background: rgba(26,0,5,0.8);
+    }
+
+    .cat-header {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 0.9rem;
+      text-align: center;
+    }
+
+    .categorias-wrap {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.3rem;
+      scrollbar-width: none;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .categorias-wrap::-webkit-scrollbar { display: none; }
+
+    .cat-pill {
+      flex-shrink: 0;
+      padding: 0.45rem 1.3rem;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: transparent;
+      color: var(--text-dim);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.22s ease;
+      white-space: nowrap;
+      text-transform: uppercase;
+    }
+    .cat-pill:hover { border-color: var(--rojo); color: var(--blanco); }
+    .cat-pill.active {
+      background: var(--acento);
+      border-color: var(--acento);
+      color: var(--fondo);
+    }
+
+    /* ===========================
+       CATÁLOGO
+    =========================== */
+    #catalogo { padding: 3.5rem 0; }
+
+    .section-header {
+      padding: 0 1.5rem 2.5rem;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .section-title-group {}
+
+    .section-eyebrow {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      color: var(--rojo);
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      letter-spacing: 0.04em;
+      line-height: 1;
+      position: relative;
+      display: inline-block;
+    }
+    .section-title::after {
+      content: '';
+      display: block;
+      height: 3px;
+      background: linear-gradient(90deg, var(--rojo), transparent);
+      margin-top: 0.4rem;
+      width: 100%;
+    }
+
+    .section-hint {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.4rem;
+    }
+
+    /* Track wrapper — clips overflow for animation */
+    .catalog-mask {
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Fade edges */
+    .catalog-mask::before,
+    .catalog-mask::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 80px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .catalog-mask::before {
+      left: 0;
+      background: linear-gradient(90deg, var(--fondo), transparent);
+    }
+    .catalog-mask::after {
+      right: 0;
+      background: linear-gradient(-90deg, var(--fondo), transparent);
+    }
+
+    /* The scrolling track */
+    .catalog-track {
+      display: flex;
+      gap: 1.4rem;
+      padding: 1.2rem 80px 2rem;
+      width: max-content;
+      /* animation set by JS after clone */
+      will-change: transform;
+    }
+
+    .catalog-track.is-animating {
+      animation: trackScroll 42s linear infinite;
+    }
+    .catalog-track.is-animating:hover {
+      animation-play-state: paused;
+    }
+
+    @keyframes trackScroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* Mobile: manual scroll */
+    @media (max-width: 768px) {
+      .catalog-mask { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .catalog-mask::before, .catalog-mask::after { display: none; }
+      .catalog-track { animation: none !important; padding: 1.2rem 1rem 2rem; }
+      .catalog-track .card-clone { display: none; }
+    }
+
+    /* ===========================
+       PRODUCT CARD
+    =========================== */
+    .product-card {
+      flex-shrink: 0;
+      width: 280px;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(160deg, rgba(107,15,26,0.28) 0%, rgba(26,0,5,0.85) 100%);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94),
+                  box-shadow 0.32s cubic-bezier(0.25,0.46,0.45,0.94),
+                  opacity 0.5s ease;
+      opacity: 0;
+      transform: translateY(24px);
+      cursor: default;
+    }
+
+    .product-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .product-card:hover {
+      transform: translateY(-10px);
+      box-shadow:
+        0 20px 50px rgba(232,0,29,0.25),
+        0 0 0 1px rgba(232,0,29,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    /* Image Zone */
+    .card-img-zone {
+      position: relative;
+      height: 185px;
+      background: radial-gradient(circle at 50% 65%, rgba(107,15,26,0.55) 0%, rgba(10,0,3,0.95) 75%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid var(--card-border);
+      overflow: hidden;
+    }
+
+    /* Subtle grid in image zone */
+    .card-img-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    .cat-label {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(232,0,29,0.12);
+      border: 1px solid rgba(232,0,29,0.35);
+      color: rgba(255,255,255,0.6);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      padding: 0.2rem 0.55rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .stock-label {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: rgba(100,220,130,0.8);
+      text-transform: uppercase;
+    }
+    .stock-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(100,220,130,0.8);
+      animation: stockPulse 2s ease-in-out infinite;
+    }
+    @keyframes stockPulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.4; }
+    }
+
+    .prod-svg {
+      position: relative;
+      z-index: 1;
+      transition: transform 0.4s ease;
+    }
+    .product-card:hover .prod-svg { transform: scale(1.06) translateY(-4px); }
+
+    /* Card Info */
+    .card-info {
+      padding: 1.15rem 1.2rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      flex: 1;
+    }
+
+    .card-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: 0.04em;
+      color: var(--blanco);
+      line-height: 1.1;
+    }
+
+    .card-sub {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      border-left: 2px solid rgba(232,0,29,0.35);
+      padding-left: 0.6rem;
+    }
+
+    /* Variants */
+    .variants {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .variant-btn {
+      padding: 0.28rem 0.7rem;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: transparent;
+      color: var(--text-dim);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      letter-spacing: 0.06em;
+    }
+    .variant-btn:hover { border-color: var(--rojo); color: var(--blanco); }
+    .variant-btn.active {
+      border-color: var(--rojo);
+      background: rgba(232,0,29,0.18);
+      color: var(--blanco);
+    }
+
+    /* Qty + Price row */
+    .card-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.1rem;
+    }
+
+    .qty-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .qty-btn {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: rgba(107,15,26,0.5);
+      color: var(--blanco);
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.18s;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+    }
+    .qty-btn:active { transform: scale(0.88); }
+    .qty-btn:hover { background: var(--vino); }
+    .qty-display {
+      width: 32px;
+      text-align: center;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      border-left: 1px solid rgba(255,255,255,0.1);
+      border-right: 1px solid rgba(255,255,255,0.1);
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .price-box { text-align: right; }
+    .price-currency {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      display: block;
+    }
+    .price-amount {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.1rem;
+      color: var(--acento);
+      letter-spacing: 0.03em;
+      line-height: 1;
+    }
+    .price-unit {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-left: 0.15rem;
+    }
+
+    /* Add button */
+    .add-btn {
+      width: 100%;
+      padding: 0.72rem;
+      border-radius: 6px;
+      border: none;
+      background: linear-gradient(135deg, var(--rojo) 0%, #a8001B 100%);
+      color: var(--blanco);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.22s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .add-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background 0.2s;
+    }
+    .add-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(232,0,29,0.45);
+    }
+    .add-btn:hover::after { background: rgba(255,255,255,0.07); }
+    .add-btn.clicked { animation: btnClick 0.35s ease; }
+    @keyframes btnClick {
+      0%   { transform: scale(1); }
+      30%  { transform: scale(0.94); }
+      70%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    /* ===========================
+       BANNER MARQUEE
+    =========================== */
+    #banner {
+      background: var(--rojo);
+      padding: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .banner-inner {
+      display: inline-flex;
+      animation: bannerScroll 24s linear infinite;
+      padding: 0.9rem 0;
+    }
+    .banner-inner span {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.92);
+      padding: 0 1.8rem;
+      text-transform: uppercase;
+    }
+    .banner-inner .sep {
+      color: rgba(255,255,255,0.35);
+      padding: 0 0.3rem;
+    }
+    @keyframes bannerScroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* ===========================
+       FOOTER
+    =========================== */
+    footer {
+      background: #110003;
+      border-top: 1px solid var(--card-border);
+      padding: 3rem 1.5rem 2rem;
+    }
+
+    .footer-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    @media (max-width: 640px) {
+      .footer-inner { grid-template-columns: 1fr; text-align: center; }
+      .footer-contact { align-items: center; }
+    }
+
+    .footer-brand {}
+    .footer-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.8rem;
+      color: var(--blanco);
+      letter-spacing: 0.08em;
+      line-height: 1;
+    }
+    .footer-logo span { color: var(--rojo); }
+    .footer-tagline {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      line-height: 1.5;
+      max-width: 200px;
+    }
+
+    .footer-nav h4, .footer-contact-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      color: var(--rojo);
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .footer-nav ul { list-style: none; }
+    .footer-nav ul li {
+      margin-bottom: 0.5rem;
+    }
+    .footer-nav ul li a {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: color 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .footer-nav ul li a:hover { color: var(--acento); }
+
+    .footer-contact {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .footer-contact-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      color: var(--rojo);
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .contact-item:hover { color: var(--blanco); }
+    .contact-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .footer-bottom {
+      max-width: 900px;
+      margin: 2.5rem auto 0;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .footer-copy {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.22);
+    }
+    .footer-made {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.2);
+    }
+
+    /* ===========================
+       FLOATING CART
+    =========================== */
+    #cart-fab {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      z-index: 900;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--rojo), #9e0014);
+      border: none;
+      color: var(--blanco);
+      cursor: pointer;
+      box-shadow: 0 6px 28px rgba(232,0,29,0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }
+    #cart-fab:hover {
+      transform: scale(1.1);
+      box-shadow: 0 10px 36px rgba(232,0,29,0.65);
+    }
+    #cart-fab.shake { animation: fabShake 0.5s ease; }
+    @keyframes fabShake {
+      0%,100% { transform: rotate(0); }
+      20%      { transform: rotate(-14deg) scale(1.12); }
+      40%      { transform: rotate(14deg) scale(1.12); }
+      60%      { transform: rotate(-8deg); }
+      80%      { transform: rotate(8deg); }
+    }
+
+    .cart-badge {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      background: var(--acento);
+      color: var(--fondo);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 800;
+      min-width: 20px;
+      height: 20px;
+      border-radius: 10px;
+      padding: 0 0.3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      transition: transform 0.2s;
+    }
+    .cart-badge.hidden { display: none; }
+    .cart-badge.bump { animation: badgeBump 0.25s ease; }
+    @keyframes badgeBump {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
+
+    #cart-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    #cart-overlay.open { opacity: 1; pointer-events: all; }
+
+    #cart-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100vh;
+      width: min(400px, 100vw);
+      background: #1e0007;
+      border-left: 1px solid var(--card-border);
+      z-index: 1100;
+      transform: translateX(100%);
+      transition: transform 0.38s cubic-bezier(0.4,0,0.2,1);
+      display: flex;
+      flex-direction: column;
+    }
+    #cart-panel.open { transform: translateX(0); }
+
+    .cart-head {
+      padding: 1.3rem 1.2rem;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .cart-title-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.6rem;
+      letter-spacing: 0.06em;
+    }
+    .cart-close-btn {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--text-dim);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.18s;
+    }
+    .cart-close-btn:hover { border-color: var(--rojo); color: var(--blanco); background: rgba(232,0,29,0.15); }
+
+    .cart-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+    }
+    .cart-body::-webkit-scrollbar { width: 3px; }
+    .cart-body::-webkit-scrollbar-thumb { background: var(--vino); border-radius: 2px; }
+
+    .cart-empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .cart-empty-icon { opacity: 0.35; }
+    .cart-empty-state p {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .cart-empty-state small {
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.25);
+    }
+
+    .cart-item {
+      display: grid;
+      grid-template-columns: 40px 1fr auto;
+      gap: 0.7rem;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.8rem;
+      animation: itemIn 0.28s ease;
+    }
+    @keyframes itemIn {
+      from { opacity: 0; transform: translateX(16px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .ci-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(107,15,26,0.5);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ci-info { min-width: 0; }
+    .ci-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.03em;
+    }
+    .ci-variant { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem; }
+    .ci-qty-row {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin-top: 0.35rem;
+    }
+    .ci-qty-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(107,15,26,0.5);
+      color: var(--blanco);
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .ci-qty-btn:hover { background: var(--vino); }
+    .ci-qty-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.85rem;
+      min-width: 1.2rem;
+      text-align: center;
+    }
+    .ci-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.35rem;
+    }
+    .ci-price {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      color: var(--acento);
+    }
+    .ci-remove {
+      background: none;
+      border: none;
+      color: rgba(232,0,29,0.5);
+      cursor: pointer;
+      font-size: 0.72rem;
+      font-family: 'Barlow Condensed', sans-serif;
+      letter-spacing: 0.05em;
+      transition: color 0.18s;
+      padding: 0;
+    }
+    .ci-remove:hover { color: var(--rojo); }
+
+    .cart-foot {
+      padding: 1.2rem;
+      border-top: 1px solid var(--card-border);
+      flex-shrink: 0;
+      background: rgba(0,0,0,0.2);
+    }
+    .cart-total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 1rem;
+    }
+    .cart-total-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .cart-total-amount {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.2rem;
+      color: var(--acento);
+      letter-spacing: 0.05em;
+    }
+    .cart-btns { display: flex; gap: 0.7rem; }
+    .btn-vaciar {
+      flex: 1;
+      padding: 0.7rem;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: transparent;
+      color: var(--text-dim);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+    .btn-vaciar:hover { border-color: var(--rojo); color: var(--blanco); }
+    .btn-pagar {
+      flex: 2;
+      padding: 0.7rem;
+      border-radius: 6px;
+      border: none;
+      background: linear-gradient(135deg, var(--acento), #d4a000);
+      color: var(--fondo);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.22s;
+      text-transform: uppercase;
+    }
+    .btn-pagar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(255,215,0,0.35);
+    }
+
+    /* ===========================
+       SCROLL REVEAL
+    =========================== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ===========================
+       MISC
+    =========================== */
+    @media (max-width: 640px) {
+      .section-header { flex-direction: column; align-items: flex-start; padding: 0 1rem 2rem; }
+      .section-hint { display: none; }
+      .footer-inner { grid-template-columns: 1fr; }
+      .stats-bar { flex-wrap: wrap; }
+      .stat-item { border-right: none; border-bottom: 1px solid var(--card-border); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ================ HERO ================ -->
+<section id="hero">
+  <div class="particles" id="particles"></div>
+  <div class="shapes"   id="shapes"></div>
+  <div class="hero-grid"></div>
+
+  <div class="hero-content">
+    <div class="hero-eyebrow">Mérida, Yucatán &nbsp;—&nbsp; Est. 2010</div>
+    <div class="hero-logo">EL TIANGUIS</div>
+
+    <div class="hero-divider">
+      <div class="hero-divider-line"></div>
+      <div class="hero-divider-diamond"></div>
+      <div class="hero-divider-line"></div>
+    </div>
+
+    <div class="hero-subtitle">Desechables al Mayor y Menudeo</div>
+
+    <div class="hero-badge">
+      <span class="hero-badge-star">&#9733;</span>
+      PRECIOS DE TIANGUIS
+      <span class="hero-badge-star">&#9733;</span>
+    </div>
+  </div>
+
+  <div class="scroll-cta" onclick="document.getElementById('categorias').scrollIntoView({behavior:'smooth'})">
+    <span>VER CATÁLOGO</span>
+    <svg width="20" height="26" viewBox="0 0 20 26" fill="none">
+      <line x1="10" y1="2" x2="10" y2="20" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      <polyline points="4,14 10,22 16,14" fill="none" stroke="white" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ================ STATS BAR ================ -->
+<div class="stats-bar reveal">
+  <div class="stat-item">
+    <div class="stat-num">+500</div>
+    <div class="stat-label">Productos en catálogo</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">15+</div>
+    <div class="stat-label">Años de experiencia</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">32</div>
+    <div class="stat-label">Estados con envío</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">24h</div>
+    <div class="stat-label">Respuesta por WhatsApp</div>
+  </div>
+</div>
+
+<!-- ================ CATEGORÍAS ================ -->
+<section id="categorias">
+  <div class="cat-header">Filtrar por categoría</div>
+  <div class="categorias-wrap">
+    <button class="cat-pill active" data-cat="todos">Todos</button>
+    <button class="cat-pill" data-cat="vasos">Vasos</button>
+    <button class="cat-pill" data-cat="botellas">Botellas</button>
+    <button class="cat-pill" data-cat="bolsas">Bolsas</button>
+    <button class="cat-pill" data-cat="platos">Platos</button>
+    <button class="cat-pill" data-cat="cubiertos">Cubiertos</button>
+    <button class="cat-pill" data-cat="papel">Papel</button>
+  </div>
+</section>
+
+<!-- ================ CATÁLOGO ================ -->
+<section id="catalogo">
+  <div class="section-header reveal">
+    <div class="section-title-group">
+      <div class="section-eyebrow">Productos disponibles</div>
+      <h2 class="section-title">NUESTRO CATÁLOGO</h2>
+    </div>
+    <div class="section-hint">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Desliza para explorar
+    </div>
+  </div>
+
+  <div class="catalog-mask">
+    <div class="catalog-track" id="catalogTrack">
+
+      <!-- 1 · Vasos de Plástico -->
+      <article class="product-card" data-cat="vasos" data-id="1" data-name="Vasos de Plástico" data-price="45">
+        <div class="card-img-zone">
+          <span class="cat-label">Vasos</span>
+          <span class="stock-label"><span class="stock-dot"></span>En stock</span>
+          <svg class="prod-svg" width="100" height="120" viewBox="0 0 100 120" fill="none">
+            <path d="M19 22 L81 22 L73 108 L27 108 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linejoin="round"/>
+            <ellipse cx="50" cy="22" rx="31" ry="8" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.55)" stroke-width="1.8"/>
+            <ellipse cx="50" cy="108" rx="23" ry="5" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.2"/>
+            <path d="M33 30 L30 100" stroke="rgba(255,255,255,0.18)" stroke-width="7" stroke-linecap="round"/>
+            <line x1="25" y1="55" x2="75" y2="55" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="4 3"/>
+          </svg>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Vasos de Plástico</h3>
+          <p class="card-sub">Paquete 50 pzas · Transparente · Ideal para fiestas y eventos</p>
+          <div class="variants">
+            <button class="variant-btn active" data-v="12oz">12 oz</button>
+            <button class="variant-btn" data-v="16oz">16 oz</button>
+            <button class="variant-btn" data-v="20oz">20 oz</button>
+          </div>
+          <div class="card-bottom">
+            <div class="qty-row">
+              <button class="qty-btn" data-action="minus">&#8722;</button>
+              <span class="qty-display">1</span>
+              <button class="qty-btn" data-action="plus">&#43;</button>
+            </div>
+            <div class="price-box">
+              <span class="price-currency">MXN</span>
+              <span class="price-amount">45</span><span class="price-unit">c/u</span>
+            </div>
+          </div>
+          <button class="add-btn">AGREGAR AL CARRITO</button>
+        </div>
+      </article>
+
+      <!-- 2 · Botellas PET -->
+      <article class="product-card" data-cat="botellas" data-id="2" data-name="Botellas PET" data-price="38">
+        <div class="card-img-zone">
+          <span class="cat-label">Botellas</span>
+          <span class="stock-label"><span class="stock-dot"></span>En stock</span>
+          <svg class="prod-svg" width="80" height="145" viewBox="0 0 80 145" fill="none">
+            <rect x="26" y="6" width="28" height="15" rx="4" fill="rgba(232,0,29,0.25)" stroke="rgba(232,0,29,0.65)" stroke-width="1.8"/>
+            <path d="M32 21 L48 21 L52 42 L28 42 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+            <ellipse cx="40" cy="42" rx="20" ry="5" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+            <path d="M20 42 L60 42 L56 136 L24 136 Z" fill="rgba(200,230,255,0.04)" stroke="rgba(255,255,255,0.45)" stroke-width="1.8"/>
+            <ellipse cx="40" cy="136" rx="16" ry="4" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.2"/>
+            <path d="M27 50 L25 128" stroke="rgba(255,255,255,0.12)" stroke-width="6" stroke-linecap="round"/>
+            <rect x="22" y="68" width="36" height="40" rx="2" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.14)" stroke-width="1" stroke-dasharray="3 3"/>
+          </svg>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Botellas PET</h3>
+          <p class="card-sub">Con tapa rosca · Transparente · 25 piezas por paquete</p>
+          <div class="variants">
+            <button class="variant-btn active" data-v="600ml">600 ml</button>
+            <button class="variant-btn" data-v="1L">1 L</button>
+            <button class="variant-btn" data-v="1.5L">1.5 L</button>
+          </div>
+          <div class="card-bottom">
+            <div class="qty-row">
+              <button class="qty-btn" data-action="minus">&#8722;</button>
+              <span class="qty-display">1</span>
+              <button class="qty-btn" data-action="plus">&#43;</button>
+            </div>
+            <div class="price-box">
+              <span class="price-currency">MXN</span>
+              <span class="price-amount">38</span><span class="price-unit">c/u</span>
+            </div>
+          </div>
+          <button class="add-btn">AGREGAR AL CARRITO</button>
+        </div>
+      </article>
+
+      <!-- 3 · Bolsas Poliseda -->
+      <article class="product-card" data-cat="bolsas" data-id="3" data-name="Bolsas Camiseta Poliseda" data-price="55">
+        <div class="card-img-zone">
+          <span class="cat-label">Bolsas</span>
+          <span class="stock-label"><span class="stock-dot"></span>En stock</span>
+          <svg class="prod-svg" width="115" height="135" viewBox="0 0 115 135" fill="none">
+            <path d="M36 14 C36 4 46 4 46 14 L46 36" stroke="rgba(255,255,255,0.48)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M69 14 C69 4 79 4 79 14 L79 36" stroke="rgba(255,255,255,0.48)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M12 36 L103 36 L97 130 L18 130 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.45)" stroke-width="1.8" stroke-linejoin="round"/>
+            <line x1="57" y1="36" x2="57" y2="130" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="6 5"/>
+            <path d="M12 36 L103 36" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Bolsas Camiseta Poliseda</h3>
+          <p class="card-sub">Alta resistencia · 100 piezas · Blancas</p>
+          <div class="variants">
+            <button class="variant-btn active" data-v="Chica">Chica</button>
+            <button class="variant-btn" data-v="Mediana">Mediana</button>
+            <button class="variant-btn" data-v="Grande">Grande</button>
+          </div>
+          <div class="card-bottom">
+            <div class="qty-row">
+              <button class="qty-btn" data-action="minus">&#8722;</button>
+              <span class="qty-display">1</span>
+              <button class="qty-btn" data-action="plus">&#43;</button>
+            </div>
+            <div class="price-box">
+              <span class="price-currency">MXN</span>
+              <span class="price-amount">55</span><span class="price-unit">c/u</span>
+            </div>
+          </div>
+          <button class="add-btn">AGREGAR AL CARRITO</button>
+        </div>
+      </article>
+
+      <!-- 4 · Bolsas Polipapel -->
+      <article class="product-card" data-cat="bolsas" data-id="4" data-name="Bolsas Camiseta Polipapel" data-price="62">
+        <div class="card-img-zone">
+          <span class="cat-label">Bolsas</span>
+          <span class="stock-label"><span class="stock-dot"></span>En stock</span>
+          <svg class="prod-svg" width="105" height="145" viewBox="0 0 105 145" fill="none">
+            <path d="M34 8 C34 1 53 1 53 8 L53 34" stroke="rgba(200,165,90,0.72)" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M53 8 C53 1 72 1 72 8 L72 34" stroke="rgba(200,165,90,0.72)" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <rect x="13" y="34" width="79" height="14" rx="1" fill="rgba(200,165,90,0.1)" stroke="rgba(200,165,90,0.52)" stroke-width="1.5"/>
+            <rect x="13" y="48" width="79" height="90" rx="1" fill="rgba(200,165,90,0.06)" stroke="rgba(200,165,90,0.48)" stroke-width="1.8"/>
+            <line x1="27" y1="48" x2="27" y2="138" stroke="rgba(200,165,90,0.2)" stroke-width="1"/>
+            <line x1="78" y1="48" x2="78" y2="138" stroke="rgba(200,165,90,0.2)" stroke-width="1"/>
+            <line x1="13" y1="124" x2="92" y2="124" stroke="rgba(200,165,90,0.25)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Bolsas Camiseta Polipapel</h3>
+          <p class="card-sub">Acabado papel kraft · 50 piezas · Ecofriendly look</p>
+          <div class="variants">
+            <button class="variant-btn active" data-v="Chica">Chica</button>
+            <button class="variant-btn" data-v="Mediana">Mediana</button>
+            <button class="variant-btn" data-v="Grande">Grande</button>
+          </div>
+          <div class="card-bottom">
+            <div class="qty-row">
+              <button class="qty-btn" data-action="minus">&#8722;</button>
+              <span class="qty-display">1</span>
+              <button class="qty-btn" data-action="plus">&#43;</button>
+            </div>
+            <div class="price-box">
+              <span class="price-currency">MXN</span>
+              <span class="price-amount">62</span><span class="price-unit">c/u</span>
+            </div>
+          </div>
+          <button class="add-btn">AGREGAR AL CARRITO</button>
+        </div>
+      </article>
+
+      <!-- 5 · Platos Unicel #855 -->
+      <article class="product-card" data-cat="platos" data-id="5" data-name="Platos Unicel #855" data-price="28">
+        <div class="card-img-zone">
+          <span class="cat-label">Platos</span>
+          <span class="stock-label"><span class="stock-dot"></span>En stock</span>
+          <svg class="prod-svg" width="150" height="120" viewBox="0 0 150 120" fill="none">
+            <ellipse cx="75" cy="62" rx="68" ry="24" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.45)" stroke-width="1.8"/>
+            <ellipse cx="75" cy="60" rx="60" ry="20" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.22)" stroke-width="1.2"/>
+            <ellipse cx="75" cy="58" rx="46" ry="15" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.17)" stroke-width="1"/>
+            <ellipse cx="75" cy="56" rx="28" ry="9" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.14)" stroke-width="1" stroke-dasharray="4 3"/>
+            <path d="M8 62 Q8 98 75 98 Q142 98 142 62" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            <path d="M18 54 Q75 34 132 52" stroke="rgba(255,255,255,0.2)" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Platos Unicel #855</h3>
+          <p class="card-sub">25 cm diámetro · Resistente · Ideal para eventos</p>
+          <div class="variants">
+            <button class="variant-btn active" data-v="Paq 25">Paq 25</button>
+            <button class="variant-btn" data-v="Paq 50">Paq 50</button>
+          </div>
+          <div class="card-bottom">
+            <div class="qty-row">
+              <button class="qty-btn" data-action="minus">&#8722;</button>
+              <span class="qty-display">1</span>
+              <button class="qty-btn" data-action="plus">&#43;</button>
+            </div>
+            <div class="price-box">
+              <span class="price-currency">MXN</span>
+              <span class="price-amount">28</span><span class="price-unit">c/u</span>
+            </div>
+          </div>
+          <button class="add-btn">AGREGAR AL CARRITO</button>
+        </div>
+      </article>
+
+      <!-- 6 · Platos Unicel #066 -->
+      <article class="product-card" data-cat="platos" data-id="6" data-name="Platos Unicel #066" data-price="18">
+        <div class="card-img-zone">
+          <span class="cat-label">Platos</span>
+          <span class="stock-label"><span class="stock-dot"></span>En stock</span>
+          <svg class="prod-svg" width="120" height="100" viewBox="0 0 120 100" fill="none">
+            <ellipse cx="60" cy="52" rx="54" ry="19" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.45)" stroke-width="1.8"/>
+            <ellipse cx="60" cy="50" rx="47" ry="16" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.22)" stroke-width="1.2"/>
+            <ellipse cx="60" cy="48" rx="36" ry="12" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.17)" stroke-width="1"/>
+            <ellipse cx="60" cy="46" rx="22" ry="7" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.14)" stroke-width="1" stroke-dasharray="3 3"/>
+            <path d="M6 52 Q6 82 60 82 Q114 82 114 52" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            <path d="M14 44 Q60 28 106 42" stroke="rgba(255,255,255,0.18)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Platos Unicel #066</h3>
+          <p class="card-sub">15 cm diámetro · Económico · Para antojitos y postres</p>
+          <div class="variants">
+            <button class="variant-btn active" data-v="Paq 25">Paq 25</button>
+            <button class="variant-btn" data-v="Paq 50">Paq 50</button>
+          </div>
+          <div class="card-bottom">
+            <div class="qty-row">
+              <button class="qty-btn" data-action="minus">&#8722;</button>
+              <span class="qty-display">1</span>
+              <button class="qty-btn" data-action="plus">&#43;</button>
+            </div>
+            <div class="price-box">
+              <span class="price-currency">MXN</span>
+              <span class="price-amount">18</span><span class="price-unit">c/u</span>
+            </div>
+          </div>
+          <button class="add-btn">AGREGAR AL CARRITO</button>
+        </div>
+      </article>
+
+      <!-- 7 · Cubiertos Desechables -->
+      <article class="product-card" data-cat="cubiertos" data-id="7" data-name="Cubiertos Desechables Set" data-price="75">
+        <div class="card-img-zone">
+          <span class="cat-label">Cubiertos</span>
+          <span class="stock-label"><span class="stock-dot"></span>En stock</span>
+          <svg class="prod-svg" width="110" height="145" viewBox="0 0 110 145" fill="none">
+            <!-- Fork -->
+            <line x1="24" y1="14" x2="24" y2="135" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="18" y1="14" x2="18" y2="46" stroke="rgba(255,255,255,0.38)" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="24" y1="14" x2="24" y2="46" stroke="rgba(255,255,255,0.38)" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="30" y1="14" x2="30" y2="46" stroke="rgba(255,255,255,0.38)" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M18 46 Q18 60 24 60 Q30 60 30 46" stroke="rgba(255,255,255,0.38)" stroke-width="1.5" fill="none"/>
+            <!-- Knife -->
+            <line x1="55" y1="14" x2="55" y2="135" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M50 14 Q48 42 55 55" stroke="rgba(255,255,255,0.35)" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <!-- Spoon -->
+            <line x1="86" y1="62" x2="86" y2="135" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round"/>
+            <ellipse cx="86" cy="37" rx="15" ry="26" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.45)" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Cubiertos Desechables Set</h3>
+          <p class="card-sub">Tenedor + cuchillo + cuchara · Plástico resistente</p>
+          <div class="variants">
+            <button class="variant-btn active" data-v="50 sets">50 sets</button>
+            <button class="variant-btn" data-v="100 sets">100 sets</button>
+          </div>
+          <div class="card-bottom">
+            <div class="qty-row">
+              <button class="qty-btn" data-action="minus">&#8722;</button>
+              <span class="qty-display">1</span>
+              <button class="qty-btn" data-action="plus">&#43;</button>
+            </div>
+            <div class="price-box">
+              <span class="price-currency">MXN</span>
+              <span class="price-amount">75</span><span class="price-unit">c/u</span>
+            </div>
+          </div>
+          <button class="add-btn">AGREGAR AL CARRITO</button>
+        </div>
+      </article>
+
+      <!-- 8 · Servilletas de Papel -->
+      <article class="product-card" data-cat="papel" data-id="8" data-name="Servilletas de Papel" data-price="22">
+        <div class="card-img-zone">
+          <span class="cat-label">Papel</span>
+          <span class="stock-label"><span class="stock-dot"></span>En stock</span>
+          <svg class="prod-svg" width="120" height="130" viewBox="0 0 120 130" fill="none">
+            <!-- Stack layers -->
+            <rect x="14" y="115" width="92" height="10" rx="1" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.3)" stroke-width="1.2"/>
+            <rect x="14" y="102" width="92" height="16" rx="1" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.32)" stroke-width="1.3"/>
+            <rect x="14" y="87"  width="92" height="18" rx="1" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.35)" stroke-width="1.4"/>
+            <rect x="14" y="70"  width="92" height="20" rx="1" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.38)" stroke-width="1.5"/>
+            <!-- Top napkin -->
+            <rect x="14" y="30"  width="92" height="44" rx="2" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.48)" stroke-width="1.8"/>
+            <line x1="14" y1="45"  x2="106" y2="45"  stroke="rgba(255,255,255,0.13)" stroke-width="1"/>
+            <line x1="14" y1="58"  x2="106" y2="58"  stroke="rgba(255,255,255,0.13)" stroke-width="1"/>
+            <!-- Fold tab -->
+            <path d="M60 30 L60 20 Q60 14 68 14 Q76 14 76 22 L76 30" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.32)" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Servilletas de Papel</h3>
+          <p class="card-sub">Doble hoja · Blancas · Alta absorción</p>
+          <div class="variants">
+            <button class="variant-btn active" data-v="100 pzas">100 pzas</button>
+            <button class="variant-btn" data-v="500 pzas">500 pzas</button>
+          </div>
+          <div class="card-bottom">
+            <div class="qty-row">
+              <button class="qty-btn" data-action="minus">&#8722;</button>
+              <span class="qty-display">1</span>
+              <button class="qty-btn" data-action="plus">&#43;</button>
+            </div>
+            <div class="price-box">
+              <span class="price-currency">MXN</span>
+              <span class="price-amount">22</span><span class="price-unit">c/u</span>
+            </div>
+          </div>
+          <button class="add-btn">AGREGAR AL CARRITO</button>
+        </div>
+      </article>
+
+    </div><!-- /catalog-track -->
+  </div>
+</section>
+
+<!-- ================ BANNER ================ -->
+<div id="banner">
+  <div class="banner-inner" id="bannerInner">
+    <span>MAYOREO DISPONIBLE</span><span class="sep">&nbsp;·&nbsp;</span>
+    <span>ENVÍOS A TODA LA REPÚBLICA</span><span class="sep">&nbsp;·&nbsp;</span>
+    <span>PRECIOS SIN COMPETENCIA</span><span class="sep">&nbsp;·&nbsp;</span>
+    <span>CONTÁCTANOS POR WHATSAPP</span><span class="sep">&nbsp;·&nbsp;</span>
+    <span>MÉRIDA, YUCATÁN</span><span class="sep">&nbsp;·&nbsp;</span>
+    <span>MAYOREO DISPONIBLE</span><span class="sep">&nbsp;·&nbsp;</span>
+    <span>ENVÍOS A TODA LA REPÚBLICA</span><span class="sep">&nbsp;·&nbsp;</span>
+    <span>PRECIOS SIN COMPETENCIA</span><span class="sep">&nbsp;·&nbsp;</span>
+    <span>CONTÁCTANOS POR WHATSAPP</span><span class="sep">&nbsp;·&nbsp;</span>
+    <span>MÉRIDA, YUCATÁN</span><span class="sep">&nbsp;·&nbsp;</span>
+  </div>
+</div>
+
+<!-- ================ FOOTER ================ -->
+<footer class="reveal">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="footer-logo">EL <span>TIANGUIS</span></div>
+      <p class="footer-tagline">Tu proveedor de confianza en desechables plásticos desde 2010.</p>
+    </div>
+
+    <nav class="footer-nav">
+      <h4>Categorías</h4>
+      <ul>
+        <li><a href="#">Vasos y Copas</a></li>
+        <li><a href="#">Botellas PET</a></li>
+        <li><a href="#">Bolsas Camiseta</a></li>
+        <li><a href="#">Platos Unicel</a></li>
+        <li><a href="#">Cubiertos</a></li>
+        <li><a href="#">Papel y Servilletas</a></li>
+      </ul>
+    </nav>
+
+    <div class="footer-contact">
+      <div class="footer-contact-title">Contacto</div>
+      <a href="https://wa.me/529991234567" target="_blank" rel="noopener" class="contact-item">
+        <div class="contact-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="rgba(100,220,130,0.85)"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        </div>
+        +52 (999) 123-4567
+      </a>
+      <a href="#" class="contact-item">
+        <div class="contact-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        Mérida, Yucatán
+      </a>
+      <a href="#" class="contact-item">
+        <div class="contact-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        contacto@eltianguis.mx
+      </a>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <span class="footer-copy">&copy; 2025 El Tianguis &mdash; Todos los derechos reservados</span>
+    <span class="footer-made">MÉRIDA, YUCATÁN, MÉXICO</span>
+  </div>
+</footer>
+
+<!-- ================ CART FAB ================ -->
+<button id="cart-fab" onclick="toggleCart()">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+  </svg>
+  <span class="cart-badge hidden" id="cartBadge">0</span>
+</button>
+
+<!-- Overlay -->
+<div id="cart-overlay" onclick="toggleCart()"></div>
+
+<!-- Cart Panel -->
+<div id="cart-panel">
+  <div class="cart-head">
+    <div class="cart-title-text">Mi Carrito</div>
+    <button class="cart-close-btn" onclick="toggleCart()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="1" y1="1" x2="13" y2="13"/><line x1="13" y1="1" x2="1" y2="13"/>
+      </svg>
+    </button>
+  </div>
+  <div class="cart-body" id="cartBody"></div>
+  <div class="cart-foot" id="cartFoot" style="display:none">
+    <div class="cart-total-row">
+      <span class="cart-total-label">Total a pagar</span>
+      <span class="cart-total-amount" id="cartTotal">$0</span>
+    </div>
+    <div class="cart-btns">
+      <button class="btn-vaciar" onclick="clearCart()">Vaciar</button>
+      <button class="btn-pagar" onclick="handlePagar()">Proceder al Pago</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================ ICONS PER PRODUCT (for cart) ================ -->
+<svg style="display:none">
+  <defs>
+    <symbol id="icon-vaso" viewBox="0 0 40 40">
+      <path d="M8 8 L32 8 L29 34 L11 34 Z" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+      <ellipse cx="20" cy="8" rx="12" ry="3" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+    </symbol>
+    <symbol id="icon-botella" viewBox="0 0 40 40">
+      <rect x="13" y="2" width="14" height="7" rx="2" fill="rgba(232,0,29,0.4)" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>
+      <path d="M15 9 L25 9 L26 17 L14 17 Z" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+      <path d="M10 17 L30 17 L28 38 L12 38 Z" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+    </symbol>
+    <symbol id="icon-bolsa" viewBox="0 0 40 40">
+      <path d="M13 5 C13 1 18 1 18 5 L18 13" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <path d="M22 5 C22 1 27 1 27 5 L27 13" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <path d="M5 13 L35 13 L33 38 L7 38 Z" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+    </symbol>
+    <symbol id="icon-plato" viewBox="0 0 40 40">
+      <ellipse cx="20" cy="20" rx="18" ry="6" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+      <ellipse cx="20" cy="19" rx="13" ry="4" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
+      <path d="M2 20 Q2 34 20 34 Q38 34 38 20" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
+    </symbol>
+    <symbol id="icon-cubiertos" viewBox="0 0 40 40">
+      <line x1="10" y1="4" x2="10" y2="38" stroke="rgba(255,255,255,0.6)" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="20" y1="4" x2="20" y2="38" stroke="rgba(255,255,255,0.6)" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="30" cy="12" rx="6" ry="9" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+      <line x1="30" y1="21" x2="30" y2="38" stroke="rgba(255,255,255,0.6)" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-servilleta" viewBox="0 0 40 40">
+      <rect x="5" y="10" width="30" height="25" rx="1" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+      <line x1="5" y1="18" x2="35" y2="18" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+      <line x1="5" y1="25" x2="35" y2="25" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+    </symbol>
+  </defs>
+</svg>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ===================== HERO PARTICLES ===================== */
+  const pWrap = document.getElementById('particles');
+  for (let i = 0; i < 22; i++) {
+    const d = document.createElement('div');
+    d.className = 'p-dot';
+    const s = Math.random() * 70 + 8;
+    d.style.cssText = `width:${s}px;height:${s}px;left:${Math.random()*100}%;animation-duration:${Math.random()*13+9}s;animation-delay:${Math.random()*-18}s;`;
+    pWrap.appendChild(d);
+  }
+
+  /* ===================== HERO SHAPES ===================== */
+  const sWrap = document.getElementById('shapes');
+  [
+    {t:'circle',w:140,h:140,top:'6%', left:'2%',  dur:9},
+    {t:'hex',   w:90, h:90, top:'12%',left:'88%', dur:13},
+    {t:'circle',w:55, h:55, top:'65%',left:'6%',  dur:8},
+    {t:'hex',   w:110,h:110,top:'55%',left:'82%', dur:14},
+    {t:'circle',w:42, h:42, top:'40%',left:'50%', dur:7},
+    {t:'hex',   w:65, h:65, top:'80%',left:'40%', dur:11},
+  ].forEach(c => {
+    const el = document.createElement('div');
+    el.className = `geo geo-${c.t}`;
+    el.style.cssText = `width:${c.w}px;height:${c.h}px;top:${c.top};left:${c.left};animation-duration:${c.dur}s;`;
+    sWrap.appendChild(el);
+  });
+
+  /* ===================== ORIGINAL CARDS ===================== */
+  const track     = document.getElementById('catalogTrack');
+  const origCards = Array.from(track.querySelectorAll('.product-card'));
+
+  /* ===================== VARIANTS ===================== */
+  origCards.forEach(card => {
+    card.querySelectorAll('.variants .variant-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.closest('.variants').querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  });
+
+  /* ===================== QUANTITY ===================== */
+  origCards.forEach(card => {
+    const minus   = card.querySelector('[data-action="minus"]');
+    const plus    = card.querySelector('[data-action="plus"]');
+    const display = card.querySelector('.qty-display');
+    minus.addEventListener('click', () => {
+      const v = parseInt(display.textContent);
+      if (v > 1) display.textContent = v - 1;
+    });
+    plus.addEventListener('click', () => {
+      display.textContent = parseInt(display.textContent) + 1;
+    });
+  });
+
+  /* ===================== CART ===================== */
+  let cart = [];
+  try { cart = JSON.parse(localStorage.getItem('tianguis_v2_cart') || '[]'); } catch(e) {}
+
+  const ICONS = {
+    '1': 'icon-vaso',
+    '2': 'icon-botella',
+    '3': 'icon-bolsa',
+    '4': 'icon-bolsa',
+    '5': 'icon-plato',
+    '6': 'icon-plato',
+    '7': 'icon-cubiertos',
+    '8': 'icon-servilleta',
+  };
+
+  function saveCart() {
+    try { localStorage.setItem('tianguis_v2_cart', JSON.stringify(cart)); } catch(e) {}
+  }
+
+  function activeVariant(card) {
+    const a = card.querySelector('.variant-btn.active');
+    return a ? a.dataset.v : '';
+  }
+
+  function cardQty(card) {
+    return parseInt(card.querySelector('.qty-display').textContent) || 1;
+  }
+
+  function addToCart(card) {
+    const id      = card.dataset.id;
+    const name    = card.dataset.name;
+    const price   = parseFloat(card.dataset.price);
+    const variant = activeVariant(card);
+    const qty     = cardQty(card);
+    const key     = id + '-' + variant;
+    const existing = cart.find(i => i.key === key);
+    if (existing) {
+      existing.qty += qty;
+    } else {
+      cart.push({ key, id, name, price, variant, qty });
+    }
+    saveCart();
+    renderCart();
+    shakeFab();
+  }
+
+  window.removeFromCart = function(key) {
+    cart = cart.filter(i => i.key !== key);
+    saveCart();
+    renderCart();
+  };
+
+  window.updateQty = function(key, delta) {
+    const item = cart.find(i => i.key === key);
+    if (!item) return;
+    item.qty += delta;
+    if (item.qty <= 0) cart = cart.filter(i => i.key !== key);
+    saveCart();
+    renderCart();
+  };
+
+  window.clearCart = function() {
+    cart = [];
+    saveCart();
+    renderCart();
+  };
+
+  function renderCart() {
+    const body  = document.getElementById('cartBody');
+    const foot  = document.getElementById('cartFoot');
+    const badge = document.getElementById('cartBadge');
+    const items = cart.reduce((s, i) => s + i.qty, 0);
+    const total = cart.reduce((s, i) => s + i.qty * i.price, 0);
+
+    if (items === 0) {
+      badge.classList.add('hidden');
+    } else {
+      badge.classList.remove('hidden');
+      badge.textContent = items > 99 ? '99+' : items;
+    }
+
+    if (cart.length === 0) {
+      foot.style.display = 'none';
+      body.innerHTML = `
+        <div class="cart-empty-state">
+          <div class="cart-empty-icon">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+            </svg>
+          </div>
+          <p>Tu carrito está vacío</p>
+          <small>Agrega productos desde el catálogo</small>
+        </div>`;
+      return;
+    }
+
+    foot.style.display = 'block';
+    document.getElementById('cartTotal').textContent = '$' + total.toFixed(0) + ' MXN';
+
+    body.innerHTML = cart.map(item => {
+      const iconId = ICONS[item.id] || 'icon-vaso';
+      return `
+        <div class="cart-item">
+          <div class="ci-icon">
+            <svg width="28" height="28"><use href="#${iconId}"/></svg>
+          </div>
+          <div class="ci-info">
+            <div class="ci-name">${item.name}</div>
+            <div class="ci-variant">${item.variant}</div>
+            <div class="ci-qty-row">
+              <button class="ci-qty-btn" onclick="updateQty('${item.key}',-1)">&#8722;</button>
+              <span class="ci-qty-num">${item.qty}</span>
+              <button class="ci-qty-btn" onclick="updateQty('${item.key}',1)">&#43;</button>
+            </div>
+          </div>
+          <div class="ci-right">
+            <div class="ci-price">$${(item.qty * item.price).toFixed(0)}</div>
+            <button class="ci-remove" onclick="removeFromCart('${item.key}')">Quitar</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  /* Add-to-cart buttons */
+  origCards.forEach(card => {
+    const btn = card.querySelector('.add-btn');
+    btn.addEventListener('click', () => {
+      addToCart(card);
+      btn.classList.remove('clicked');
+      void btn.offsetWidth;
+      btn.classList.add('clicked');
+      setTimeout(() => btn.classList.remove('clicked'), 350);
+    });
+  });
+
+  function shakeFab() {
+    const fab = document.getElementById('cart-fab');
+    fab.classList.remove('shake');
+    void fab.offsetWidth;
+    fab.classList.add('shake');
+    const badge = document.getElementById('cartBadge');
+    badge.classList.remove('bump');
+    void badge.offsetWidth;
+    badge.classList.add('bump');
+    setTimeout(() => { fab.classList.remove('shake'); badge.classList.remove('bump'); }, 550);
+  }
+
+  /* Cart panel toggle */
+  let cartOpen = false;
+  window.toggleCart = function() {
+    cartOpen = !cartOpen;
+    document.getElementById('cart-panel').classList.toggle('open', cartOpen);
+    document.getElementById('cart-overlay').classList.toggle('open', cartOpen);
+    document.body.style.overflow = cartOpen ? 'hidden' : '';
+  };
+
+  window.handlePagar = function() {
+    const total = cart.reduce((s,i) => s + i.qty * i.price, 0);
+    alert('¡Gracias por tu pedido!\n\nTotal: $' + total.toFixed(0) + ' MXN\n\nEn breve te contactaremos por WhatsApp para confirmar.');
+  };
+
+  /* ===================== CATEGORY FILTER ===================== */
+  const pills      = document.querySelectorAll('.cat-pill');
+  const mask       = document.querySelector('.catalog-mask');
+  let clones       = [];
+  let animEnabled  = false;
+
+  pills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      pills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const cat = pill.dataset.cat;
+
+      if (cat === 'todos') {
+        /* restore animation */
+        mask.style.overflowX = '';
+        clones.forEach(c => { c.style.display = ''; });
+        origCards.forEach(c => { c.style.display = ''; });
+        if (animEnabled) track.classList.add('is-animating');
+      } else {
+        /* disable animation, show manual scroll */
+        track.classList.remove('is-animating');
+        track.style.transform = 'translateX(0)';
+        mask.style.overflowX = 'auto';
+        clones.forEach(c => { c.style.display = 'none'; });
+        origCards.forEach(c => {
+          c.style.display = c.dataset.cat === cat ? '' : 'none';
+        });
+      }
+    });
+  });
+
+  /* ===================== CLONE FOR SEAMLESS SCROLL ===================== */
+  function initSeamlessScroll() {
+    /* Clone each original card */
+    origCards.forEach(card => {
+      const clone = card.cloneNode(true);
+      clone.classList.add('card-clone');
+      clone.setAttribute('aria-hidden', 'true');
+      clone.setAttribute('tabindex', '-1');
+      /* remove interactive elements from clone */
+      clone.querySelectorAll('button').forEach(b => {
+        b.disabled = true;
+        b.setAttribute('tabindex', '-1');
+      });
+      track.appendChild(clone);
+      clones.push(clone);
+    });
+
+    /* Start animation */
+    track.classList.add('is-animating');
+    animEnabled = true;
+  }
+
+  /* Only run seamless scroll on non-touch / desktop */
+  const isTouchOnly = window.matchMedia('(hover: none)').matches;
+  if (!isTouchOnly) {
+    initSeamlessScroll();
+  } else {
+    /* Mobile: plain scroll with snap */
+    mask.style.overflowX = 'auto';
+    mask.style.webkitOverflowScrolling = 'touch';
+    track.style.setProperty('scroll-snap-type', 'x mandatory');
+    origCards.forEach(c => c.style.setProperty('scroll-snap-align', 'start'));
+  }
+
+  /* ===================== SCROLL REVEAL ===================== */
+  const revealObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('visible'); revealObs.unobserve(e.target); }
+    });
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+  /* Cards staggered */
+  const cardObs = new IntersectionObserver(entries => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 80);
+        cardObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.06 });
+
+  origCards.forEach(c => cardObs.observe(c));
+
+  /* ===================== INIT ===================== */
+  renderCart();
+})();
+</script>
+</body>
+</html>

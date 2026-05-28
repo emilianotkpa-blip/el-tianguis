@@ -1,20 +1,27 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Icon from "../components/Icon"
-import { SUCURSALES, PEDIDOS_MERCANCIA } from "../data"
-import { getCatalogo } from "../api"
-import { fmtMoney } from "../utils"
+import { SUCURSALES } from "../data"
+import { getCatalogo, getPedidosMercancia, postPedidoMercancia } from "../api"
+import { fmtMoney, todayISO } from "../utils"
 
 export default function PedidosMercanciaPage({ addToast }) {
-  const [view, setView]         = useState("welcome")
-  const [cart, setCart]         = useState([])
-  const [destino, setDestino]   = useState(null)
-  const [search, setSearch]     = useState("")
+  const [view, setView]           = useState("welcome")
+  const [cart, setCart]           = useState([])
+  const [destino, setDestino]     = useState(null)
+  const [search, setSearch]       = useState("")
   const [proveedor, setProveedor] = useState("Distribuidora Polpusa S.A.")
+  const [fechaEst, setFechaEst]   = useState("")
+  const [obs, setObs]             = useState("")
   const [productos, setProductos] = useState([])
-  const [loading, setLoading]   = useState(true)
+  const [historial, setHistorial] = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [saving, setSaving]       = useState(false)
+  const folioRef = useRef(313)
 
   useEffect(() => {
-    getCatalogo().then(setProductos).finally(() => setLoading(false))
+    Promise.all([getCatalogo(), getPedidosMercancia()])
+      .then(([prods, hist]) => { setProductos(prods); setHistorial(hist) })
+      .finally(() => setLoading(false))
   }, [])
 
   const filtered = productos.filter((p) =>
@@ -90,28 +97,33 @@ export default function PedidosMercanciaPage({ addToast }) {
         </div>
         <div className="card">
           <div className="card-body flush">
-            <table className="table">
-              <thead>
-                <tr><th>ID</th><th>Fecha</th><th>Proveedor</th><th>Destino</th><th className="num">Items</th><th className="num">Total</th><th>Estado</th><th></th></tr>
-              </thead>
-              <tbody>
-                {PEDIDOS_MERCANCIA.map((p) => (
-                  <tr key={p.id}>
-                    <td className="tnum">{p.id}</td>
-                    <td className="muted">{p.fecha}</td>
-                    <td><strong>{p.proveedor}</strong></td>
-                    <td><span className="badge badge-wine">{p.destino}</span></td>
-                    <td className="num">{p.items}</td>
-                    <td className="num"><strong>{fmtMoney(p.total)}</strong></td>
-                    <td>
-                      {p.estado === "recibido"    && <span className="badge badge-ok">● Recibido</span>}
-                      {p.estado === "en tránsito" && <span className="badge badge-info">● En tránsito</span>}
-                    </td>
-                    <td className="actions-cell"><button className="btn btn-ghost btn-sm"><Icon name="eye" size={12} /></button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {loading
+              ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando historial…</div>
+              : <table className="table">
+                  <thead>
+                    <tr><th>Folio</th><th>Fecha</th><th>Proveedor</th><th>Destino</th><th className="num">Total</th><th>Estado</th></tr>
+                  </thead>
+                  <tbody>
+                    {historial.length === 0
+                      ? <tr><td colSpan={6} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Sin órdenes registradas</td></tr>
+                      : historial.map((p) => (
+                        <tr key={p.Id}>
+                          <td className="tnum">{p.Folio}</td>
+                          <td className="muted">{p.Fecha}</td>
+                          <td><strong>{p.Proveedor}</strong></td>
+                          <td><span className="badge badge-wine">{p.Destino}</span></td>
+                          <td className="num"><strong>{fmtMoney(p.Total ?? 0)}</strong></td>
+                          <td>
+                            {(p.Estado ?? "") === "recibido"    && <span className="badge badge-ok">● Recibido</span>}
+                            {(p.Estado ?? "") === "en tránsito" && <span className="badge badge-info">● En tránsito</span>}
+                            {!["recibido","en tránsito"].includes(p.Estado ?? "") && <span className="badge badge-neutral">{p.Estado}</span>}
+                          </td>
+                        </tr>
+                      ))
+                    }
+                  </tbody>
+                </table>
+            }
           </div>
         </div>
       </div>
@@ -164,10 +176,10 @@ export default function PedidosMercanciaPage({ addToast }) {
                   <option>Inix S.A. de C.V.</option>
                 </select>
               </div>
-              <div className="form-row"><label>Fecha estimada de entrega</label><input type="date" defaultValue="2026-04-29" /></div>
+              <div className="form-row"><label>Fecha estimada de entrega</label><input type="date" value={fechaEst} onChange={(e) => setFechaEst(e.target.value)} /></div>
               <div className="form-row" style={{ gridColumn: "1/-1" }}>
                 <label>Notas / observaciones</label>
-                <textarea rows="2" placeholder="Indicaciones especiales para el proveedor o transportista…"></textarea>
+                <textarea rows="2" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Indicaciones especiales para el proveedor o transportista…" />
               </div>
             </div>
           </div>
@@ -178,16 +190,24 @@ export default function PedidosMercanciaPage({ addToast }) {
             </div>
             <button
               className="btn btn-wine btn-lg"
-              disabled={!destino}
-              onClick={() => {
+              disabled={!destino || saving}
+              onClick={async () => {
                 const suc = SUCURSALES.find((s) => s.id === destino)
-                addToast({ kind: "ok", msg: `Orden enviada a ${suc.name}` })
-                setView("welcome")
-                setCart([])
-                setDestino(null)
+                setSaving(true)
+                try {
+                  await postPedidoMercancia({
+                    folio: "PM-" + String(folioRef.current++).padStart(4, "0"),
+                    fecha: todayISO(), proveedor, destino: suc.name,
+                    estado: "en tránsito", fechaEntrega: fechaEst || null,
+                    total, items: cart, observaciones: obs,
+                  })
+                  addToast({ kind: "ok", msg: `Orden enviada a ${suc.name}` })
+                  setView("welcome"); setCart([]); setDestino(null); setObs("")
+                } catch (err) { addToast({ kind: "err", msg: err.message }) }
+                finally { setSaving(false) }
               }}
             >
-              <Icon name="check" size={14} /> Confirmar y enviar orden
+              <Icon name="check" size={14} /> {saving ? "Guardando…" : "Confirmar y enviar orden"}
             </button>
           </div>
         </div>

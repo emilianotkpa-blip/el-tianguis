@@ -1,24 +1,55 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
-import { FACTURAS } from "../data"
+import { getVentas, patchVenta } from "../api"
 import { fmtMoney } from "../utils"
 
 export default function FacturasPage({ addToast }) {
-  const [search, setSearch] = useState("")
-  const [estado, setEstado] = useState("todas")
-  const [viewing, setViewing] = useState(null)
+  const [ventas, setVentas]     = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [search, setSearch]     = useState("")
+  const [estado, setEstado]     = useState("todas")
+  const [viewing, setViewing]   = useState(null)
+  const [updating, setUpdating] = useState(false)
 
-  const filtered = FACTURAS.filter((f) => {
+  const cargar = async () => {
+    setLoading(true)
+    try { setVentas(await getVentas()) }
+    catch (err) { addToast({ kind: "err", msg: err.message }) }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { cargar() }, [])
+
+  const toFactura = (v) => ({
+    _id: v.Id, folio: v.Folio, fecha: v.Fecha,
+    cliente: v.Cliente, metodo: v.MetodoPago,
+    subtotal: v.Subtotal ?? 0, iva: v.IVA ?? 0, total: v.Total ?? 0,
+    estado: v.Estado ?? "pagada",
+    items: (() => { try { return JSON.parse(v.Items_JSON ?? "[]") } catch { return [] } })(),
+  })
+
+  const facturas = ventas.map(toFactura)
+
+  const filtered = facturas.filter((f) => {
     if (estado !== "todas" && f.estado !== estado) return false
     if (search && !f.cliente.toLowerCase().includes(search.toLowerCase()) && !f.folio.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
 
   const stats = {
-    pagadas: FACTURAS.filter((f) => f.estado === "pagada").reduce((s, f) => s + f.total, 0),
-    pendientes: FACTURAS.filter((f) => f.estado === "pendiente").reduce((s, f) => s + f.total, 0),
-    canceladas: FACTURAS.filter((f) => f.estado === "cancelada").length,
+    pagadas:   facturas.filter((f) => f.estado === "pagada").reduce((s, f) => s + f.total, 0),
+    pendientes: facturas.filter((f) => f.estado === "pendiente").reduce((s, f) => s + f.total, 0),
+    canceladas: facturas.filter((f) => f.estado === "cancelada").length,
+  }
+
+  const cambiarEstado = async (id, nuevoEstado) => {
+    setUpdating(true)
+    try {
+      await patchVenta(id, { Estado: nuevoEstado })
+      addToast({ kind: "ok", msg: "Estado actualizado" })
+      setViewing(null); cargar()
+    } catch (err) { addToast({ kind: "err", msg: err.message }) }
+    finally { setUpdating(false) }
   }
 
   return (
@@ -34,6 +65,7 @@ export default function FacturasPage({ addToast }) {
         </div>
       </div>
 
+      {loading && <div style={{ padding: "12px 0", color: "var(--text-muted)", fontSize: 13 }}>Cargando ventas…</div>}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
@@ -45,7 +77,7 @@ export default function FacturasPage({ addToast }) {
           <div className="kpi-accent" style={{ background: "var(--warn)" }}></div>
           <div className="kpi-label">Por cobrar</div>
           <div className="kpi-value">{fmtMoney(stats.pendientes)}</div>
-          <div className="kpi-delta"><span className="label">2 facturas pendientes</span></div>
+          <div className="kpi-delta"><span className="label">{facturas.filter(f=>f.estado==="pendiente").length} facturas pendientes</span></div>
         </div>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--err)" }}></div>
@@ -81,7 +113,7 @@ export default function FacturasPage({ addToast }) {
             </thead>
             <tbody>
               {filtered.map((f) => (
-                <tr key={f.folio}>
+                <tr key={f._id ?? f.folio}>
                   <td className="tnum">{f.folio}</td>
                   <td className="muted">{f.fecha}</td>
                   <td><strong>{f.cliente}</strong></td>
@@ -96,7 +128,6 @@ export default function FacturasPage({ addToast }) {
                   </td>
                   <td className="actions-cell">
                     <button className="btn btn-ghost btn-sm" onClick={() => setViewing(f)}><Icon name="eye" size={12} /></button>
-                    <button className="btn btn-ghost btn-sm"><Icon name="download" size={12} /></button>
                   </td>
                 </tr>
               ))}
@@ -113,7 +144,16 @@ export default function FacturasPage({ addToast }) {
         footer={
           <>
             <button className="btn btn-default" onClick={() => setViewing(null)}>Cerrar</button>
-            <button className="btn btn-default"><Icon name="download" size={13} /> Descargar PDF</button>
+            {viewing?.estado === "pendiente" && (
+              <button className="btn btn-ok btn-sm" disabled={updating} onClick={() => cambiarEstado(viewing._id, "pagada")}>
+                <Icon name="check" size={13} /> Marcar pagada
+              </button>
+            )}
+            {viewing?.estado !== "cancelada" && (
+              <button className="btn btn-default btn-sm" disabled={updating} onClick={() => cambiarEstado(viewing._id, "cancelada")}>
+                Cancelar factura
+              </button>
+            )}
             <button className="btn btn-wine"><Icon name="print" size={13} /> Imprimir</button>
           </>
         }
@@ -135,9 +175,17 @@ export default function FacturasPage({ addToast }) {
             <table className="table" style={{ border: "1px solid var(--border)" }}>
               <thead><tr><th>Concepto</th><th className="num">Cant.</th><th className="num">P. unit.</th><th className="num">Importe</th></tr></thead>
               <tbody>
-                <tr><td>Bolsa 1kg polpusa <span className="muted">(paq/100)</span></td><td className="num">8</td><td className="num">$22.50</td><td className="num">$180.00</td></tr>
-                <tr><td>Vasos Jaguar #8 <span className="muted">(paq/50)</span></td><td className="num">12</td><td className="num">$38.50</td><td className="num">$462.00</td></tr>
-                <tr><td>Plato Reyma 855 <span className="muted">(paq/25)</span></td><td className="num">6</td><td className="num">$65.00</td><td className="num">$390.00</td></tr>
+                {viewing.items.length > 0
+                  ? viewing.items.map((it, i) => (
+                    <tr key={i}>
+                      <td>{it.name} <span className="muted">({it.unidad})</span></td>
+                      <td className="num">{it.qty}</td>
+                      <td className="num">{fmtMoney(it.precio)}</td>
+                      <td className="num">{fmtMoney(it.precio * it.qty)}</td>
+                    </tr>
+                  ))
+                  : <tr><td colSpan={4} className="muted" style={{ textAlign: "center" }}>Sin detalle de productos</td></tr>
+                }
               </tbody>
             </table>
             <div style={{ marginTop: 16, marginLeft: "auto", maxWidth: 280 }}>

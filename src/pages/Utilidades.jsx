@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react"
 import Icon from "../components/Icon"
-import {
-  VENTAS_DIARIAS_30D, VENTAS_MENSUALES, UTIL_POR_CATEGORIA,
-  TOP_PRODUCTOS, VENTAS_POR_SUCURSAL
-} from "../data"
+import { UTIL_POR_CATEGORIA } from "../data"
+import { getVentas } from "../api"
 import { fmtMoney, fmtMoneyShort } from "../utils"
 
 function useCountUp(target, duration = 800) {
@@ -146,27 +144,73 @@ function Donut({ data, size = 160, label = "" }) {
   )
 }
 
+function buildDiarias(ventas, dias = 30) {
+  const hoy = new Date()
+  const arr = Array(dias).fill(0)
+  ventas.forEach((v) => {
+    const diff = Math.floor((hoy - new Date(v.Fecha)) / 86400000)
+    if (diff >= 0 && diff < dias) arr[dias - 1 - diff] += v.Subtotal ?? 0
+  })
+  return arr
+}
+
+function buildMensuales(ventas) {
+  const map = {}
+  ventas.forEach((v) => {
+    const key = (v.Fecha ?? "").slice(0, 7)
+    if (!key) return
+    if (!map[key]) map[key] = { ingresos: 0, costos: 0 }
+    map[key].ingresos += v.Subtotal ?? 0
+  })
+  return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).slice(-6).map(([key, d]) => ({
+    mes: new Date(key + "-01").toLocaleDateString("es-MX", { month: "short", year: "2-digit" }),
+    ingresos: d.ingresos, costos: d.ingresos * 0.64, utilidad: d.ingresos * 0.36,
+  }))
+}
+
 export default function UtilidadesPage() {
-  const [range, setRange] = useState("30d")
+  const [range, setRange]   = useState("30d")
+  const [ventas, setVentas] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const totalMes = VENTAS_MENSUALES[VENTAS_MENSUALES.length - 1]
-  const prevMes  = VENTAS_MENSUALES[VENTAS_MENSUALES.length - 2]
-  const margenPct = ((totalMes.utilidad / totalMes.ingresos) * 100).toFixed(1)
-  const deltaIngresos = (((totalMes.ingresos - prevMes.ingresos) / prevMes.ingresos) * 100).toFixed(1)
-  const deltaUtilidad = (((totalMes.utilidad - prevMes.utilidad) / prevMes.utilidad) * 100).toFixed(1)
+  useEffect(() => {
+    getVentas().then(setVentas).finally(() => setLoading(false))
+  }, [])
 
-  const ingresos = useCountUp(totalMes.ingresos)
-  const utilidad = useCountUp(totalMes.utilidad)
-  const margen   = useCountUp(parseFloat(margenPct))
-  const tickets  = useCountUp(486)
-  const maxVentas = Math.max(...TOP_PRODUCTOS.map((p) => p.ventas))
+  const diasRange = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365
+  const ventasFiltradas = ventas.filter((v) => {
+    if (!v.Fecha) return false
+    return (new Date() - new Date(v.Fecha)) / 86400000 <= diasRange
+  })
+
+  const totalIngresos = ventasFiltradas.reduce((s, v) => s + (v.Subtotal ?? 0), 0)
+  const totalTickets  = ventasFiltradas.length
+  const ticketProm    = totalTickets > 0 ? totalIngresos / totalTickets : 0
+
+  const ventasDiarias   = buildDiarias(ventasFiltradas, Math.min(diasRange, 30))
+  const ventasMensuales = buildMensuales(ventas)
+
+  const ventasPorSuc = ["centro","repostero","bodega"].map((s) => {
+    const monto = ventasFiltradas.filter((v) => (v.Sucursal ?? "").toLowerCase() === s).reduce((x, v) => x + (v.Total ?? 0), 0)
+    return { sucursal: s.charAt(0).toUpperCase() + s.slice(1), monto }
+  })
+  const maxSuc = Math.max(...ventasPorSuc.map((s) => s.monto), 1)
+
+  const topClientes = Object.entries(
+    ventasFiltradas.reduce((acc, v) => { acc[v.Cliente] = (acc[v.Cliente] ?? 0) + (v.Total ?? 0); return acc }, {})
+  ).sort(([,a],[,b]) => b - a).slice(0, 6).map(([name, ventas]) => ({ name, ventas }))
+  const maxCliente = Math.max(...topClientes.map((c) => c.ventas), 1)
+
+  const ingresos = useCountUp(totalIngresos)
+  const tickets  = useCountUp(totalTickets)
+  const promedio = useCountUp(ticketProm)
 
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <h1 className="page-title">Utilidades &amp; análisis</h1>
-          <p className="page-subtitle">Reportes de rentabilidad, ventas y desempeño · Periodo: Abril 2026</p>
+          <p className="page-subtitle">Reportes de ventas y desempeño · {totalTickets} tickets · periodo: {range}</p>
         </div>
         <div className="page-actions">
           <div className="range-toggle">
@@ -183,27 +227,27 @@ export default function UtilidadesPage() {
       <div className="kpi-grid">
         <div className="kpi">
           <div className="kpi-accent"></div>
-          <div className="kpi-label">Ingresos del mes</div>
-          <div className="kpi-value">{fmtMoney(Math.round(ingresos))}</div>
-          <div className="kpi-delta up">▲ {deltaIngresos}% <span className="label">vs. marzo</span></div>
+          <div className="kpi-label">Ingresos del período</div>
+          <div className="kpi-value">{loading ? "…" : fmtMoney(Math.round(ingresos))}</div>
+          <div className="kpi-delta"><span className="label">Subtotal sin IVA</span></div>
         </div>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
-          <div className="kpi-label">Utilidad neta</div>
-          <div className="kpi-value">{fmtMoney(Math.round(utilidad))}</div>
-          <div className="kpi-delta up">▲ {deltaUtilidad}% <span className="label">vs. marzo</span></div>
+          <div className="kpi-label">Utilidad estimada (36%)</div>
+          <div className="kpi-value">{loading ? "…" : fmtMoney(Math.round(totalIngresos * 0.36))}</div>
+          <div className="kpi-delta"><span className="label">Estimado sin costos reales</span></div>
         </div>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--info)" }}></div>
-          <div className="kpi-label">Margen promedio</div>
-          <div className="kpi-value">{margen.toFixed(1)}%</div>
-          <div className="kpi-delta up">▲ 1.2 pts</div>
+          <div className="kpi-label">Ticket promedio</div>
+          <div className="kpi-value">{loading ? "…" : fmtMoney(Math.round(promedio))}</div>
+          <div className="kpi-delta"><span className="label">Por venta registrada</span></div>
         </div>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--warn)" }}></div>
           <div className="kpi-label">Tickets emitidos</div>
-          <div className="kpi-value">{Math.round(tickets)}</div>
-          <div className="kpi-delta up">▲ 8.3% <span className="label">vs. marzo</span></div>
+          <div className="kpi-value">{loading ? "…" : Math.round(tickets)}</div>
+          <div className="kpi-delta"><span className="label">En el período seleccionado</span></div>
         </div>
       </div>
 
@@ -219,7 +263,7 @@ export default function UtilidadesPage() {
             </div>
           </div>
           <div className="card-body">
-            <LineChart data={VENTAS_DIARIAS_30D} height={220} />
+            <LineChart data={ventasDiarias.length > 0 ? ventasDiarias : [0]} height={220} />
           </div>
         </div>
 
@@ -254,28 +298,28 @@ export default function UtilidadesPage() {
             </div>
           </div>
           <div className="card-body">
-            <GroupedBars data={VENTAS_MENSUALES} height={240} />
+            <GroupedBars data={ventasMensuales.length > 0 ? ventasMensuales : [{ mes: "—", ingresos: 0, costos: 0, utilidad: 0 }]} height={240} />
           </div>
         </div>
 
         <div className="card col-4">
           <div className="card-header">
-            <h3 className="card-title">Top productos</h3>
+            <h3 className="card-title">Top clientes</h3>
             <span className="muted" style={{ fontSize: 11 }}>Por ingresos</span>
           </div>
           <div className="card-body">
             <div className="bar-list">
-              {TOP_PRODUCTOS.map((p, i) => (
+              {topClientes.length > 0 ? topClientes.map((p, i) => (
                 <div key={i} className="bar-row">
                   <div className="row-top">
                     <span className="name">{p.name}</span>
                     <span className="val">{fmtMoney(p.ventas)}</span>
                   </div>
                   <div className="track">
-                    <div className="fill" style={{ width: ((p.ventas / maxVentas) * 100) + "%" }}></div>
+                    <div className="fill" style={{ width: ((p.ventas / maxCliente) * 100) + "%" }}></div>
                   </div>
                 </div>
-              ))}
+              )) : <div className="muted" style={{ fontSize: 12, padding: "16px 0" }}>Sin ventas registradas aún</div>}
             </div>
           </div>
         </div>
@@ -286,13 +330,13 @@ export default function UtilidadesPage() {
           </div>
           <div className="card-body">
             <div className="bar-list">
-              {VENTAS_POR_SUCURSAL.map((s, i) => (
+              {ventasPorSuc.map((s, i) => (
                 <div key={i} className="bar-row">
                   <div className="row-top">
                     <span className="name">{s.sucursal}</span>
-                    <span className="val">{fmtMoney(s.monto)} <span className="muted">({s.pct}%)</span></span>
+                    <span className="val">{fmtMoney(s.monto)}</span>
                   </div>
-                  <div className="track"><div className="fill" style={{ width: s.pct + "%" }}></div></div>
+                  <div className="track"><div className="fill" style={{ width: ((s.monto / maxSuc) * 100) + "%" }}></div></div>
                 </div>
               ))}
             </div>
@@ -310,12 +354,12 @@ export default function UtilidadesPage() {
           <div className="card-body">
             <table className="table" style={{ fontSize: 12 }}>
               <tbody>
-                <tr><td className="muted">Ticket promedio</td><td className="num"><strong>$586.40</strong></td><td className="num" style={{ color: "var(--ok)" }}>+4.2%</td></tr>
-                <tr><td className="muted">Cobranza pendiente</td><td className="num"><strong>$8,506</strong></td><td className="num" style={{ color: "var(--warn)" }}>2 facturas</td></tr>
-                <tr><td className="muted">Rotación inventario</td><td className="num"><strong>4.2x</strong></td><td className="num" style={{ color: "var(--ok)" }}>+0.3</td></tr>
-                <tr><td className="muted">Días promedio cobro</td><td className="num"><strong>11.4 d</strong></td><td className="num" style={{ color: "var(--ok)" }}>−1.2 d</td></tr>
-                <tr><td className="muted">SKUs con stock bajo</td><td className="num"><strong>9</strong></td><td className="num" style={{ color: "var(--err)" }}>+3</td></tr>
-                <tr><td className="muted">Margen bruto</td><td className="num"><strong>{margenPct}%</strong></td><td className="num" style={{ color: "var(--ok)" }}>+1.2 pts</td></tr>
+                <tr><td className="muted">Ticket promedio</td><td className="num"><strong>{fmtMoney(ticketProm)}</strong></td><td className="num" style={{ color: "var(--ok)" }}>Real</td></tr>
+                <tr><td className="muted">Total ingresos</td><td className="num"><strong>{fmtMoney(totalIngresos)}</strong></td><td className="num" style={{ color: "var(--ok)" }}>Sin IVA</td></tr>
+                <tr><td className="muted">Total con IVA</td><td className="num"><strong>{fmtMoney(ventasFiltradas.reduce((s,v)=>s+(v.Total??0),0))}</strong></td><td className="num">—</td></tr>
+                <tr><td className="muted">Tickets emitidos</td><td className="num"><strong>{totalTickets}</strong></td><td className="num">—</td></tr>
+                <tr><td className="muted">Utilidad estimada</td><td className="num"><strong>{fmtMoney(totalIngresos * 0.36)}</strong></td><td className="num" style={{ color: "var(--warn)" }}>36% est.</td></tr>
+                <tr><td className="muted">Margen estimado</td><td className="num"><strong>36%</strong></td><td className="num" style={{ color: "var(--warn)" }}>Agregar costos</td></tr>
               </tbody>
             </table>
           </div>
