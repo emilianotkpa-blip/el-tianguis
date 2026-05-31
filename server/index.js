@@ -149,20 +149,31 @@ app.post("/api/chat", async (req, res) => {
 // ── Auth ───────────────────────────────────────────────
 const SESSION_TOKEN = process.env.SESSION_TOKEN || "dev-insecure-token"
 
-// Usuarios hardcoded por ahora (se migrarán a NocoDB en D1 completo)
-const USUARIOS = [
-  { email: process.env.ADMIN_EMAIL,   password: process.env.ADMIN_PASSWORD,   name: "Roberto Mendoza", rol: "gerente"  },
-  { email: process.env.CAJERO_EMAIL,  password: process.env.CAJERO_PASSWORD,  name: "Ana Martínez",    rol: "cajero"   },
-  { email: process.env.VENDEDOR_EMAIL,password: process.env.VENDEDOR_PASSWORD,name: "Luis Torres",     rol: "vendedor" },
-].filter(u => u.email && u.password)
-
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { email, password } = req.body ?? {}
-  const user = USUARIOS.find(u => u.email?.toLowerCase() === email?.toLowerCase() && u.password === password)
-  if (user) {
-    res.json({ ok: true, token: SESSION_TOKEN, user: { name: user.name, rol: user.rol, email: email.toLowerCase() } })
-  } else {
-    res.status(401).json({ error: "Credenciales incorrectas" })
+  if (!email || !password) return res.status(400).json({ error: "Faltan credenciales" })
+  try {
+    // Buscar en tabla Equipo de NocoDB
+    const equipo = await nocoGet(
+      process.env.NOCO_TABLE_EQUIPO,
+      `&where=(Gmail,eq,${encodeURIComponent(email.trim().toLowerCase())})&limit=1`
+    )
+    const user = equipo.find(u =>
+      u.Gmail?.toLowerCase() === email.trim().toLowerCase() &&
+      u.Contrasena === password &&
+      u.Activo !== false
+    )
+    if (user) {
+      res.json({
+        ok: true,
+        token: SESSION_TOKEN,
+        user: { name: user.Nombre, rol: (user.Rol ?? "vendedor").toLowerCase(), puesto: user.Puesto ?? "", email: email.trim().toLowerCase() }
+      })
+    } else {
+      res.status(401).json({ error: "Credenciales incorrectas" })
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
 })
 
