@@ -352,7 +352,6 @@ export default function PedidosClientesPage({ addToast }) {
           }
         </div>
       </div>
-    </div>
 
       <Confirm
         open={!!confirm}
