@@ -19,6 +19,7 @@ import logoUrl from "./assets/logo.jpeg"
 const NAV = [
   { section: "Operación" },
   { id: "ventas",            label: "Ventas",           icon: "cart" },
+  { id: "caja",              label: "Caja",             icon: "receipt",  rolMin: "cajero" },
   { id: "productos",         label: "Productos",        icon: "box" },
   { id: "facturas",          label: "Facturas",         icon: "receipt" },
   { section: "Logística" },
@@ -26,7 +27,6 @@ const NAV = [
   { id: "pedidos-clientes",  label: "Pedidos Clientes", icon: "users" },
   { id: "clientes",          label: "Clientes",         icon: "user" },
   { id: "inventarios",       label: "Inventarios",      icon: "warehouse" },
-  { id: "caja",              label: "Caja",             icon: "receipt",  rolMin: "cajero" },
   { section: "Reportes" },
   { id: "utilidades",        label: "Utilidades",       icon: "chart" },
   { section: "Inteligencia" },
@@ -41,7 +41,7 @@ const PAGE_INFO = {
   "pedidos-clientes":  { title: "Pedidos Clientes",  parent: "Logística" },
   clientes:          { title: "Clientes",          parent: "Logística" },
   inventarios:       { title: "Inventarios",       parent: "Logística" },
-  caja:              { title: "Caja",              parent: "Logística" },
+  caja:              { title: "Caja",              parent: "Operación" },
   utilidades:        { title: "Utilidades",       parent: "Reportes" },
   ia:                { title: "Tianguis IA",      parent: "Inteligencia" },
 }
