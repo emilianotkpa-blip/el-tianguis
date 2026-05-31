@@ -250,6 +250,8 @@ app.get("/api/catalogo", async (req, res) => {
         name: p.Descripcion ?? "", tipo: p.Tipo ?? "", cat: p.Tipo ?? "otros",
         unidad: p.Unidad ?? "", color: p.Color ?? "", marca: p.Marca ?? "",
         min: p.Stock_Minimo || 5, costo: p.Costo ?? 0, precio: p.Precio ?? 0,
+        facturable: (p.Facturable ?? 1) === 1,
+        piezasPorUnidad: p.PiezasPorUnidad ?? 1,
         stock: { centro: s.Centro ?? 0, repostero: s.Repostero ?? 0, bodega: s.Bodega ?? 0 },
       }
     }))
@@ -259,16 +261,18 @@ app.get("/api/catalogo", async (req, res) => {
 })
 
 app.patch("/api/catalogo/:id", async (req, res) => {
-  const { nombre, tipo, unidad, marca, min, costo, precio } = req.body
+  const { nombre, tipo, unidad, marca, min, costo, precio, facturable, piezasPorUnidad } = req.body
   try {
     const update = { Id: parseInt(req.params.id) }
-    if (nombre  !== undefined) update.Descripcion  = nombre
-    if (tipo    !== undefined) update.Tipo          = tipo
-    if (unidad  !== undefined) update.Unidad        = unidad
-    if (marca   !== undefined) update.Marca         = marca
-    if (min     !== undefined) update.Stock_Minimo  = Number(min)
-    if (costo   !== undefined) update.Costo         = Number(costo)
-    if (precio  !== undefined) update.Precio        = Number(precio)
+    if (nombre          !== undefined) update.Descripcion     = nombre
+    if (tipo            !== undefined) update.Tipo             = tipo
+    if (unidad          !== undefined) update.Unidad           = unidad
+    if (marca           !== undefined) update.Marca            = marca
+    if (min             !== undefined) update.Stock_Minimo     = Number(min)
+    if (costo           !== undefined) update.Costo            = Number(costo)
+    if (precio          !== undefined) update.Precio           = Number(precio)
+    if (facturable      !== undefined) update.Facturable       = facturable ? 1 : 0
+    if (piezasPorUnidad !== undefined) update.PiezasPorUnidad  = Number(piezasPorUnidad) || 1
     await nocoPatch(T.productos, update)
     res.json({ ok: true })
   } catch (err) {
@@ -277,12 +281,14 @@ app.patch("/api/catalogo/:id", async (req, res) => {
 })
 
 app.post("/api/catalogo", async (req, res) => {
-  const { sku, nombre, tipo, unidad, marca, min, costo, precio } = req.body
+  const { sku, nombre, tipo, unidad, marca, min, costo, precio, facturable, piezasPorUnidad } = req.body
   try {
     const prod = await nocoPost(T.productos, {
       Codigo: parseInt(sku, 10), Descripcion: nombre,
       Tipo: tipo ?? "", Unidad: unidad ?? "", Marca: marca ?? "",
       Stock_Minimo: Number(min) || 5, Costo: Number(costo) || 0, Precio: Number(precio) || 0,
+      Facturable: facturable === false ? 0 : 1,
+      PiezasPorUnidad: Number(piezasPorUnidad) || 1,
     })
     await nocoPost(T.stock, {
       Producto_Codigo: parseInt(sku, 10), Descripcion: nombre,
@@ -317,7 +323,9 @@ app.post("/api/ventas", async (req, res) => {
       if (!rows.length) continue
       const row = rows[0]
       const campo = sucursal === "centro" ? "Centro" : sucursal === "repostero" ? "Repostero" : "Bodega"
-      await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) - item.qty, Total: (row.Total ?? 0) - item.qty })
+      const ppu   = item.piezasPorUnidad ?? 1
+      const delta = item.qty * ppu
+      await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) - delta, Total: (row.Total ?? 0) - delta })
     }
     res.json({ ok: true })
   } catch (err) {
@@ -386,8 +394,10 @@ app.post("/api/pedidos-clientes", async (req, res) => {
     for (const item of (items ?? [])) {
       const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
       if (!rows.length) continue
-      const row = rows[0]
-      await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) - item.qty, Total: (row.Total ?? 0) - item.qty })
+      const row   = rows[0]
+      const ppu   = item.piezasPorUnidad ?? 1
+      const delta = item.qty * ppu
+      await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) - delta, Total: (row.Total ?? 0) - delta })
     }
     res.json({ ok: true })
   } catch (err) {

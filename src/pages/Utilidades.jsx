@@ -73,8 +73,8 @@ function LineChart({ data, height = 180, color = "var(--wine-700)" }) {
           </g>
         </g>
       )}
-      <text x={padL} y={h - 8} className="chart-axis-label">Día 1</text>
-      <text x={w - padR} y={h - 8} className="chart-axis-label" textAnchor="end">Día {data.length}</text>
+      <text x={padL} y={h - 8} className="chart-axis-label">{data.length > 1 ? `Día 1` : "Hoy"}</text>
+      <text x={w - padR} y={h - 8} className="chart-axis-label" textAnchor="end">{data.length > 1 ? `Día ${data.length}` : "Hoy"}</text>
     </svg>
   )
 }
@@ -168,16 +168,26 @@ function buildMensuales(ventas) {
   }))
 }
 
+const PERIODOS = [
+  { id: "1d",  label: "Hoy",     dias: 1   },
+  { id: "7d",  label: "7 días",  dias: 7   },
+  { id: "15d", label: "15 días", dias: 15  },
+  { id: "1m",  label: "1 mes",   dias: 30  },
+  { id: "3m",  label: "3 meses", dias: 90  },
+  { id: "1a",  label: "1 año",   dias: 365 },
+]
+
 export default function UtilidadesPage() {
-  const [range, setRange]   = useState("30d")
-  const [ventas, setVentas] = useState([])
+  const [range, setRange]     = useState("1m")
+  const [ventas, setVentas]   = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     getVentas().then(setVentas).finally(() => setLoading(false))
   }, [])
 
-  const diasRange = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365
+  const diasRange       = PERIODOS.find(p => p.id === range)?.dias ?? 30
+  const periodoLabel    = PERIODOS.find(p => p.id === range)?.label ?? "1 mes"
   const ventasFiltradas = ventas.filter((v) => {
     if (!v.Fecha) return false
     return (new Date() - new Date(v.Fecha)) / 86400000 <= diasRange
@@ -187,7 +197,8 @@ export default function UtilidadesPage() {
   const totalTickets  = ventasFiltradas.length
   const ticketProm    = totalTickets > 0 ? totalIngresos / totalTickets : 0
 
-  const ventasDiarias   = buildDiarias(ventasFiltradas, Math.min(diasRange, 30))
+  const diasGrafica     = diasRange <= 1 ? 1 : diasRange <= 15 ? diasRange : diasRange <= 30 ? 30 : Math.min(diasRange, 90)
+  const ventasDiarias   = buildDiarias(ventasFiltradas, diasGrafica)
   const ventasMensuales = buildMensuales(ventas)
 
   const ventasPorSuc = ["centro","repostero","bodega"].map((s) => {
@@ -210,13 +221,13 @@ export default function UtilidadesPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Utilidades &amp; análisis</h1>
-          <p className="page-subtitle">Reportes de ventas y desempeño · {totalTickets} tickets · periodo: {range}</p>
+          <p className="page-subtitle">Reportes de ventas y desempeño · {totalTickets} tickets · {periodoLabel}</p>
         </div>
         <div className="page-actions">
           <div className="range-toggle">
-            {["7d", "30d", "90d", "ytd"].map((r) => (
-              <button key={r} className={range === r ? "active" : ""} onClick={() => setRange(r)}>
-                {r === "ytd" ? "Año" : r}
+            {PERIODOS.map((p) => (
+              <button key={p.id} className={range === p.id ? "active" : ""} onClick={() => setRange(p.id)}>
+                {p.label}
               </button>
             ))}
           </div>
@@ -255,7 +266,7 @@ export default function UtilidadesPage() {
         <div className="card col-8">
           <div className="card-header">
             <div>
-              <h3 className="card-title">Ingresos diarios — últimos 30 días</h3>
+              <h3 className="card-title">Ingresos — {periodoLabel}</h3>
               <div className="card-subtitle">Tendencia de ventas brutas (sin IVA)</div>
             </div>
             <div className="legend">

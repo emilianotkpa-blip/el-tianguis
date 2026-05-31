@@ -42,7 +42,7 @@ export default function VentasPage({ addToast }) {
     setCart((c) => {
       const existing = c.find((it) => it.sku === p.sku)
       if (existing) return c.map((it) => it.sku === p.sku ? { ...it, qty: it.qty + 1 } : it)
-      return [...c, { sku: p.sku, name: p.name, unidad: p.unidad, precio: p.precio, qty: 1 }]
+      return [...c, { sku: p.sku, name: p.name, unidad: p.unidad, precio: p.precio, facturable: p.facturable !== false, piezasPorUnidad: p.piezasPorUnidad ?? 1, qty: 1 }]
     })
   }
   const setQty = (sku, qty) => {
@@ -51,8 +51,10 @@ export default function VentasPage({ addToast }) {
   }
   const removeItem = (sku) => setCart((c) => c.filter((it) => it.sku !== sku))
 
-  const subtotal = cart.reduce((s, it) => s + it.precio * it.qty, 0)
-  const iva      = subtotal * 0.16
+  const subtotalFact   = cart.filter(it => it.facturable !== false).reduce((s, it) => s + it.precio * it.qty, 0)
+  const subtotalNoFact = cart.filter(it => it.facturable === false).reduce((s, it) => s + it.precio * it.qty, 0)
+  const subtotal = subtotalFact + subtotalNoFact
+  const iva      = subtotalFact * 0.16
   const total    = subtotal + iva
 
   const finalizar = () => {
@@ -143,6 +145,8 @@ export default function VentasPage({ addToast }) {
                     <span>{stock} en stock</span>
                   </div>
                   <div className="price">{p.precio > 0 ? fmtMoney(p.precio) : <span style={{ fontSize: 11, opacity: .5 }}>Sin precio</span>}</div>
+                  {p.piezasPorUnidad > 1 && <div className="stock-low" style={{ color: "var(--text-muted)" }}>📦 {p.piezasPorUnidad} pzas/u</div>}
+                  {!p.facturable && <div className="stock-low" style={{ color: "var(--text-muted)" }}>Sin factura</div>}
                   {low && <div className="stock-low">⚠ Stock bajo</div>}
                   {out && <div className="stock-out">● Sin stock</div>}
                 </button>
@@ -214,8 +218,10 @@ export default function VentasPage({ addToast }) {
             </div>
 
             <div className="cart-summary">
+              {subtotalNoFact > 0 && <div className="row"><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Sin factura</span><span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtMoney(subtotalNoFact)}</span></div>}
+              {subtotalFact > 0   && <div className="row"><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Facturable</span><span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtMoney(subtotalFact)}</span></div>}
               <div className="row"><span>Subtotal</span><span className="num">{fmtMoney(subtotal)}</span></div>
-              <div className="row"><span>IVA (16%)</span><span className="num">{fmtMoney(iva)}</span></div>
+              <div className="row"><span>IVA (16%) facturado</span><span className="num">{fmtMoney(iva)}</span></div>
               <div className="row total"><span>Total</span><span className="num">{fmtMoney(total)}</span></div>
             </div>
             <div className="cart-actions">
