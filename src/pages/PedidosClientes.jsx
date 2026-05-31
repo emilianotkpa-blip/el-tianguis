@@ -129,7 +129,7 @@ export default function PedidosClientesPage({ addToast }) {
   // ── Cart View ──────────────────────────────────────────────────────────────
   if (view === "cart") {
     return (
-      <div className="page">
+      <div className="page" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 52px)", paddingBottom: 0 }}>
         <div className="page-header">
           <div>
             <h1 className="page-title">Nuevo pedido de cliente</h1>
@@ -142,10 +142,10 @@ export default function PedidosClientesPage({ addToast }) {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, flex: 1, minHeight: 0, overflow: "hidden" }}>
           {/* Product grid */}
-          <div className="card">
-            <div className="card-body" style={{ paddingBottom: 0 }}>
+          <div className="card" style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+            <div className="card-body" style={{ paddingBottom: 0, flexShrink: 0 }}>
               <div className="filter-bar">
                 <div className="search-input">
                   <Icon name="search" size={14} className="icon" />
@@ -154,7 +154,7 @@ export default function PedidosClientesPage({ addToast }) {
                 <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{prodFiltered.length} productos</span>
               </div>
             </div>
-            <div className="card-body flush" style={{ maxHeight: 520, overflowY: "auto" }}>
+            <div className="card-body flush" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
               <table className="table">
                 <thead>
                   <tr><th>Producto</th><th className="num">Precio</th><th></th></tr>
@@ -181,7 +181,7 @@ export default function PedidosClientesPage({ addToast }) {
           </div>
 
           {/* Cart + order panel */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", minHeight: 0 }}>
             <div className="card">
               <div className="card-body">
                 <div style={{ fontWeight: 600, marginBottom: 10 }}>Carrito</div>

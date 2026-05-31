@@ -882,10 +882,11 @@ input, select, textarea { font-family: inherit; }
   grid-template-columns: 1fr 380px;
   gap: 16px;
   flex: 1;
-  min-height: 580px;
+  min-height: 0;
+  overflow: hidden;
 }
-.sales-products { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
-.sales-cart { display: flex; flex-direction: column; min-height: 0; }
+.sales-products { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; }
+.sales-cart { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .products-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
