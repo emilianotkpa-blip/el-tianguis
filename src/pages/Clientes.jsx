@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
 import { getClientes, postCliente, patchCliente } from "../api"
-import { fmtMoney } from "../utils"
+import { fmtMoney, exportCSV } from "../utils"
 
 const TIPOS = ["Mayorista", "Frecuente", "Público", "General"]
 const emptyForm = { nombre: "", rfc: "", tipo: "General", telefono: "", email: "", direccion: "", limiteCredito: "", saldo: "", notas: "" }
@@ -71,6 +71,9 @@ export default function ClientesPage({ addToast }) {
         </div>
         <div className="page-actions">
           <button className="btn btn-default btn-sm" onClick={cargar}><Icon name="refresh" size={13} /> Actualizar</button>
+          <button className="btn btn-default btn-sm" onClick={() => exportCSV(clientes.map((c) => ({ Nombre: c.Nombre, RFC: c.RFC, Tipo: c.Tipo, Telefono: c.Telefono, Email: c.Email, LimiteCredito: c.LimiteCredito, Saldo: c.Saldo })), "clientes.csv")}>
+            <Icon name="download" size={13} /> Exportar CSV
+          </button>
           <button className="btn btn-wine btn-sm" onClick={openNew}><Icon name="plus" size={13} /> Nuevo cliente</button>
         </div>
       </div>

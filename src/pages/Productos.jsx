@@ -4,7 +4,7 @@ import Modal from "../components/Modal"
 import { getCatalogo, patchProducto, postProducto } from "../api"
 
 const emptyForm = { sku: "", tipo: "", name: "", unidad: "", marca: "", min: 5, costo: "", precio: "" }
-import { fmtMoney, fmtNum } from "../utils"
+import { fmtMoney, fmtNum, exportCSV } from "../utils"
 
 export default function ProductosPage({ addToast }) {
   const [productos, setProductos] = useState([])
@@ -145,7 +145,9 @@ export default function ProductosPage({ addToast }) {
         </div>
         <div className="page-actions">
           <button className="btn btn-default btn-sm" onClick={cargar}><Icon name="refresh" size={13} /> Actualizar</button>
-          <button className="btn btn-default btn-sm"><Icon name="download" size={13} /> Exportar</button>
+          <button className="btn btn-default btn-sm" onClick={() => exportCSV(filtered.map((p) => ({ Codigo: p.sku, Nombre: p.name, Tipo: p.tipo, Unidad: p.unidad, Costo: p.costo, Precio: p.precio, StockCentro: p.stock.centro, StockRepostero: p.stock.repostero, StockBodega: p.stock.bodega })), "catalogo.csv")}>
+            <Icon name="download" size={13} /> Exportar CSV
+          </button>
           <button className="btn btn-wine btn-sm" onClick={openNew}><Icon name="plus" size={13} /> Nuevo producto</button>
         </div>
       </div>

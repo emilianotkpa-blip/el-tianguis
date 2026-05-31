@@ -1,15 +1,21 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Icon from "../components/Icon"
 import { postLogin } from "../api"
+import { fmtMoney } from "../utils"
 import logoUrl from "../assets/logo.jpeg"
 
 export default function Login({ onLogin }) {
-  const [email, setEmail]     = useState("")
+  const [email, setEmail]       = useState("")
   const [password, setPassword] = useState("")
-  const [showPwd, setShowPwd] = useState(false)
-  const [error, setError]     = useState("")
-  const [loading, setLoading] = useState(false)
-  const [touched, setTouched] = useState({ email: false, password: false })
+  const [showPwd, setShowPwd]   = useState(false)
+  const [error, setError]       = useState("")
+  const [loading, setLoading]   = useState(false)
+  const [touched, setTouched]   = useState({ email: false, password: false })
+  const [stats, setStats]       = useState({ numProductos: "…", totalVentasMes: null })
+
+  useEffect(() => {
+    fetch("/api/stats-publicas").then((r) => r.json()).then(setStats).catch(() => {})
+  }, [])
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const isPwdValid   = password.length >= 6
@@ -54,12 +60,12 @@ export default function Login({ onLogin }) {
             <div className="stat-label">Sucursales</div>
           </div>
           <div>
-            <div className="stat-num">851</div>
+            <div className="stat-num">{stats.numProductos}</div>
             <div className="stat-label">Productos</div>
           </div>
           <div>
-            <div className="stat-num">100%</div>
-            <div className="stat-label">En línea</div>
+            <div className="stat-num">{stats.totalVentasMes != null ? fmtMoney(stats.totalVentasMes) : "…"}</div>
+            <div className="stat-label">Ventas este mes</div>
           </div>
         </div>
       </aside>

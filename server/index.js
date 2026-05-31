@@ -161,10 +161,80 @@ app.post("/api/login", (req, res) => {
   }
 })
 
+app.get("/api/stats-publicas", async (req, res) => {
+  try {
+    const [prods, ventas] = await Promise.all([
+      nocoGet(T.productos),
+      nocoGet(T.ventas, "&sort=-Fecha&limit=500"),
+    ])
+    const now = new Date()
+    const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+    const totalMes = ventas
+      .filter((v) => (v.Fecha ?? "").startsWith(mesActual))
+      .reduce((s, v) => s + (v.Total ?? 0), 0)
+    res.json({ numProductos: prods.length, totalVentasMes: totalMes })
+  } catch { res.json({ numProductos: 0, totalVentasMes: 0 }) }
+})
+
 app.use("/api", (req, res, next) => {
   const token = req.headers["authorization"]?.replace("Bearer ", "")
   if (!token || token !== SESSION_TOKEN) return res.status(401).json({ error: "No autorizado" })
   next()
+})
+
+// ── Stats y alertas ───────────────────────────────────
+app.get("/api/stats", async (req, res) => {
+  try {
+    const [prods, stocks, pedCli, ventas] = await Promise.all([
+      nocoGet(T.productos),
+      nocoGet(T.stock),
+      nocoGet(T.pedidosClientes),
+      nocoGet(T.ventas, "&sort=-Fecha&limit=200"),
+    ])
+    const stockMap = Object.fromEntries(stocks.map((s) => [s.Producto_Codigo, s]))
+    let alertasStock = 0
+    prods.forEach((p) => {
+      const s = stockMap[p.Codigo] ?? {}
+      const min = p.Stock_Minimo || 5
+      if ((s.Centro ?? 0) < min || (s.Repostero ?? 0) < min || (s.Bodega ?? 0) < min) alertasStock++
+    })
+    const pedidosPendientes = pedCli.filter((p) => p.Estado === "preparando" || p.Estado === "listo").length
+    const now = new Date()
+    const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+    const ventasMes = ventas.filter((v) => (v.Fecha ?? "").startsWith(mesActual))
+    const totalMes = ventasMes.reduce((s, v) => s + (v.Total ?? 0), 0)
+    res.json({ alertasStock, pedidosPendientes, totalVentasMes: totalMes, numProductos: prods.length })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.get("/api/alertas", async (req, res) => {
+  try {
+    const [prods, stocks, pedCli, pedMer] = await Promise.all([
+      nocoGet(T.productos),
+      nocoGet(T.stock),
+      nocoGet(T.pedidosClientes, "&sort=-Fecha&limit=5"),
+      nocoGet(T.pedidosMercancia, "&sort=-Fecha&limit=5"),
+    ])
+    const stockMap = Object.fromEntries(stocks.map((s) => [s.Producto_Codigo, s]))
+    const alertas = []
+    prods.forEach((p) => {
+      const s = stockMap[p.Codigo] ?? {}
+      const min = p.Stock_Minimo || 5
+      const nombre = p.Descripcion ?? "Producto"
+      ;["Centro","Repostero","Bodega"].forEach((suc) => {
+        const v = s[suc] ?? 0
+        if (v <= 0) alertas.push({ type: "err",  title: `Agotado: ${nombre} (${suc})`,   time: "Stock" })
+        else if (v < min) alertas.push({ type: "warn", title: `Stock bajo: ${nombre} (${suc})`, time: "Stock" })
+      })
+    })
+    pedCli.forEach((p) => {
+      if (p.Estado === "preparando") alertas.push({ type: "info", title: `Pedido ${p.Folio} — ${p.Cliente} en preparación`, time: p.Fecha ?? "" })
+    })
+    pedMer.forEach((p) => {
+      if (p.Estado === "recibido") alertas.push({ type: "ok", title: `Orden ${p.Folio} recibida en ${p.Destino}`, time: p.Fecha ?? "" })
+    })
+    res.json(alertas.slice(0, 20))
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // ── Catálogo ───────────────────────────────────────────

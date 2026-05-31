@@ -17,7 +17,9 @@ async function apiFetch(path, options = {}) {
 const json  = (body) => ({ method: "POST",  headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
 const patch = (body) => ({ method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
 
-export const postLogin = (b) => apiFetch("/api/login", json(b))
+export const postLogin   = (b) => apiFetch("/api/login", json(b))
+export const getStats    = ()  => apiFetch("/api/stats")
+export const getAlertas  = ()  => apiFetch("/api/alertas")
 
 export const getCatalogo        = ()       => apiFetch("/api/catalogo")
 export const patchProducto      = (id, b)  => apiFetch(`/api/catalogo/${id}`, patch(b))

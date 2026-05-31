@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
+import Confirm from "../components/Confirm"
 import { getPedidosClientes, postPedidoCliente, patchPedidoCliente, getCatalogo, getClientes, postCliente } from "../api"
 import { fmtMoney, todayISO } from "../utils"
 
@@ -25,7 +26,8 @@ export default function PedidosClientesPage({ addToast }) {
   const [prodSearch, setProdSearch] = useState("")
   const [estado, setEstado]         = useState("todos")
   const [saving, setSaving]         = useState(false)
-  const [detalle, setDetalle]       = useState(null)   // pedido abierto en modal detalle
+  const [detalle, setDetalle]       = useState(null)
+  const [confirm, setConfirm]       = useState(null)   // { id, estado }
 
   // Cart state
   const [cart, setCart]                   = useState([])
@@ -330,12 +332,12 @@ export default function PedidosClientesPage({ addToast }) {
                           <Icon name="eye" size={12} />
                         </button>
                         {p.Estado === "preparando" && (
-                          <button className="btn btn-ghost btn-sm" title="Marcar listo" onClick={() => cambiarEstado(p.Id, "listo")}>
+                          <button className="btn btn-ghost btn-sm" title="Marcar listo" onClick={() => setConfirm({ id: p.Id, estado: "listo" })}>
                             <Icon name="check" size={12} />
                           </button>
                         )}
                         {p.Estado === "listo" && (
-                          <button className="btn btn-ghost btn-sm" title="Marcar entregado" onClick={() => cambiarEstado(p.Id, "entregado")}>
+                          <button className="btn btn-ghost btn-sm" title="Marcar entregado" onClick={() => setConfirm({ id: p.Id, estado: "entregado" })}>
                             <Icon name="check" size={12} />
                           </button>
                         )}
@@ -351,6 +353,15 @@ export default function PedidosClientesPage({ addToast }) {
         </div>
       </div>
     </div>
+
+      <Confirm
+        open={!!confirm}
+        title={confirm?.estado === "entregado" ? "¿Marcar como entregado?" : "¿Marcar como listo?"}
+        message={confirm?.estado === "entregado" ? "Esta acción no se puede revertir." : "El pedido pasará a estado 'Listo para entrega'."}
+        confirmLabel={confirm?.estado === "entregado" ? "Sí, entregar" : "Sí, marcar listo"}
+        onConfirm={() => { cambiarEstado(confirm.id, confirm.estado); setConfirm(null) }}
+        onCancel={() => setConfirm(null)}
+      />
 
       <Modal
         open={!!detalle}

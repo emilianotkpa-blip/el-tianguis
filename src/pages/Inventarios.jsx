@@ -3,6 +3,7 @@ import Icon from "../components/Icon"
 import Modal from "../components/Modal"
 import { SUCURSALES } from "../data"
 import { getCatalogo, postMovimiento } from "../api"
+import { exportCSV } from "../utils"
 
 export default function InventariosPage({ addToast }) {
   const [suc, setSuc]               = useState("centro")
@@ -115,7 +116,9 @@ export default function InventariosPage({ addToast }) {
         </div>
         <div className="page-actions">
           <button className="btn btn-default btn-sm" onClick={cargar}><Icon name="refresh" size={13} /> Sincronizar</button>
-          <button className="btn btn-default btn-sm"><Icon name="download" size={13} /> Exportar inventario</button>
+          <button className="btn btn-default btn-sm" onClick={() => exportCSV(productos.map((p) => ({ Codigo: p.sku, Nombre: p.name, Tipo: p.tipo, Centro: p.stock.centro, Repostero: p.stock.repostero, Bodega: p.stock.bodega, Total: (p.stock.centro + p.stock.repostero + p.stock.bodega), Minimo: p.min })), "inventario.csv")}>
+            <Icon name="download" size={13} /> Exportar CSV
+          </button>
           <button className="btn btn-wine btn-sm"><Icon name="upload" size={13} /> Movimiento de stock</button>
         </div>
       </div>

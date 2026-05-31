@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Icon from "./components/Icon"
 import Toast from "./components/Toast"
+import ErrorBoundary from "./components/ErrorBoundary"
 import Login from "./pages/Login"
 import VentasPage from "./pages/Ventas"
 import ProductosPage from "./pages/Productos"
@@ -11,7 +12,7 @@ import InventariosPage from "./pages/Inventarios"
 import UtilidadesPage from "./pages/Utilidades"
 import TianguisIAPage from "./pages/TianguisIA"
 import ClientesPage from "./pages/Clientes"
-import { NOTIFICATIONS } from "./data"
+import { getStats, getAlertas } from "./api"
 import logoUrl from "./assets/logo.jpeg"
 
 const NAV = [
@@ -20,10 +21,10 @@ const NAV = [
   { id: "productos",         label: "Productos",        icon: "box" },
   { id: "facturas",          label: "Facturas",         icon: "receipt" },
   { section: "Logística" },
-  { id: "pedidos-mercancia", label: "Pedidos Mercancía",icon: "truck",    badge: "1" },
-  { id: "pedidos-clientes",  label: "Pedidos Clientes", icon: "users",    badge: "2" },
+  { id: "pedidos-mercancia", label: "Pedidos Mercancía",icon: "truck" },
+  { id: "pedidos-clientes",  label: "Pedidos Clientes", icon: "users" },
   { id: "clientes",          label: "Clientes",         icon: "user" },
-  { id: "inventarios",       label: "Inventarios",      icon: "warehouse", alert: 3 },
+  { id: "inventarios",       label: "Inventarios",      icon: "warehouse" },
   { section: "Reportes" },
   { id: "utilidades",        label: "Utilidades",       icon: "chart" },
   { section: "Inteligencia" },
@@ -43,9 +44,31 @@ const PAGE_INFO = {
 }
 
 function AppShell({ user, onLogout, theme, setTheme }) {
-  const [page, setPage] = useState("ventas")
+  const [page, setPage]         = useState("ventas")
   const [notifOpen, setNotifOpen] = useState(false)
-  const [toasts, setToasts] = useState([])
+  const [toasts, setToasts]     = useState([])
+  const [stats, setStats]       = useState({ alertasStock: 0, pedidosPendientes: 0 })
+  const [alertas, setAlertas]   = useState([])
+  const [globalSearch, setGlobalSearch] = useState("")
+  const searchRef = useRef(null)
+
+  useEffect(() => {
+    getStats().then(setStats).catch(() => {})
+    getAlertas().then(setAlertas).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault()
+        searchRef.current?.focus()
+        searchRef.current?.select()
+      }
+      if (e.key === "Escape") setGlobalSearch("")
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [])
 
   const addToast = (t) => {
     const id = Date.now() + Math.random()
@@ -80,6 +103,9 @@ function AppShell({ user, onLogout, theme, setTheme }) {
         <nav className="sidebar-nav">
           {NAV.map((item, i) => {
             if (item.section) return <div key={i} className="sidebar-section">{item.section}</div>
+            const dynBadge = item.id === "pedidos-clientes" ? stats.pedidosPendientes
+                           : item.id === "inventarios"      ? stats.alertasStock
+                           : 0
             return (
               <button
                 key={item.id}
@@ -88,15 +114,15 @@ function AppShell({ user, onLogout, theme, setTheme }) {
               >
                 <Icon name={item.icon} size={15} className="icon" />
                 <span>{item.label}</span>
-                {item.alert && <span className="badge alert">{item.alert}</span>}
-                {item.badge && !item.alert && <span className="badge">{item.badge}</span>}
+                {dynBadge > 0 && item.id === "inventarios" && <span className="badge alert">{dynBadge}</span>}
+                {dynBadge > 0 && item.id !== "inventarios" && <span className="badge">{dynBadge}</span>}
               </button>
             )
           })}
         </nav>
 
         <div className="sidebar-footer">
-          <span>v4.2.0</span>
+          <span>v{__APP_VERSION__}</span>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#3fcc6e" }}></span>
             En línea
@@ -112,9 +138,40 @@ function AppShell({ user, onLogout, theme, setTheme }) {
         </div>
         <div className="header-spacer"></div>
 
-        <div className="header-search">
+        <div className="header-search" style={{ position: "relative" }}>
           <Icon name="search" size={14} className="icon" />
-          <input placeholder="Buscar productos, clientes, facturas… (Ctrl+K)" />
+          <input
+            ref={searchRef}
+            placeholder="Buscar… (Ctrl+K)"
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+          />
+          {globalSearch && (
+            <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,.15)", zIndex: 100, maxHeight: 280, overflowY: "auto" }}>
+              {[
+                { label: "Productos",        page: "productos",        key: "productos" },
+                { label: "Clientes",          page: "clientes",         key: "clientes" },
+                { label: "Inventarios",       page: "inventarios",      key: "inventarios" },
+                { label: "Ventas",            page: "ventas",           key: "ventas" },
+                { label: "Pedidos Clientes",  page: "pedidos-clientes", key: "pedidos-clientes" },
+                { label: "Pedidos Mercancía", page: "pedidos-mercancia",key: "pedidos-mercancia" },
+                { label: "Facturas",          page: "facturas",         key: "facturas" },
+                { label: "Utilidades",        page: "utilidades",       key: "utilidades" },
+                { label: "Tianguis IA",       page: "ia",               key: "ia" },
+              ]
+                .filter((r) => r.label.toLowerCase().includes(globalSearch.toLowerCase()))
+                .map((r) => (
+                  <div
+                    key={r.key}
+                    style={{ padding: "10px 14px", cursor: "pointer", fontSize: 13, borderBottom: "1px solid var(--border)" }}
+                    onMouseDown={() => { setPage(r.page); setGlobalSearch("") }}
+                  >
+                    {r.label}
+                  </div>
+                ))
+              }
+            </div>
+          )}
         </div>
 
         <div className="header-actions" style={{ position: "relative" }}>
@@ -127,7 +184,7 @@ function AppShell({ user, onLogout, theme, setTheme }) {
           </button>
           <button className="header-icon-btn" onClick={() => setNotifOpen(!notifOpen)} title="Notificaciones">
             <Icon name="bell" size={16} />
-            <span className="dot"></span>
+            {alertas.length > 0 && <span className="dot"></span>}
           </button>
           {notifOpen && (
             <>
@@ -135,20 +192,23 @@ function AppShell({ user, onLogout, theme, setTheme }) {
               <div className="notif-pop">
                 <div className="notif-head">
                   <span>Notificaciones</span>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setNotifOpen(false)}>Marcar leídas</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setNotifOpen(false)}>Cerrar</button>
                 </div>
                 <div className="notif-list">
-                  {NOTIFICATIONS.map((n, i) => (
-                    <div key={i} className={"notif-item " + n.type}>
-                      <div className="icon-wrap">
-                        <Icon name={n.type === "err" ? "alert" : n.type === "warn" ? "alert" : n.type === "ok" ? "check" : "info"} size={14} />
+                  {alertas.length === 0
+                    ? <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>Sin alertas activas</div>
+                    : alertas.map((n, i) => (
+                      <div key={i} className={"notif-item " + n.type}>
+                        <div className="icon-wrap">
+                          <Icon name={n.type === "err" || n.type === "warn" ? "alert" : n.type === "ok" ? "check" : "info"} size={14} />
+                        </div>
+                        <div className="body">
+                          <div className="title">{n.title}</div>
+                          <div className="time">{n.time}</div>
+                        </div>
                       </div>
-                      <div className="body">
-                        <div className="title">{n.title}</div>
-                        <div className="time">{n.time}</div>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  }
                 </div>
               </div>
             </>
@@ -171,7 +231,9 @@ function AppShell({ user, onLogout, theme, setTheme }) {
       </header>
 
       <main className="app-main">
-        {renderPage()}
+        <ErrorBoundary key={page} title={PAGE_INFO[page]?.title}>
+          {renderPage()}
+        </ErrorBoundary>
       </main>
 
       <Toast toasts={toasts} onDismiss={dismissToast} />
