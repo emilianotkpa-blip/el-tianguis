@@ -25,6 +25,7 @@ export default function PedidosClientesPage({ addToast }) {
   const [prodSearch, setProdSearch] = useState("")
   const [estado, setEstado]         = useState("todos")
   const [saving, setSaving]         = useState(false)
+  const [detalle, setDetalle]       = useState(null)   // pedido abierto en modal detalle
 
   // Cart state
   const [cart, setCart]                   = useState([])
@@ -56,15 +57,15 @@ export default function PedidosClientesPage({ addToast }) {
   })
 
   const prodFiltered = useMemo(
-    () => catalogo.filter((p) => !prodSearch || (p.Nombre ?? "").toLowerCase().includes(prodSearch.toLowerCase())),
+    () => catalogo.filter((p) => !prodSearch || (p.name ?? "").toLowerCase().includes(prodSearch.toLowerCase())),
     [catalogo, prodSearch]
   )
 
   const addToCart = (prod) => {
     setCart((prev) => {
-      const existing = prev.find((x) => x.id === prod.Id)
-      if (existing) return prev.map((x) => x.id === prod.Id ? { ...x, qty: x.qty + 1 } : x)
-      return [...prev, { id: prod.Id, nombre: prod.Nombre, precio: prod.Precio ?? 0, qty: 1 }]
+      const existing = prev.find((x) => x.id === prod._id)
+      if (existing) return prev.map((x) => x.id === prod._id ? { ...x, qty: x.qty + 1 } : x)
+      return [...prev, { id: prod._id, sku: prod.sku, nombre: prod.name, precio: prod.precio ?? 0, qty: 1 }]
     })
   }
   const removeFromCart = (id) => setCart((prev) => prev.filter((x) => x.id !== id))
@@ -92,7 +93,7 @@ export default function PedidosClientesPage({ addToast }) {
         sucursal, estado: "preparando",
         fechaEntrega: fechaEntrega || null,
         total: cartTotal, observaciones,
-        items: JSON.stringify(cart.map((x) => ({ id: x.id, nombre: x.nombre, precio: x.precio, qty: x.qty }))),
+        items: cart.map((x) => ({ id: x.id, sku: x.sku, nombre: x.nombre, precio: x.precio, qty: x.qty })),
       })
       addToast({ kind: "ok", msg: "Pedido creado correctamente" })
       resetCart(); setView("list"); cargar()
@@ -158,11 +159,11 @@ export default function PedidosClientesPage({ addToast }) {
                 </thead>
                 <tbody>
                   {prodFiltered.map((p) => {
-                    const inCart = cart.find((x) => x.id === p.Id)
+                    const inCart = cart.find((x) => x.id === p._id)
                     return (
-                      <tr key={p.Id}>
-                        <td>{p.Nombre}</td>
-                        <td className="num">{p.Precio > 0 ? fmtMoney(p.Precio) : <span className="muted">Sin precio</span>}</td>
+                      <tr key={p._id}>
+                        <td>{p.name}</td>
+                        <td className="num">{p.precio > 0 ? fmtMoney(p.precio) : <span className="muted">Sin precio</span>}</td>
                         <td className="actions-cell">
                           {inCart
                             ? <span className="badge badge-ok">{inCart.qty} en carrito</span>
@@ -325,6 +326,9 @@ export default function PedidosClientesPage({ addToast }) {
                       <td className="muted">{p.FechaEntrega ?? "—"}</td>
                       <td>{badge((p.Estado ?? "").toLowerCase())}</td>
                       <td className="actions-cell">
+                        <button className="btn btn-ghost btn-sm" title="Ver detalle" onClick={() => setDetalle(p)}>
+                          <Icon name="eye" size={12} />
+                        </button>
                         {p.Estado === "preparando" && (
                           <button className="btn btn-ghost btn-sm" title="Marcar listo" onClick={() => cambiarEstado(p.Id, "listo")}>
                             <Icon name="check" size={12} />
@@ -346,6 +350,50 @@ export default function PedidosClientesPage({ addToast }) {
           }
         </div>
       </div>
+    </div>
+
+      <Modal
+        open={!!detalle}
+        onClose={() => setDetalle(null)}
+        title={detalle ? `${detalle.Folio} — ${detalle.Cliente}` : ""}
+        footer={<button className="btn btn-default" onClick={() => setDetalle(null)}>Cerrar</button>}
+      >
+        {detalle && (() => {
+          let items = []
+          try { items = JSON.parse(detalle.Items_JSON || "[]") } catch {}
+          return (
+            <div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", fontSize: 13, marginBottom: 16 }}>
+                <div><span className="muted">Sucursal:</span> {detalle.Sucursal}</div>
+                <div><span className="muted">Fecha:</span> {detalle.Fecha}</div>
+                <div><span className="muted">Entrega:</span> {detalle.FechaEntrega ?? "—"}</div>
+                <div><span className="muted">Estado:</span> {badge((detalle.Estado ?? "").toLowerCase())}</div>
+                {detalle.Observaciones && <div style={{ gridColumn: "1/-1" }}><span className="muted">Obs:</span> {detalle.Observaciones}</div>}
+              </div>
+              {items.length > 0
+                ? <table className="table">
+                    <thead><tr><th>Producto</th><th className="num">Precio</th><th className="num">Cant.</th><th className="num">Subtotal</th></tr></thead>
+                    <tbody>
+                      {items.map((it, i) => (
+                        <tr key={i}>
+                          <td>{it.nombre}</td>
+                          <td className="num">{fmtMoney(it.precio)}</td>
+                          <td className="num">{it.qty}</td>
+                          <td className="num"><strong>{fmtMoney(it.precio * it.qty)}</strong></td>
+                        </tr>
+                      ))}
+                      <tr>
+                        <td colSpan={3} style={{ textAlign: "right", fontWeight: 600 }}>Total</td>
+                        <td className="num"><strong>{fmtMoney(detalle.Total ?? 0)}</strong></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                : <p className="muted" style={{ textAlign: "center", padding: 16 }}>Sin detalle de productos registrado</p>
+              }
+            </div>
+          )
+        })()}
+      </Modal>
     </div>
   )
 }

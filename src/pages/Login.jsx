@@ -1,21 +1,20 @@
 import { useState } from "react"
 import Icon from "../components/Icon"
+import { postLogin } from "../api"
 import logoUrl from "../assets/logo.jpeg"
 
-const VALID = { email: "admin@eltianguis.mx", password: "tianguis2026" }
-
 export default function Login({ onLogin }) {
-  const [email, setEmail] = useState("")
+  const [email, setEmail]     = useState("")
   const [password, setPassword] = useState("")
   const [showPwd, setShowPwd] = useState(false)
-  const [error, setError] = useState("")
+  const [error, setError]     = useState("")
   const [loading, setLoading] = useState(false)
   const [touched, setTouched] = useState({ email: false, password: false })
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  const isPwdValid = password.length >= 6
+  const isPwdValid   = password.length >= 6
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setTouched({ email: true, password: true })
     if (!isEmailValid || !isPwdValid) {
@@ -24,14 +23,16 @@ export default function Login({ onLogin }) {
     }
     setError("")
     setLoading(true)
-    setTimeout(() => {
-      if (email.trim().toLowerCase() === VALID.email && password === VALID.password) {
-        onLogin({ email: email.trim().toLowerCase(), name: "Roberto Mendoza", role: "Gerente General" })
-      } else {
-        setError("Credenciales incorrectas. Usa admin@eltianguis.mx / tianguis2026")
-        setLoading(false)
-      }
-    }, 650)
+    try {
+      const result = await postLogin({ email: email.trim().toLowerCase(), password })
+      sessionStorage.setItem("elt_token", result.token)
+      sessionStorage.setItem("elt_user", JSON.stringify(result.user))
+      onLogin(result.user)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -53,12 +54,12 @@ export default function Login({ onLogin }) {
             <div className="stat-label">Sucursales</div>
           </div>
           <div>
-            <div className="stat-num">128</div>
+            <div className="stat-num">851</div>
             <div className="stat-label">Productos</div>
           </div>
           <div>
-            <div className="stat-num">$2.34M</div>
-            <div className="stat-label">Vol. mensual</div>
+            <div className="stat-num">100%</div>
+            <div className="stat-label">En línea</div>
           </div>
         </div>
       </aside>
@@ -129,14 +130,6 @@ export default function Login({ onLogin }) {
             {loading ? "Verificando…" : "Ingresar al panel"}
           </button>
         </form>
-
-        <div className="login-help">
-          <strong>Demo:</strong> usa <code>admin@eltianguis.mx</code> / <code>tianguis2026</code><br />
-          ¿Problemas para acceder? Contacta a soporte:{" "}
-          <a href="#" onClick={(e) => e.preventDefault()} style={{ color: "var(--wine-700)" }}>
-            soporte@eltianguis.mx
-          </a>
-        </div>
       </main>
     </div>
   )

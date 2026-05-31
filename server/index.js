@@ -146,6 +146,27 @@ app.post("/api/chat", async (req, res) => {
   }
 })
 
+// ── Auth ───────────────────────────────────────────────
+const SESSION_TOKEN = process.env.SESSION_TOKEN || "dev-insecure-token"
+
+app.post("/api/login", (req, res) => {
+  const { email, password } = req.body ?? {}
+  if (
+    email?.toLowerCase() === process.env.ADMIN_EMAIL?.toLowerCase() &&
+    password === process.env.ADMIN_PASSWORD
+  ) {
+    res.json({ ok: true, token: SESSION_TOKEN, user: { name: "Roberto Mendoza", role: "Gerente General", email: email.toLowerCase() } })
+  } else {
+    res.status(401).json({ error: "Credenciales incorrectas" })
+  }
+})
+
+app.use("/api", (req, res, next) => {
+  const token = req.headers["authorization"]?.replace("Bearer ", "")
+  if (!token || token !== SESSION_TOKEN) return res.status(401).json({ error: "No autorizado" })
+  next()
+})
+
 // ── Catálogo ───────────────────────────────────────────
 app.get("/api/catalogo", async (req, res) => {
   try {
@@ -291,6 +312,13 @@ app.post("/api/pedidos-clientes", async (req, res) => {
       Total: total, Items_JSON: JSON.stringify(items ?? []),
       Observaciones: observaciones ?? "",
     })
+    const campo = sucursal === "Repostero" ? "Repostero" : sucursal === "Bodega" ? "Bodega" : "Centro"
+    for (const item of (items ?? [])) {
+      const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
+      if (!rows.length) continue
+      const row = rows[0]
+      await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) - item.qty, Total: (row.Total ?? 0) - item.qty })
+    }
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -332,7 +360,23 @@ app.post("/api/pedidos-mercancia", async (req, res) => {
 
 app.patch("/api/pedidos-mercancia/:id", async (req, res) => {
   try {
-    await nocoPatch(T.pedidosMercancia, { Id: parseInt(req.params.id), ...req.body })
+    const id = parseInt(req.params.id)
+    if (req.body.Estado === "recibido") {
+      const rows = await nocoGet(T.pedidosMercancia, `&where=(Id,eq,${id})`)
+      if (rows.length) {
+        const pedido = rows[0]
+        const items = JSON.parse(pedido.Items_JSON || "[]")
+        const destino = (pedido.Destino ?? "").toLowerCase()
+        const campo = destino.includes("repostero") ? "Repostero" : destino.includes("bodega") ? "Bodega" : "Centro"
+        for (const item of items) {
+          const stockRows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
+          if (!stockRows.length) continue
+          const row = stockRows[0]
+          await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) + item.qty, Total: (row.Total ?? 0) + item.qty })
+        }
+      }
+    }
+    await nocoPatch(T.pedidosMercancia, { Id: id, ...req.body })
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: err.message })

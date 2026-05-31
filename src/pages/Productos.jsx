@@ -16,8 +16,48 @@ export default function ProductosPage({ addToast }) {
   const [showNew, setShowNew]     = useState(false)
   const [form, setForm]           = useState(emptyForm)
   const [saving, setSaving]       = useState(false)
+  const [inline, setInline]       = useState(null)   // { id, field, value }
+  const [page, setPage]           = useState(1)
+  const PAGE_SIZE = 100
 
   const setF = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  const startInline = (p, field) =>
+    setInline({ id: p._id, field, value: String(p[field] ?? "") })
+
+  const commitInline = async () => {
+    if (!inline) return
+    try {
+      await patchProducto(inline.id, { [inline.field]: Number(inline.value) || 0 })
+      setProductos((prev) => prev.map((p) => p._id === inline.id ? { ...p, [inline.field]: Number(inline.value) || 0 } : p))
+    } catch (err) { addToast({ kind: "err", msg: err.message }) }
+    setInline(null)
+  }
+
+  const inlineCell = (p, field, fmtFn) => {
+    if (inline?.id === p._id && inline?.field === field) {
+      return (
+        <input
+          autoFocus
+          type="number" step="0.01"
+          value={inline.value}
+          onChange={(e) => setInline((s) => ({ ...s, value: e.target.value }))}
+          onBlur={commitInline}
+          onKeyDown={(e) => { if (e.key === "Enter") commitInline(); if (e.key === "Escape") setInline(null) }}
+          style={{ width: 80, textAlign: "right", fontSize: 12, padding: "2px 4px" }}
+        />
+      )
+    }
+    return (
+      <span
+        title="Clic para editar"
+        style={{ cursor: "pointer", borderBottom: "1px dashed var(--border)" }}
+        onClick={() => startInline(p, field)}
+      >
+        {p[field] > 0 ? fmtFn(p[field]) : <span className="muted">—</span>}
+      </span>
+    )
+  }
 
   const openEdit = (p) => {
     setEditing(p)
@@ -51,6 +91,12 @@ export default function ProductosPage({ addToast }) {
       if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.sku.includes(search)) return false
       return true
     }), [productos, search, tipo])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  // Reset to page 1 when filter changes
+  useMemo(() => setPage(1), [search, tipo])
 
   const closeModal = () => { setEditing(null); setShowNew(false) }
 
@@ -115,6 +161,13 @@ export default function ProductosPage({ addToast }) {
               {tipos.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{filtered.length} resultados</span>
+            {totalPages > 1 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>‹</button>
+                <span className="muted">{page} / {totalPages}</span>
+                <button className="btn btn-ghost btn-sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>›</button>
+              </div>
+            )}
           </div>
         </div>
         <div className="card-body flush">
@@ -127,7 +180,7 @@ export default function ProductosPage({ addToast }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => {
+              {paged.map((p) => {
                 const total  = (p.stock.centro ?? 0) + (p.stock.repostero ?? 0) + (p.stock.bodega ?? 0)
                 const margen = p.precio > 0 ? ((p.precio - p.costo) / p.precio * 100).toFixed(1) : "—"
                 const status = total <= 0 ? "out" : total < p.min ? "low" : "ok"
@@ -137,8 +190,8 @@ export default function ProductosPage({ addToast }) {
                     <td><strong>{p.name}</strong></td>
                     <td><span className="badge badge-neutral">{p.tipo || "—"}</span></td>
                     <td className="muted">{p.unidad || "—"}</td>
-                    <td className="num">{p.costo > 0 ? fmtMoney(p.costo) : <span className="muted">—</span>}</td>
-                    <td className="num">{p.precio > 0 ? fmtMoney(p.precio) : <span className="muted">—</span>}</td>
+                    <td className="num">{inlineCell(p, "costo",  fmtMoney)}</td>
+                    <td className="num">{inlineCell(p, "precio", fmtMoney)}</td>
                     <td className="num">{margen !== "—" ? `${margen}%` : <span className="muted">—</span>}</td>
                     <td className="num">{fmtNum(total)}</td>
                     <td>

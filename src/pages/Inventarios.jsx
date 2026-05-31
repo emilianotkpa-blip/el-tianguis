@@ -9,6 +9,8 @@ export default function InventariosPage({ addToast }) {
   const [search, setSearch]         = useState("")
   const [statusFilter, setStatus]   = useState("todos")
   const [adjustingP, setAdjustingP] = useState(null)
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 100
   const [productos, setProductos]   = useState([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
@@ -54,6 +56,9 @@ export default function InventariosPage({ addToast }) {
     if (statusFilter !== "todos" && st !== statusFilter) return false
     return true
   })
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const aplicar = async () => {
     const cant = parseFloat(movCant)
@@ -166,6 +171,13 @@ export default function InventariosPage({ addToast }) {
               <option value="agotado">Agotado</option>
             </select>
             <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{filtered.length} productos</span>
+            {totalPages > 1 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>‹</button>
+                <span className="muted">{page} / {totalPages}</span>
+                <button className="btn btn-ghost btn-sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>›</button>
+              </div>
+            )}
           </div>
         </div>
         <div className="card-body flush">
@@ -179,7 +191,7 @@ export default function InventariosPage({ addToast }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => {
+              {paged.map((p) => {
                 const v      = p.stock[suc] ?? 0
                 const status = v <= 0 ? "agotado" : v < p.min ? "bajo" : "normal"
                 const pct    = Math.min(100, (v / (p.min * 2)) * 100)

@@ -1,12 +1,23 @@
 async function apiFetch(path, options = {}) {
-  const res = await fetch(path, options)
+  const token = sessionStorage.getItem("elt_token")
+  const headers = { ...(options.headers ?? {}) }
+  if (token) headers["Authorization"] = `Bearer ${token}`
+  const res = await fetch(path, { ...options, headers })
+  if (res.status === 401 && path !== "/api/login") {
+    sessionStorage.removeItem("elt_token")
+    sessionStorage.removeItem("elt_user")
+    window.location.reload()
+    return
+  }
   const data = await res.json()
   if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`)
   return data
 }
 
-const json = (body) => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+const json  = (body) => ({ method: "POST",  headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
 const patch = (body) => ({ method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+
+export const postLogin = (b) => apiFetch("/api/login", json(b))
 
 export const getCatalogo        = ()       => apiFetch("/api/catalogo")
 export const patchProducto      = (id, b)  => apiFetch(`/api/catalogo/${id}`, patch(b))

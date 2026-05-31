@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import Icon from "../components/Icon"
 import { SUCURSALES } from "../data"
-import { getCatalogo, getPedidosMercancia, postPedidoMercancia } from "../api"
+import { getCatalogo, getPedidosMercancia, postPedidoMercancia, patchPedidoMercancia } from "../api"
 import { fmtMoney, todayISO } from "../utils"
 
 export default function PedidosMercanciaPage({ addToast }) {
@@ -18,11 +18,22 @@ export default function PedidosMercanciaPage({ addToast }) {
   const [saving, setSaving]       = useState(false)
   const folioRef = useRef(313)
 
+  const recargarHistorial = () =>
+    getPedidosMercancia().then(setHistorial).catch(() => {})
+
   useEffect(() => {
     Promise.all([getCatalogo(), getPedidosMercancia()])
       .then(([prods, hist]) => { setProductos(prods); setHistorial(hist) })
       .finally(() => setLoading(false))
   }, [])
+
+  const recibirPedido = async (id) => {
+    try {
+      await patchPedidoMercancia(id, { Estado: "recibido" })
+      addToast({ kind: "ok", msg: "Recibido — stock actualizado" })
+      recargarHistorial()
+    } catch (err) { addToast({ kind: "err", msg: err.message }) }
+  }
 
   const filtered = productos.filter((p) =>
     !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.includes(search)
@@ -101,11 +112,11 @@ export default function PedidosMercanciaPage({ addToast }) {
               ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando historial…</div>
               : <table className="table">
                   <thead>
-                    <tr><th>Folio</th><th>Fecha</th><th>Proveedor</th><th>Destino</th><th className="num">Total</th><th>Estado</th></tr>
+                    <tr><th>Folio</th><th>Fecha</th><th>Proveedor</th><th>Destino</th><th className="num">Total</th><th>Estado</th><th></th></tr>
                   </thead>
                   <tbody>
                     {historial.length === 0
-                      ? <tr><td colSpan={6} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Sin órdenes registradas</td></tr>
+                      ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Sin órdenes registradas</td></tr>
                       : historial.map((p) => (
                         <tr key={p.Id}>
                           <td className="tnum">{p.Folio}</td>
@@ -117,6 +128,13 @@ export default function PedidosMercanciaPage({ addToast }) {
                             {(p.Estado ?? "") === "recibido"    && <span className="badge badge-ok">● Recibido</span>}
                             {(p.Estado ?? "") === "en tránsito" && <span className="badge badge-info">● En tránsito</span>}
                             {!["recibido","en tránsito"].includes(p.Estado ?? "") && <span className="badge badge-neutral">{p.Estado}</span>}
+                          </td>
+                          <td className="actions-cell">
+                            {(p.Estado ?? "") === "en tránsito" && (
+                              <button className="btn btn-ghost btn-sm" title="Marcar recibido" onClick={() => recibirPedido(p.Id)}>
+                                <Icon name="check" size={12} />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))

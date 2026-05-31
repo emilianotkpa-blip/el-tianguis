@@ -180,13 +180,22 @@ function AppShell({ user, onLogout, theme, setTheme }) {
 }
 
 export default function App() {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem("elt_user")) } catch { return null }
+  })
   const [theme, setTheme] = useState("light")
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme)
   }, [theme])
 
-  if (!user) return <Login onLogin={setUser} />
-  return <AppShell user={user} onLogout={() => setUser(null)} theme={theme} setTheme={setTheme} />
+  const handleLogin = (u) => setUser(u)
+  const handleLogout = () => {
+    sessionStorage.removeItem("elt_token")
+    sessionStorage.removeItem("elt_user")
+    setUser(null)
+  }
+
+  if (!user) return <Login onLogin={handleLogin} />
+  return <AppShell user={user} onLogout={handleLogout} theme={theme} setTheme={setTheme} />
 }
