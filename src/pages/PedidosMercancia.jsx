@@ -151,7 +151,7 @@ export default function PedidosMercanciaPage({ addToast }) {
   /* DESTINO */
   if (view === "destino") {
     return (
-      <div className="page">
+      <div className="page" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 52px)", paddingBottom: 0 }}>
         <div className="page-header">
           <div>
             <h1 className="page-title">¿A dónde se entrega?</h1>
@@ -162,8 +162,8 @@ export default function PedidosMercanciaPage({ addToast }) {
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-body">
+        <div className="card" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div className="card-body" style={{ flex: 1, overflowY: "auto" }}>
             <div className="destino-picker">
               {SUCURSALES.filter((s) => s.id !== "bodega").map((s) => (
                 <button
