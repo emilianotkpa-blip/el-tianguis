@@ -129,7 +129,7 @@ export default function PedidosClientesPage({ addToast }) {
   // ── Cart View ──────────────────────────────────────────────────────────────
   if (view === "cart") {
     return (
-      <div className="page" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", paddingBottom: 0 }}>
+      <div className="page" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", paddingBottom: 0, paddingLeft: 12, paddingRight: 12 }}>
         <div className="page-header">
           <div>
             <h1 className="page-title">Nuevo pedido de cliente</h1>
@@ -142,7 +142,7 @@ export default function PedidosClientesPage({ addToast }) {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: 16, flex: 1, minHeight: 0, overflow: "hidden" }}>
           {/* Product grid */}
           <div className="card" style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
             <div className="card-body" style={{ paddingBottom: 0, flexShrink: 0 }}>

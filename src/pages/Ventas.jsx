@@ -89,7 +89,7 @@ export default function VentasPage({ addToast }) {
   }
 
   return (
-    <div className="page" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", paddingBottom: 0 }}>
+    <div className="page" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", paddingBottom: 0, paddingLeft: 12, paddingRight: 12 }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Ventas · Punto de venta</h1>

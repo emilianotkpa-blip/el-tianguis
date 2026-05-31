@@ -320,7 +320,7 @@ input, select, textarea { font-family: inherit; }
 /* ============ APP SHELL ============ */
 .app {
   display: grid;
-  grid-template-columns: 232px 1fr;
+  grid-template-columns: 210px 1fr;
   grid-template-rows: 52px 1fr;
   height: 100vh;
   background: var(--bg);
@@ -532,8 +532,8 @@ input, select, textarea { font-family: inherit; }
   min-height: 0;
 }
 .page {
-  padding: 24px 28px 60px;
-  max-width: 1480px;
+  padding: 20px 20px 60px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 .page-header {
@@ -882,7 +882,7 @@ input, select, textarea { font-family: inherit; }
 /* ============ SALES (CART) ============ */
 .sales-shell {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr 420px;
   gap: 16px;
   flex: 1;
   min-height: 0;
@@ -892,17 +892,17 @@ input, select, textarea { font-family: inherit; }
 .sales-cart { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
   overflow-y: auto;
-  padding: 2px;
+  padding: 4px;
   flex: 1;
 }
 .product-tile {
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 12px;
+  padding: 14px 14px 12px;
   cursor: pointer;
   transition: border-color .12s, transform .12s;
   display: flex;
