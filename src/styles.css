@@ -529,6 +529,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--bg);
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 .page {
   padding: 24px 28px 60px;

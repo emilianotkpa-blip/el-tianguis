@@ -479,6 +479,18 @@ app.patch("/api/clientes/:id", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+app.delete("/api/clientes/:id", async (req, res) => {
+  try {
+    const res2 = await fetch(`${NOCO_URL}/api/v2/tables/${T.clientes}/records`, {
+      method: "DELETE",
+      headers: { "xc-token": NOCO_TOKEN, "Content-Type": "application/json" },
+      body: JSON.stringify({ Id: parseInt(req.params.id) }),
+    })
+    if (!res2.ok) throw new Error(`NocoDB error ${res2.status}`)
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
 app.get("/{*splat}", (req, res) => {
   res.sendFile(join(__dirname, "../dist/index.html"))
 })

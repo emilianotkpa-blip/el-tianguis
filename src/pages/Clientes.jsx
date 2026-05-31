@@ -1,21 +1,23 @@
 import { useState, useEffect } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
-import { getClientes, postCliente, patchCliente } from "../api"
+import Confirm from "../components/Confirm"
+import { getClientes, postCliente, patchCliente, deleteCliente } from "../api"
 import { fmtMoney, exportCSV } from "../utils"
 
 const TIPOS = ["Mayorista", "Frecuente", "Público", "General"]
 const emptyForm = { nombre: "", rfc: "", tipo: "General", telefono: "", email: "", direccion: "", limiteCredito: "", saldo: "", notas: "" }
 
 export default function ClientesPage({ addToast }) {
-  const [clientes, setClientes] = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [search, setSearch]     = useState("")
-  const [tipoF, setTipoF]       = useState("todos")
-  const [editing, setEditing]   = useState(null)
-  const [showNew, setShowNew]   = useState(false)
-  const [form, setForm]         = useState(emptyForm)
-  const [saving, setSaving]     = useState(false)
+  const [clientes, setClientes]   = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [search, setSearch]       = useState("")
+  const [tipoF, setTipoF]         = useState("todos")
+  const [editing, setEditing]     = useState(null)
+  const [showNew, setShowNew]     = useState(false)
+  const [form, setForm]           = useState(emptyForm)
+  const [saving, setSaving]       = useState(false)
+  const [confirmDel, setConfirmDel] = useState(null)   // cliente a eliminar
 
   const cargar = async () => {
     setLoading(true)
@@ -47,6 +49,15 @@ export default function ClientesPage({ addToast }) {
       closeModal(); cargar()
     } catch (err) { addToast({ kind: "err", msg: err.message }) }
     finally { setSaving(false) }
+  }
+
+  const eliminar = async () => {
+    if (!confirmDel) return
+    try {
+      await deleteCliente(confirmDel.Id)
+      addToast({ kind: "ok", msg: `${confirmDel.Nombre} eliminado` })
+      setConfirmDel(null); cargar()
+    } catch (err) { addToast({ kind: "err", msg: err.message }) }
   }
 
   const filtered = clientes.filter((c) => {
@@ -117,7 +128,8 @@ export default function ClientesPage({ addToast }) {
                       <td className="num">{c.LimiteCredito > 0 ? fmtMoney(c.LimiteCredito) : <span className="muted">—</span>}</td>
                       <td className="num">{c.Saldo > 0 ? <span style={{ color: "var(--warn)" }}>{fmtMoney(c.Saldo)}</span> : <span className="muted">$0</span>}</td>
                       <td className="actions-cell">
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(c)}><Icon name="edit" size={12} /></button>
+                        <button className="btn btn-ghost btn-sm" title="Editar" onClick={() => openEdit(c)}><Icon name="edit" size={12} /></button>
+                        <button className="btn btn-ghost btn-sm" title="Eliminar" onClick={() => setConfirmDel(c)} style={{ color: "var(--err)" }}><Icon name="trash" size={12} /></button>
                       </td>
                     </tr>
                   ))}
@@ -129,6 +141,16 @@ export default function ClientesPage({ addToast }) {
           }
         </div>
       </div>
+
+      <Confirm
+        open={!!confirmDel}
+        title="¿Eliminar cliente?"
+        message={confirmDel ? `Se eliminará "${confirmDel.Nombre}" permanentemente. Esta acción no se puede revertir.` : ""}
+        confirmLabel="Sí, eliminar"
+        danger
+        onConfirm={eliminar}
+        onCancel={() => setConfirmDel(null)}
+      />
 
       <Modal
         open={!!editing || showNew}
