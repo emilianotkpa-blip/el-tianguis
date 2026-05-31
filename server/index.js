@@ -250,7 +250,7 @@ app.get("/api/catalogo", async (req, res) => {
         name: p.Descripcion ?? "", tipo: p.Tipo ?? "", cat: p.Tipo ?? "otros",
         unidad: p.Unidad ?? "", color: p.Color ?? "", marca: p.Marca ?? "",
         min: p.Stock_Minimo || 5, costo: p.Costo ?? 0, precio: p.Precio ?? 0,
-        facturable: (p.Facturable ?? 1) === 1,
+        facturable: p.Facturable !== false && p.Facturable !== 0,
         piezasPorUnidad: p.PiezasPorUnidad ?? 1,
         stock: { centro: s.Centro ?? 0, repostero: s.Repostero ?? 0, bodega: s.Bodega ?? 0 },
       }
@@ -271,7 +271,7 @@ app.patch("/api/catalogo/:id", async (req, res) => {
     if (min             !== undefined) update.Stock_Minimo     = Number(min)
     if (costo           !== undefined) update.Costo            = Number(costo)
     if (precio          !== undefined) update.Precio           = Number(precio)
-    if (facturable      !== undefined) update.Facturable       = facturable ? 1 : 0
+    if (facturable      !== undefined) update.Facturable       = facturable === true || facturable === 1 || facturable === "true"
     if (piezasPorUnidad !== undefined) update.PiezasPorUnidad  = Number(piezasPorUnidad) || 1
     await nocoPatch(T.productos, update)
     res.json({ ok: true })
@@ -287,7 +287,7 @@ app.post("/api/catalogo", async (req, res) => {
       Codigo: parseInt(sku, 10), Descripcion: nombre,
       Tipo: tipo ?? "", Unidad: unidad ?? "", Marca: marca ?? "",
       Stock_Minimo: Number(min) || 5, Costo: Number(costo) || 0, Precio: Number(precio) || 0,
-      Facturable: facturable === false ? 0 : 1,
+      Facturable: facturable !== false,
       PiezasPorUnidad: Number(piezasPorUnidad) || 1,
     })
     await nocoPost(T.stock, {
