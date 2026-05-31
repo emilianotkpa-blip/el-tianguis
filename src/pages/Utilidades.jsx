@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Icon from "../components/Icon"
 import { UTIL_POR_CATEGORIA } from "../data"
-import { getVentas } from "../api"
-import { fmtMoney, fmtMoneyShort } from "../utils"
+import { getVentas, getCatalogo } from "../api"
+import { fmtMoney, fmtMoneyShort, exportCSV } from "../utils"
 
 function useCountUp(target, duration = 800) {
   const [val, setVal] = useState(0)
@@ -180,11 +180,37 @@ const PERIODOS = [
 export default function UtilidadesPage() {
   const [range, setRange]     = useState("1m")
   const [ventas, setVentas]   = useState([])
+  const [catalogo, setCatalogo] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getVentas().then(setVentas).finally(() => setLoading(false))
+    Promise.all([getVentas(), getCatalogo()])
+      .then(([v, c]) => { setVentas(v); setCatalogo(c) })
+      .finally(() => setLoading(false))
   }, [])
+
+  // sku → facturable lookup
+  const factMap = useMemo(() => {
+    const m = {}
+    catalogo.forEach(p => { m[p.sku] = p.facturable !== false })
+    return m
+  }, [catalogo])
+
+  // Split a venta into facturable / sin-factura amounts using Items_JSON
+  function ventaSplit(v) {
+    let fact = 0, noFact = 0
+    try {
+      const items = JSON.parse(v.Items_JSON || "[]")
+      items.forEach(it => {
+        const amt = (it.precio ?? 0) * (it.qty ?? 1)
+        const sku = String(it.sku ?? "").padStart(4, "0")
+        if (factMap[sku] !== false) fact += amt
+        else noFact += amt
+      })
+    } catch {}
+    if (fact + noFact === 0) fact = v.Subtotal ?? 0
+    return { fact, noFact }
+  }
 
   const diasRange       = PERIODOS.find(p => p.id === range)?.dias ?? 30
   const periodoLabel    = PERIODOS.find(p => p.id === range)?.label ?? "1 mes"
@@ -196,6 +222,38 @@ export default function UtilidadesPage() {
   const totalIngresos = ventasFiltradas.reduce((s, v) => s + (v.Subtotal ?? 0), 0)
   const totalTickets  = ventasFiltradas.length
   const ticketProm    = totalTickets > 0 ? totalIngresos / totalTickets : 0
+
+  // Facturado vs Sin factura
+  const splits = ventasFiltradas.map(v => ventaSplit(v))
+  const totalFact   = splits.reduce((s, x) => s + x.fact,   0)
+  const totalNoFact = splits.reduce((s, x) => s + x.noFact, 0)
+  const ticketsFact   = ventasFiltradas.filter((_, i) => splits[i].fact   > 0).length
+  const ticketsNoFact = ventasFiltradas.filter((_, i) => splits[i].noFact > 0).length
+
+  const descargarFacturado = () => {
+    const rows = []
+    ventasFiltradas.forEach(v => {
+      try {
+        const items = JSON.parse(v.Items_JSON || "[]")
+        items.forEach(it => {
+          const sku = String(it.sku ?? "").padStart(4, "0")
+          if (factMap[sku] === false) return
+          const subtItem = (it.precio ?? 0) * (it.qty ?? 1)
+          rows.push({
+            Folio: v.Folio, Fecha: v.Fecha, Cliente: v.Cliente,
+            MetodoPago: v.MetodoPago, Sucursal: v.Sucursal,
+            Codigo: it.sku, Producto: it.nombre ?? it.name,
+            Cantidad: it.qty, PrecioUnitario: it.precio,
+            Subtotal: subtItem,
+            IVA16: +(subtItem * 0.16).toFixed(2),
+            Total: +(subtItem * 1.16).toFixed(2),
+          })
+        })
+      } catch {}
+    })
+    if (rows.length === 0) rows.push({ Folio: "Sin datos", Fecha: "", Cliente: "", MetodoPago: "", Sucursal: "", Codigo: "", Producto: "", Cantidad: 0, PrecioUnitario: 0, Subtotal: 0, IVA16: 0, Total: 0 })
+    exportCSV(rows, `facturado_${range}_${new Date().toISOString().slice(0,10)}.csv`)
+  }
 
   const diasGrafica     = diasRange <= 1 ? 1 : diasRange <= 15 ? diasRange : diasRange <= 30 ? 30 : Math.min(diasRange, 90)
   const ventasDiarias   = buildDiarias(ventasFiltradas, diasGrafica)
@@ -259,6 +317,71 @@ export default function UtilidadesPage() {
           <div className="kpi-label">Tickets emitidos</div>
           <div className="kpi-value">{loading ? "…" : Math.round(tickets)}</div>
           <div className="kpi-delta"><span className="label">En el período seleccionado</span></div>
+        </div>
+      </div>
+
+      {/* ── Facturado vs Sin factura ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+        {/* Facturado */}
+        <div className="card">
+          <div className="card-header" style={{ borderBottom: "2px solid var(--ok)" }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Facturado</div>
+            <button className="btn btn-default btn-sm" onClick={descargarFacturado}>
+              <Icon name="download" size={13} /> Descargar Excel
+            </button>
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: 0, borderRadius: 0 }}>
+              <div className="kpi" style={{ border: "none", borderRight: "1px solid var(--border)", borderRadius: 0 }}>
+                <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
+                <div className="kpi-label">Ingresos</div>
+                <div className="kpi-value" style={{ fontSize: 20 }}>{loading ? "…" : fmtMoney(totalFact)}</div>
+                <div className="kpi-delta"><span className="label">Sin IVA</span></div>
+              </div>
+              <div className="kpi" style={{ border: "none", borderRight: "1px solid var(--border)", borderRadius: 0 }}>
+                <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
+                <div className="kpi-label">IVA (16%)</div>
+                <div className="kpi-value" style={{ fontSize: 20 }}>{loading ? "…" : fmtMoney(totalFact * 0.16)}</div>
+                <div className="kpi-delta"><span className="label">Por trasladar</span></div>
+              </div>
+              <div className="kpi" style={{ border: "none", borderRadius: 0 }}>
+                <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
+                <div className="kpi-label">Total c/IVA</div>
+                <div className="kpi-value" style={{ fontSize: 20 }}>{loading ? "…" : fmtMoney(totalFact * 1.16)}</div>
+                <div className="kpi-delta"><span className="label">{ticketsFact} tickets</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sin factura */}
+        <div className="card">
+          <div className="card-header" style={{ borderBottom: "2px solid var(--text-muted)" }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Sin factura</div>
+            <span className="badge badge-neutral">Solo registro interno</span>
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: 0, borderRadius: 0 }}>
+              <div className="kpi" style={{ border: "none", borderRight: "1px solid var(--border)", borderRadius: 0 }}>
+                <div className="kpi-accent" style={{ background: "var(--text-muted)" }}></div>
+                <div className="kpi-label">Ingresos</div>
+                <div className="kpi-value" style={{ fontSize: 20 }}>{loading ? "…" : fmtMoney(totalNoFact)}</div>
+                <div className="kpi-delta"><span className="label">Sin IVA aplicable</span></div>
+              </div>
+              <div className="kpi" style={{ border: "none", borderRight: "1px solid var(--border)", borderRadius: 0 }}>
+                <div className="kpi-accent" style={{ background: "var(--text-muted)" }}></div>
+                <div className="kpi-label">Tickets</div>
+                <div className="kpi-value" style={{ fontSize: 20 }}>{loading ? "…" : ticketsNoFact}</div>
+                <div className="kpi-delta"><span className="label">Transacciones</span></div>
+              </div>
+              <div className="kpi" style={{ border: "none", borderRadius: 0 }}>
+                <div className="kpi-accent" style={{ background: "var(--text-muted)" }}></div>
+                <div className="kpi-label">Ticket promedio</div>
+                <div className="kpi-value" style={{ fontSize: 20 }}>{loading ? "…" : fmtMoney(ticketsNoFact > 0 ? totalNoFact / ticketsNoFact : 0)}</div>
+                <div className="kpi-delta"><span className="label">Por transacción</span></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
