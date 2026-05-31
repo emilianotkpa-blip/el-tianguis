@@ -149,13 +149,18 @@ app.post("/api/chat", async (req, res) => {
 // ── Auth ───────────────────────────────────────────────
 const SESSION_TOKEN = process.env.SESSION_TOKEN || "dev-insecure-token"
 
+// Usuarios hardcoded por ahora (se migrarán a NocoDB en D1 completo)
+const USUARIOS = [
+  { email: process.env.ADMIN_EMAIL,   password: process.env.ADMIN_PASSWORD,   name: "Roberto Mendoza", rol: "gerente"  },
+  { email: process.env.CAJERO_EMAIL,  password: process.env.CAJERO_PASSWORD,  name: "Ana Martínez",    rol: "cajero"   },
+  { email: process.env.VENDEDOR_EMAIL,password: process.env.VENDEDOR_PASSWORD,name: "Luis Torres",     rol: "vendedor" },
+].filter(u => u.email && u.password)
+
 app.post("/api/login", (req, res) => {
   const { email, password } = req.body ?? {}
-  if (
-    email?.toLowerCase() === process.env.ADMIN_EMAIL?.toLowerCase() &&
-    password === process.env.ADMIN_PASSWORD
-  ) {
-    res.json({ ok: true, token: SESSION_TOKEN, user: { name: "Roberto Mendoza", role: "Gerente General", email: email.toLowerCase() } })
+  const user = USUARIOS.find(u => u.email?.toLowerCase() === email?.toLowerCase() && u.password === password)
+  if (user) {
+    res.json({ ok: true, token: SESSION_TOKEN, user: { name: user.name, rol: user.rol, email: email.toLowerCase() } })
   } else {
     res.status(401).json({ error: "Credenciales incorrectas" })
   }
@@ -240,7 +245,10 @@ app.get("/api/alertas", async (req, res) => {
 // ── Catálogo ───────────────────────────────────────────
 app.get("/api/catalogo", async (req, res) => {
   try {
-    const [prods, stocks] = await Promise.all([nocoGet(T.productos), nocoGet(T.stock)])
+    const [prods, stocks] = await Promise.all([
+      nocoGet(T.productos, "&where=(Activo,neq,false)"),
+      nocoGet(T.stock),
+    ])
     const stockMap = Object.fromEntries(stocks.map((s) => [s.Producto_Codigo, s]))
     res.json(prods.map((p) => {
       const s = stockMap[p.Codigo] ?? {}
@@ -252,6 +260,7 @@ app.get("/api/catalogo", async (req, res) => {
         min: p.Stock_Minimo || 5, costo: p.Costo ?? 0, precio: p.Precio ?? 0,
         facturable: p.Facturable !== false && p.Facturable !== 0,
         piezasPorUnidad: p.PiezasPorUnidad ?? 1,
+        activo: p.Activo !== false,
         stock: { centro: s.Centro ?? 0, repostero: s.Repostero ?? 0, bodega: s.Bodega ?? 0 },
       }
     }))
@@ -497,6 +506,100 @@ app.delete("/api/clientes/:id", async (req, res) => {
       body: JSON.stringify({ Id: parseInt(req.params.id) }),
     })
     if (!res2.ok) throw new Error(`NocoDB error ${res2.status}`)
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ── Notas (POS → Caja) ────────────────────────────────
+// Crear nota con estado en_caja
+app.post("/api/notas", async (req, res) => {
+  const { folio, fecha, cliente, vendedor, sucursal, items, pagos, subtotal, iva, total, observaciones } = req.body
+  try {
+    const nota = await nocoPost(T.ventas, {
+      Folio: folio, Fecha: fecha, Cliente: cliente ?? "Mostrador",
+      Vendedor: vendedor ?? "", Sucursal: sucursal,
+      MetodoPago: (pagos?.[0]?.metodo) ?? "Efectivo",
+      Subtotal: subtotal, IVA: iva, Total: total,
+      Items_JSON: JSON.stringify(items ?? []),
+      Pagos_JSON: JSON.stringify(pagos ?? []),
+      EstadoNota: "en_caja",
+      Estado: "pendiente",
+      Observaciones: observaciones ?? "",
+    })
+    res.json({ ok: true, id: nota.Id, folio })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Listar notas en caja (estado en_caja)
+app.get("/api/caja", async (req, res) => {
+  try {
+    const notas = await nocoGet(T.ventas, "&where=(EstadoNota,eq,en_caja)&sort=-Fecha")
+    res.json(notas)
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Buscar nota por folio
+app.get("/api/caja/:folio", async (req, res) => {
+  try {
+    const notas = await nocoGet(T.ventas, `&where=(Folio,eq,${req.params.folio})`)
+    if (!notas.length) return res.status(404).json({ error: "Nota no encontrada" })
+    res.json(notas[0])
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Editar items de nota pendiente en caja
+app.patch("/api/caja/:id/editar", async (req, res) => {
+  const { items, subtotal, iva, total, pagos } = req.body
+  try {
+    await nocoPatch(T.ventas, {
+      Id: parseInt(req.params.id),
+      Items_JSON: JSON.stringify(items ?? []),
+      Pagos_JSON: JSON.stringify(pagos ?? []),
+      Subtotal: subtotal, IVA: iva, Total: total,
+    })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Cobrar nota: marcar como pagada y decrementar stock
+app.patch("/api/caja/:id/cobrar", async (req, res) => {
+  const { pagos, sucursal } = req.body
+  try {
+    // Fetch the nota to get items
+    const notas = await nocoGet(T.ventas, `&where=(Id,eq,${parseInt(req.params.id)})`)
+    if (!notas.length) return res.status(404).json({ error: "Nota no encontrada" })
+    const nota  = notas[0]
+    const items = JSON.parse(nota.Items_JSON || "[]")
+    const suc   = (sucursal ?? nota.Sucursal ?? "centro").toLowerCase()
+    const campo = suc.includes("repostero") ? "Repostero" : suc.includes("bodega") ? "Bodega" : "Centro"
+
+    // Decrement stock
+    for (const item of items) {
+      const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
+      if (!rows.length) continue
+      const row   = rows[0]
+      const ppu   = item.piezasPorUnidad ?? 1
+      const delta = item.qty * ppu
+      await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) - delta, Total: (row.Total ?? 0) - delta })
+    }
+
+    // Mark as paid
+    await nocoPatch(T.ventas, {
+      Id: parseInt(req.params.id),
+      EstadoNota: "pagada",
+      Estado: "pagada",
+      Pagos_JSON: JSON.stringify(pagos ?? []),
+      MetodoPago: pagos?.[0]?.metodo ?? nota.MetodoPago,
+      FechaPago: new Date().toISOString(),
+    })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Cancelar nota
+app.patch("/api/caja/:id/cancelar", async (req, res) => {
+  try {
+    await nocoPatch(T.ventas, { Id: parseInt(req.params.id), EstadoNota: "cancelada", Estado: "cancelada" })
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: err.message }) }
 })

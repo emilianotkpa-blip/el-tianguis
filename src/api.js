@@ -40,6 +40,13 @@ export const getPedidosMercancia  = ()      => apiFetch("/api/pedidos-mercancia"
 export const postPedidoMercancia  = (b)     => apiFetch("/api/pedidos-mercancia", json(b))
 export const patchPedidoMercancia = (id, b) => apiFetch(`/api/pedidos-mercancia/${id}`, patch(b))
 
+export const postNota          = (b)      => apiFetch("/api/notas", json(b))
+export const getCaja           = ()       => apiFetch("/api/caja")
+export const getCajaPorFolio   = (folio)  => apiFetch(`/api/caja/${folio}`)
+export const editarNotaCaja    = (id, b)  => apiFetch(`/api/caja/${id}/editar`, patch(b))
+export const cobrarNota        = (id, b)  => apiFetch(`/api/caja/${id}/cobrar`, patch(b))
+export const cancelarNota      = (id)     => apiFetch(`/api/caja/${id}/cancelar`, patch({}))
+
 export const getClientes    = ()      => apiFetch("/api/clientes")
 export const postCliente    = (b)     => apiFetch("/api/clientes", json(b))
 export const patchCliente   = (id, b) => apiFetch(`/api/clientes/${id}`, patch(b))

@@ -12,6 +12,7 @@ import InventariosPage from "./pages/Inventarios"
 import UtilidadesPage from "./pages/Utilidades"
 import TianguisIAPage from "./pages/TianguisIA"
 import ClientesPage from "./pages/Clientes"
+import CajaPage from "./pages/Caja"
 import { getStats, getAlertas } from "./api"
 import logoUrl from "./assets/logo.jpeg"
 
@@ -25,6 +26,7 @@ const NAV = [
   { id: "pedidos-clientes",  label: "Pedidos Clientes", icon: "users" },
   { id: "clientes",          label: "Clientes",         icon: "user" },
   { id: "inventarios",       label: "Inventarios",      icon: "warehouse" },
+  { id: "caja",              label: "Caja",             icon: "receipt",  rolMin: "cajero" },
   { section: "Reportes" },
   { id: "utilidades",        label: "Utilidades",       icon: "chart" },
   { section: "Inteligencia" },
@@ -39,6 +41,7 @@ const PAGE_INFO = {
   "pedidos-clientes":  { title: "Pedidos Clientes",  parent: "Logística" },
   clientes:          { title: "Clientes",          parent: "Logística" },
   inventarios:       { title: "Inventarios",       parent: "Logística" },
+  caja:              { title: "Caja",              parent: "Logística" },
   utilidades:        { title: "Utilidades",       parent: "Reportes" },
   ia:                { title: "Tianguis IA",      parent: "Inteligencia" },
 }
@@ -49,6 +52,7 @@ function AppShell({ user, onLogout, theme, setTheme }) {
   const [toasts, setToasts]     = useState([])
   const [stats, setStats]       = useState({ alertasStock: 0, pedidosPendientes: 0 })
   const [alertas, setAlertas]   = useState([])
+  const [notasCaja, setNotasCaja] = useState(0)
   const [globalSearch, setGlobalSearch] = useState("")
   const searchRef = useRef(null)
 
@@ -56,6 +60,14 @@ function AppShell({ user, onLogout, theme, setTheme }) {
     getStats().then(setStats).catch(() => {})
     getAlertas().then(setAlertas).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (user?.rol === "vendedor") return
+    const refresh = () => import("./api").then(({ getCaja }) => getCaja().then(n => setNotasCaja(n.length))).catch(() => {})
+    refresh()
+    const t = setInterval(refresh, 20000)
+    return () => clearInterval(t)
+  }, [user?.rol])
 
   useEffect(() => {
     const handler = (e) => {
@@ -79,13 +91,14 @@ function AppShell({ user, onLogout, theme, setTheme }) {
 
   const renderPage = () => {
     switch (page) {
-      case "ventas":             return <VentasPage addToast={addToast} />
+      case "ventas":             return <VentasPage addToast={addToast} user={user} />
       case "productos":          return <ProductosPage addToast={addToast} />
       case "facturas":           return <FacturasPage addToast={addToast} />
       case "pedidos-mercancia":  return <PedidosMercanciaPage addToast={addToast} />
       case "pedidos-clientes":   return <PedidosClientesPage addToast={addToast} />
       case "clientes":           return <ClientesPage addToast={addToast} />
       case "inventarios":        return <InventariosPage addToast={addToast} />
+      case "caja":               return <CajaPage addToast={addToast} />
       case "utilidades":         return <UtilidadesPage />
       case "ia":                 return <TianguisIAPage />
       default:                   return <VentasPage addToast={addToast} />
@@ -103,8 +116,12 @@ function AppShell({ user, onLogout, theme, setTheme }) {
         <nav className="sidebar-nav">
           {NAV.map((item, i) => {
             if (item.section) return <div key={i} className="sidebar-section">{item.section}</div>
+            // Ocultar items que requieren rol mínimo
+            if (item.rolMin === "cajero" && user?.rol === "vendedor") return null
+            if (item.rolMin === "gerente" && user?.rol !== "gerente") return null
             const dynBadge = item.id === "pedidos-clientes" ? stats.pedidosPendientes
                            : item.id === "inventarios"      ? stats.alertasStock
+                           : item.id === "caja"             ? notasCaja
                            : 0
             return (
               <button
