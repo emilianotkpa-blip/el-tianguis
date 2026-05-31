@@ -129,7 +129,7 @@ export default function PedidosClientesPage({ addToast }) {
   // ── Cart View ──────────────────────────────────────────────────────────────
   if (view === "cart") {
     return (
-      <div className="page" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 52px)", paddingBottom: 0 }}>
+      <div className="page" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", paddingBottom: 0 }}>
         <div className="page-header">
           <div>
             <h1 className="page-title">Nuevo pedido de cliente</h1>

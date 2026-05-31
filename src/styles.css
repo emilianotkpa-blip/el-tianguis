@@ -527,6 +527,8 @@ input, select, textarea { font-family: inherit; }
 .app-main {
   overflow-y: auto;
   background: var(--bg);
+  display: flex;
+  flex-direction: column;
 }
 .page {
   padding: 24px 28px 60px;
