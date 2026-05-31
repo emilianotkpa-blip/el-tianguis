@@ -42,6 +42,7 @@ export const patchPedidoMercancia = (id, b) => apiFetch(`/api/pedidos-mercancia/
 
 export const postNota          = (b)      => apiFetch("/api/notas", json(b))
 export const getCaja           = ()       => apiFetch("/api/caja")
+export const getHistorialCaja  = (rango)  => apiFetch(`/api/caja/historial?rango=${rango ?? "1d"}`)
 export const getCajaPorFolio   = (folio)  => apiFetch(`/api/caja/${folio}`)
 export const editarNotaCaja    = (id, b)  => apiFetch(`/api/caja/${id}/editar`, patch(b))
 export const cobrarNota        = (id, b)  => apiFetch(`/api/caja/${id}/cobrar`, patch(b))

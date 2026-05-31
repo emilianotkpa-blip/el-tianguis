@@ -549,6 +549,19 @@ app.get("/api/caja", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+// Historial de notas cobradas por rango de tiempo
+app.get("/api/caja/historial", async (req, res) => {
+  const rango = req.query.rango ?? "1d"
+  const mins  = { "1h": 60, "8h": 480, "1d": 1440, "7d": 10080, "30d": 43200 }
+  const desde = new Date(Date.now() - (mins[rango] ?? 1440) * 60000).toISOString().slice(0, 19).replace("T", " ")
+  try {
+    const notas = await nocoGet(T.ventas,
+      `&where=(EstadoNota,eq,pagada)~and(UpdatedAt,gte,${encodeURIComponent(desde)})&sort=-UpdatedAt`
+    )
+    res.json(notas)
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
 // Buscar nota por folio
 app.get("/api/caja/:folio", async (req, res) => {
   try {

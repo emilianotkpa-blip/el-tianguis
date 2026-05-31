@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback } from "react"
 import Icon from "../components/Icon"
-import { getCaja, getCajaPorFolio, editarNotaCaja, cobrarNota, cancelarNota, getCatalogo } from "../api"
+import { getCaja, getCajaPorFolio, editarNotaCaja, cobrarNota, cancelarNota, getCatalogo, getHistorialCaja } from "../api"
 import { fmtMoney, todayISO } from "../utils"
+
+const RANGOS = [
+  { id: "1h",  label: "Última hora" },
+  { id: "8h",  label: "Últimas 8h"  },
+  { id: "1d",  label: "Hoy"         },
+  { id: "7d",  label: "7 días"      },
+  { id: "30d", label: "30 días"     },
+]
 
 const METODOS = ["Efectivo", "Tarjeta", "Transferencia", "Crédito 8d", "Crédito 15d"]
 
@@ -14,16 +22,22 @@ function RelativeTime({ fecha }) {
 }
 
 export default function CajaPage({ addToast }) {
-  const [notas, setNotas]       = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [selected, setSelected] = useState(null)   // nota abierta
+  const [notas, setNotas]         = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [selected, setSelected]   = useState(null)
   const [folioInput, setFolioInput] = useState("")
-  const [editando, setEditando] = useState(false)
-  const [catalogo, setCatalogo] = useState([])
+  const [editando, setEditando]   = useState(false)
+  const [catalogo, setCatalogo]   = useState([])
   const [addSearch, setAddSearch] = useState("")
-  const [pagos, setPagos]       = useState([])
-  const [saving, setSaving]     = useState(false)
-  const [cobrada, setCobrada]   = useState(null)   // nota recién cobrada
+  const [pagos, setPagos]         = useState([])
+  const [saving, setSaving]       = useState(false)
+  const [cobrada, setCobrada]     = useState(null)
+  // Historial
+  const [vista, setVista]         = useState("cola")   // "cola" | "historial"
+  const [rango, setRango]         = useState("1d")
+  const [historial, setHistorial] = useState([])
+  const [loadingHist, setLoadingHist] = useState(false)
+  const [selectedHist, setSelectedHist] = useState(null)
 
   const cargarCola = useCallback(async () => {
     try {
@@ -39,6 +53,16 @@ export default function CajaPage({ addToast }) {
     const timer = setInterval(cargarCola, 20000)
     return () => clearInterval(timer)
   }, [cargarCola])
+
+  useEffect(() => {
+    if (vista !== "historial") return
+    setLoadingHist(true)
+    setSelectedHist(null)
+    getHistorialCaja(rango)
+      .then(setHistorial)
+      .catch(err => addToast({ kind: "err", msg: err.message }))
+      .finally(() => setLoadingHist(false))
+  }, [vista, rango])
 
   const abrirNota = (nota) => {
     setSelected(nota)
@@ -187,20 +211,117 @@ export default function CajaPage({ addToast }) {
       <div className="page-header">
         <div>
           <h1 className="page-title">Caja</h1>
-          <p className="page-subtitle">{notas.length} nota{notas.length !== 1 ? "s" : ""} pendiente{notas.length !== 1 ? "s" : ""}</p>
+          <p className="page-subtitle">
+            {vista === "cola"
+              ? `${notas.length} nota${notas.length !== 1 ? "s" : ""} pendiente${notas.length !== 1 ? "s" : ""}`
+              : `Historial · ${RANGOS.find(r => r.id === rango)?.label}`}
+          </p>
         </div>
         <div className="page-actions">
-          <button className="btn btn-default btn-sm" onClick={cargarCola}><Icon name="refresh" size={13} /> Actualizar</button>
-          <div style={{ display: "flex", gap: 6 }}>
-            <input placeholder="Buscar folio…" value={folioInput} onChange={e => setFolioInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && buscarPorFolio()}
-              style={{ width: 160 }} />
-            <button className="btn btn-wine btn-sm" onClick={buscarPorFolio}><Icon name="search" size={13} /></button>
+          {/* Toggle Cola / Historial */}
+          <div className="range-toggle">
+            <button className={vista === "cola"     ? "active" : ""} onClick={() => { setVista("cola");     setSelected(null) }}>Cola</button>
+            <button className={vista === "historial"? "active" : ""} onClick={() => setVista("historial")}>Historial</button>
           </div>
+
+          {vista === "historial" && (
+            <div className="range-toggle">
+              {RANGOS.map(r => (
+                <button key={r.id} className={rango === r.id ? "active" : ""} onClick={() => setRango(r.id)}>{r.label}</button>
+              ))}
+            </div>
+          )}
+
+          {vista === "cola" && (
+            <>
+              <button className="btn btn-default btn-sm" onClick={cargarCola}><Icon name="refresh" size={13} /> Actualizar</button>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input placeholder="Buscar folio…" value={folioInput} onChange={e => setFolioInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && buscarPorFolio()} style={{ width: 160 }} />
+                <button className="btn btn-wine btn-sm" onClick={buscarPorFolio}><Icon name="search" size={13} /></button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 480px" : "1fr", gap: 16 }}>
+      {/* ── Vista Historial ──────────────────────────── */}
+      {vista === "historial" && (
+        <div style={{ display: "grid", gridTemplateColumns: selectedHist ? "1fr 400px" : "1fr", gap: 16 }}>
+          <div className="card">
+            <div className="card-body flush">
+              {loadingHist
+                ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando historial…</div>
+                : historial.length === 0
+                  ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Sin cobros en este período</div>
+                  : <table className="table">
+                      <thead>
+                        <tr><th>Folio</th><th>Cobrada</th><th>Vendedor</th><th>Cliente</th><th>Método</th><th className="num">Total</th><th></th></tr>
+                      </thead>
+                      <tbody>
+                        {historial.map(n => (
+                          <tr key={n.Id} style={{ cursor: "pointer" }} onClick={() => setSelectedHist(selectedHist?.Id === n.Id ? null : n)}>
+                            <td className="tnum" style={{ fontWeight: 700 }}>{n.Folio}</td>
+                            <td className="muted" style={{ fontSize: 12 }}>{n.UpdatedAt ? new Date(n.UpdatedAt).toLocaleString("es-MX", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" }) : "—"}</td>
+                            <td>{n.Vendedor || "—"}</td>
+                            <td>{n.Cliente}</td>
+                            <td><span className="badge badge-neutral">{n.MetodoPago}</span></td>
+                            <td className="num"><strong>{fmtMoney(n.Total ?? 0)}</strong></td>
+                            <td className="actions-cell"><span className="badge badge-ok">● Cobrado</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+              }
+            </div>
+            {historial.length > 0 && (
+              <div className="card-body" style={{ background: "var(--bg-sunken)", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span className="muted">{historial.length} cobros</span>
+                <strong>{fmtMoney(historial.reduce((s, n) => s + (n.Total ?? 0), 0))}</strong>
+              </div>
+            )}
+          </div>
+
+          {selectedHist && (() => {
+            let items = []
+            try { items = JSON.parse(selectedHist.Items_JSON || "[]") } catch {}
+            let pagosHist = []
+            try { pagosHist = JSON.parse(selectedHist.Pagos_JSON || "[]") } catch {}
+            return (
+              <div className="card" style={{ alignSelf: "start" }}>
+                <div className="card-header">
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{selectedHist.Folio}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{selectedHist.Cliente} · {selectedHist.Vendedor}</div>
+                  </div>
+                  <span className="badge badge-ok">● Cobrado</span>
+                </div>
+                <div className="card-body">
+                  {items.map((it, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
+                      <span>{it.qty}× {it.nombre ?? it.name}</span>
+                      <span style={{ fontFamily: "var(--font-mono)" }}>{fmtMoney((it.precio ?? 0) * it.qty)}</span>
+                    </div>
+                  ))}
+                  <div style={{ borderTop: "1px solid var(--border)", marginTop: 8, paddingTop: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
+                      <span>Total</span><span>{fmtMoney(selectedHist.Total ?? 0)}</span>
+                    </div>
+                    {pagosHist.map((p, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                        <span>{p.metodo}</span><span>{fmtMoney(p.monto)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
+
+      {/* ── Vista Cola ───────────────────────────────── */}
+      {vista === "cola" && <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 480px" : "1fr", gap: 16 }}>
         {/* Cola de notas */}
         <div className="card">
           <div className="card-body flush">
@@ -340,7 +461,7 @@ export default function CajaPage({ addToast }) {
             )}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   )
 }
