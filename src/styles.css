@@ -152,22 +152,18 @@ input, select, textarea { font-family: inherit; }
   z-index: 1;
 }
 .login-brandmark .logo-img-full {
-  width: 96px;
-  height: auto;
-  max-height: 96px;
+  width: 200px;
+  height: 200px;
   object-fit: contain;
-  background: #fff;
   border-radius: 8px;
   padding: 6px;
   box-shadow: 0 6px 20px rgba(0,0,0,.35);
 }
 .sidebar-brand .sidebar-logo-img {
-  width: 38px;
-  height: 38px;
+  width: 45px;
+  height: 45px;
   object-fit: contain;
-  background: #fff;
   border-radius: 6px;
-  padding: 2px;
 }
 .login-brandmark .logo-text {
   font-weight: 600;
@@ -882,7 +878,64 @@ input, select, textarea { font-family: inherit; }
 }
 
 /* ============ PRINT ============ */
+.print-folio-only  { display: none; }
+.print-nota-wrapper { display: none; }
+
 @media print {
+  /* --- Folio slip (Ventas step 4) --- 58mm thermal */
+  body.print-folio #root { display: none !important; }
+  body.print-folio .print-folio-only {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 6mm;
+    padding-bottom: 55mm;
+    width: 52mm;
+    font-family: "Courier New", Courier, monospace;
+    color: #000;
+    gap: 4px;
+  }
+  .print-folio-only .pf-empresa   { font-size: 14px; font-weight: 700; letter-spacing: 1px; text-align: center; }
+  .print-folio-only .pf-sep       { font-size: 11px; color: #000; letter-spacing: 1px; }
+  .print-folio-only .pf-folio     { font-size: 26px; font-weight: 900; letter-spacing: 0; white-space: nowrap; text-align: center; margin: 4mm 0; }
+  .print-folio-only .pf-barcode   { font-family: "Libre Barcode 128 Text", cursive; font-size: 52px; color: #000; text-align: center; line-height: 1; letter-spacing: 0; display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-folio-only .pf-subtitulo { font-size: 12px; color: #000; text-align: center; margin-top: 6mm; }
+
+  /* --- Nota completa (Caja) --- */
+  body.print-nota #root { display: none !important; }
+  body.print-nota .print-nota-wrapper {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    height: 100%;
+  }
+  .nota-copia {
+    padding: 8mm 6mm;
+    font-size: 10px;
+    font-family: Arial, sans-serif;
+    color: #000;
+    border-right: 1px dashed #000;
+  }
+  .nota-copia:last-child { border-right: none; }
+  .nota-header { text-align: center; margin-bottom: 6px; }
+  .nota-header .nh-empresa  { font-size: 13px; font-weight: 900; letter-spacing: 1px; }
+  .nota-header .nh-titular  { font-size: 9px; font-weight: 700; }
+  .nota-header .nh-rfc      { font-size: 8px; }
+  .nota-header .nh-giro     { font-size: 8px; font-style: italic; }
+  .nota-header .nh-dir      { font-size: 8px; }
+  .nota-header .nh-tel      { font-size: 8px; }
+  .nota-meta  { font-size: 9px; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 3px 0; margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .nota-table { width: 100%; border-collapse: collapse; margin: 4px 0; }
+  .nota-table th { font-size: 8px; border-bottom: 1px solid #000; padding: 2px 1px; text-align: left; }
+  .nota-table td { font-size: 8px; padding: 1px; vertical-align: top; }
+  .nota-table .num { text-align: right; }
+  .nota-totales { margin-top: 4px; border-top: 1px solid #000; padding-top: 3px; font-size: 9px; }
+  .nota-totales .nt-row { display: flex; justify-content: space-between; }
+  .nota-totales .nt-total { font-weight: 700; font-size: 11px; }
+  .nota-pie { text-align: center; font-size: 8px; margin-top: 6px; color: #555; }
+
+  /* Fallback: si no se agrega clase al body */
   .app-sidebar, .app-header, .page-header .page-actions,
   .stepper, .btn, button, .filter-bar, .cart-actions { display: none !important; }
   .app { display: block; }

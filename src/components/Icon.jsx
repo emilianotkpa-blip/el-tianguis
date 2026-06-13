@@ -38,6 +38,7 @@ const PATHS = {
   eyeOff: <><path d="M2 2l14 14M5 5C3 6.5 2 8 2 9c2 3 4.5 4.5 7 4.5 1.4 0 2.7-.4 4-1.2M9 4.5c2.5 0 5 1.5 7 4.5-.5.7-1 1.4-1.6 2"/></>,
   chat: <><path d="M2 2h14c.6 0 1 .5 1 1v9c0 .6-.4 1-1 1H5l-3 3V3c0-.5.4-1 1-1z"/><path d="M5 7h8M5 10h5"/></>,
   sparkle: <><path d="M9 1l1.5 4L14 7l-3.5 1.5L9 12l-1.5-3.5L4 7l3.5-1.5L9 1z"/><path d="M4 13l.6 1.4L6 15l-1.4.6L4 17l-.6-1.4L2 15l1.4-.6L4 13z"/></>,
+  scale: <><path d="M9 2v14M5 16h8"/><path d="M3 6l6-2 6 2"/><path d="M1 10c0-2 2-4 5-4s5 2 5 4H1z"/><path d="M7 10c0-2 2-4 5-4s5 2 5 4H7z"/></>,
 }
 
 export default function Icon({ name, size = 16, className = "" }) {

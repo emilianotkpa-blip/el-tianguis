@@ -5,8 +5,11 @@ import { SUCURSALES } from "../data"
 import { getCatalogo, postMovimiento } from "../api"
 import { exportCSV } from "../utils"
 
-export default function InventariosPage({ addToast }) {
-  const [suc, setSuc]               = useState("centro")
+export default function InventariosPage({ addToast, sucursalActiva }) {
+  const initSuc = sucursalActiva ?? "centro"
+  const initSucShort = SUCURSALES.find(s => s.id === initSuc)?.short ?? "Centro"
+
+  const [suc, setSuc]               = useState(initSuc)
   const [search, setSearch]         = useState("")
   const [statusFilter, setStatus]   = useState("todos")
   const [adjustingP, setAdjustingP] = useState(null)
@@ -16,11 +19,12 @@ export default function InventariosPage({ addToast }) {
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
 
-  const [movTipo, setMovTipo] = useState("Entrada")
-  const [movSuc,  setMovSuc]  = useState("Centro")
-  const [movCant, setMovCant] = useState("")
-  const [movObs,  setMovObs]  = useState("")
-  const [saving,  setSaving]  = useState(false)
+  const [movTipo,  setMovTipo]  = useState("Entrada")
+  const [movSuc,   setMovSuc]   = useState(initSucShort)
+  const [movCant,  setMovCant]  = useState("")
+  const [movNivel, setMovNivel] = useState("pieza")
+  const [movObs,   setMovObs]   = useState("")
+  const [saving,   setSaving]   = useState(false)
 
   const cargar = async () => {
     setLoading(true)
@@ -51,7 +55,13 @@ export default function InventariosPage({ addToast }) {
   const cur = stockTotals.find((s) => s.id === suc) ?? { normal: 0, bajo: 0, agotado: 0, total: 0 }
 
   const filtered = productos.filter((p) => {
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.sku.includes(search)) return false
+    if (search) {
+      const q = search.toLowerCase()
+      const matchName    = p.name.toLowerCase().includes(q)
+      const matchSku     = p.sku.includes(search)
+      const matchBarcode = p.codigoBarras && p.codigoBarras.toLowerCase().includes(q)
+      if (!matchName && !matchSku && !matchBarcode) return false
+    }
     const v  = p.stock[suc] ?? 0
     const st = v <= 0 ? "agotado" : v < p.min ? "bajo" : "normal"
     if (statusFilter !== "todos" && st !== statusFilter) return false
@@ -66,11 +76,19 @@ export default function InventariosPage({ addToast }) {
     if (!adjustingP || !cant || cant <= 0) return
     setSaving(true)
     try {
+      // Buscar el factor de la presentación seleccionada
+      const pres     = adjustingP.presentaciones ?? []
+      const nivelKeys = movNivel === "caja" ? ["caja"] : movNivel === "paq" ? ["paquete", "bulto"] : null
+      const presObj   = nivelKeys ? pres.find(p => nivelKeys.includes(p.nivel)) : null
+      const factor    = presObj?.factor ?? 1
+
       await postMovimiento({
         tipo:            movTipo,
         producto_codigo: parseInt(adjustingP.sku, 10),
         sucursal:        movSuc,
         cantidad:        cant,
+        nivel:           movNivel,
+        factor,
         descripcion:     adjustingP.name,
         observaciones:   movObs,
       })
@@ -116,7 +134,7 @@ export default function InventariosPage({ addToast }) {
         </div>
         <div className="page-actions">
           <button className="btn btn-default btn-sm" onClick={cargar}><Icon name="refresh" size={13} /> Sincronizar</button>
-          <button className="btn btn-default btn-sm" onClick={() => exportCSV(productos.map((p) => ({ Codigo: p.sku, Nombre: p.name, Tipo: p.tipo, Centro: p.stock.centro, Repostero: p.stock.repostero, Bodega: p.stock.bodega, Total: (p.stock.centro + p.stock.repostero + p.stock.bodega), Minimo: p.min })), "inventario.csv")}>
+          <button className="btn btn-default btn-sm" onClick={() => exportCSV(productos.map((p) => ({ CodigoBarras: p.codigoBarras || p.sku, SKU: p.sku, Nombre: p.name, Tipo: p.tipo, Centro: p.stock.centro, Repostero: p.stock.repostero, Bodega: p.stock.bodega, Total: (p.stock.centro + p.stock.repostero + p.stock.bodega), Minimo: p.min })), "inventario.csv")}>
             <Icon name="download" size={13} /> Exportar CSV
           </button>
           <button className="btn btn-wine btn-sm"><Icon name="upload" size={13} /> Movimiento de stock</button>
@@ -165,7 +183,7 @@ export default function InventariosPage({ addToast }) {
           <div className="filter-bar">
             <div className="search-input">
               <Icon name="search" size={14} className="icon" />
-              <input placeholder="Buscar producto o código…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input placeholder="Buscar por nombre, SKU o código de barras…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <select value={statusFilter} onChange={(e) => setStatus(e.target.value)}>
               <option value="todos">Todos los estados</option>
@@ -201,7 +219,12 @@ export default function InventariosPage({ addToast }) {
                 const fill   = status === "agotado" ? "var(--err)" : status === "bajo" ? "var(--warn)" : "var(--ok)"
                 return (
                   <tr key={p._id}>
-                    <td className="tnum" style={{ fontSize: 11.5 }}>{p.sku}</td>
+                    <td className="tnum" style={{ fontSize: 11 }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{p.codigoBarras || p.sku}</div>
+                      {p.codigoBarras && p.codigoBarras !== p.sku && (
+                        <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{p.sku}</div>
+                      )}
+                    </td>
                     <td><strong>{p.name}</strong></td>
                     <td className="muted">{p.tipo}</td>
                     <td className="num"><strong>{v}</strong></td>
@@ -220,7 +243,7 @@ export default function InventariosPage({ addToast }) {
                       {status === "normal"  && <span className="badge badge-ok">● Normal</span>}
                     </td>
                     <td className="actions-cell">
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setAdjustingP(p); setMovSuc("Centro") }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => { setAdjustingP(p); setMovSuc(SUCURSALES.find(s => s.id === suc)?.short ?? "Centro"); setMovNivel("pieza"); setMovCant("") }}>
                         <Icon name="edit" size={12} />
                       </button>
                     </td>
@@ -260,19 +283,85 @@ export default function InventariosPage({ addToast }) {
             <div className="form-row">
               <label>Sucursal</label>
               <select value={movSuc} onChange={(e) => setMovSuc(e.target.value)}>
-                {SUCURSALES.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                {SUCURSALES.map((s) => <option key={s.id} value={s.short}>{s.name}</option>)}
               </select>
             </div>
             <div className="form-row">
-              <label>Cantidad</label>
+              <label>Unidad de entrada</label>
+              <select value={movNivel} onChange={e => setMovNivel(e.target.value)}>
+                <option value="pieza">{adjustingP.unidadBase === "gramo" ? "Gramo / unidad suelta" : "Pieza / unidad suelta"}</option>
+                {adjustingP.presentaciones?.filter(p => p.nivel === "paquete" || p.nivel === "bulto").map(p => {
+                  const u = adjustingP.unidadBase === "gramo"
+                    ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
+                    : `${p.factor} pzs c/u`
+                  return <option key={p.id} value="paq">{p.label} ({u})</option>
+                })}
+                {adjustingP.presentaciones?.filter(p => p.nivel === "caja").map(p => {
+                  const u = adjustingP.unidadBase === "gramo"
+                    ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
+                    : `${p.factor} pzs c/u`
+                  return <option key={p.id} value="caja">{p.label} ({u})</option>
+                })}
+              </select>
+            </div>
+            <div className="form-row">
+              <label>Cantidad{movNivel !== "pieza" ? ` (en ${movNivel === "caja" ? "cajas" : "paquetes"})` : ""}</label>
               <input type="number" min="1" value={movCant} onChange={(e) => setMovCant(e.target.value)} placeholder="0" />
             </div>
             <div className="form-row" style={{ gridColumn: "1/-1" }}>
               <label>Observaciones</label>
               <textarea rows="2" value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Opcional…" />
             </div>
-            <div style={{ gridColumn: "1/-1", padding: 12, background: "var(--bg-sunken)", borderRadius: 4, fontSize: 12 }}>
-              <strong>Stock actual:</strong> Centro {adjustingP.stock.centro} · Repostero {adjustingP.stock.repostero} · Bodega {adjustingP.stock.bodega}
+            {/* Mostrar stock con equivalencias (base stock como fuente de verdad) */}
+            <div style={{ gridColumn: "1/-1", padding: 12, background: "var(--bg-sunken)", borderRadius: 6, fontSize: 12 }}>
+              <strong>Stock actual ({movSuc.toLowerCase()}):</strong>
+              {(() => {
+                const sucId    = movSuc.toLowerCase()
+                const n        = adjustingP.stockNiveles?.[sucId] ?? {}
+                const pres     = adjustingP.presentaciones ?? []
+                const paqP     = pres.find(p => p.nivel === "paquete" || p.nivel === "bulto")
+                const cajP     = pres.find(p => p.nivel === "caja")
+                const cajFac   = cajP?.factor ?? 0
+                const paqFac   = paqP?.factor ?? 0
+                const esGramo  = adjustingP.unidadBase === "gramo"
+
+                // Helpers para formato de unidad base
+                const fmtBase = (g) => esGramo
+                  ? (g >= 1000 ? `${(g / 1000).toLocaleString()} kg` : `${g} g`)
+                  : g.toLocaleString() + " pzs"
+
+                // Stock base = fuente de verdad
+                const baseStock  = adjustingP.stock?.[sucId] ?? 0
+                const cajasN     = n.caja ?? 0
+                const paqSueltos = n.paq ?? 0
+
+                const paqEquiv = paqFac > 0 ? Math.floor(baseStock / paqFac) : 0
+                const cajEquiv = cajFac > 0 ? Math.floor(baseStock / cajFac) : 0
+
+                return (
+                  <div style={{ marginTop: 6, display: "flex", gap: 20, flexWrap: "wrap" }}>
+                    {cajFac > 0 && (
+                      <span>
+                        {cajP.label}: <strong>{cajasN}</strong>
+                        {paqFac > 0 && (
+                          <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>(equiv. {cajEquiv})</span>
+                        )}
+                      </span>
+                    )}
+                    {paqFac > 0 && (
+                      <span>
+                        {paqP.label}: <strong>{paqEquiv}</strong>
+                        {paqSueltos > 0 && (
+                          <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>({paqSueltos} sueltos)</span>
+                        )}
+                      </span>
+                    )}
+                    <span>
+                      {esGramo ? "Total:" : "Piezas:"} <strong>{fmtBase(baseStock)}</strong>
+                    </span>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )}

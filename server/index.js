@@ -3,6 +3,11 @@ import OpenAI from "openai"
 import "dotenv/config"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
+import { SerialPort } from "serialport"
+import { ReadlineParser } from "@serialport/parser-readline"
+import { execFile } from "child_process"
+import { writeFileSync, unlinkSync } from "fs"
+import { tmpdir } from "os"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -39,13 +44,21 @@ const T = {
 }
 
 async function nocoGet(tableId, params = "") {
-  const res = await fetch(
-    `${NOCO_URL}/api/v2/tables/${tableId}/records?limit=1000${params}`,
-    { headers: { "xc-token": NOCO_TOKEN } }
-  )
-  if (!res.ok) throw new Error(`NocoDB error ${res.status}`)
-  const data = await res.json()
-  return data.list ?? []
+  const all = []
+  let offset = 0
+  while (true) {
+    const res = await fetch(
+      `${NOCO_URL}/api/v2/tables/${tableId}/records?limit=200&offset=${offset}${params}`,
+      { headers: { "xc-token": NOCO_TOKEN } }
+    )
+    if (!res.ok) throw new Error(`NocoDB error ${res.status}`)
+    const data = await res.json()
+    const chunk = data.list ?? []
+    all.push(...chunk)
+    if (chunk.length < 200) break
+    offset += 200
+  }
+  return all
 }
 
 async function nocoPost(tableId, body) {
@@ -66,6 +79,36 @@ async function nocoPatch(tableId, body) {
   })
   if (!res.ok) throw new Error(`NocoDB error ${res.status}`)
   return res.json()
+}
+
+// ── StockNiveles helper ───────────────────────────────
+// Dado un item de venta {sku, qty, nivel, factor}, descuenta StockNiveles y stock base
+async function descontarNiveles(item, campo) {
+  const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
+  if (!rows.length) return
+  const row = rows[0]
+
+  // Stock base (piezas)
+  const deltaBase = item.qty * (item.factor ?? item.piezasPorUnidad ?? 1)
+  const nuevoBase  = (row[campo] ?? 0) - deltaBase
+
+  // StockNiveles
+  const suc = campo.toLowerCase()
+  let niveles = { centro: {}, repostero: {}, bodega: {} }
+  try { if (row.StockNiveles) niveles = JSON.parse(row.StockNiveles) } catch {}
+  const nivelSuc = niveles[suc] ?? {}
+  // Mapear nivel de presentación → clave de StockNiveles
+  const NIVEL_KEY = { paquete: "paq", bulto: "caja", caja: "caja", pieza: "pieza" }
+  const nivelId = NIVEL_KEY[item.nivel] ?? item.nivel ?? "pieza"
+  nivelSuc[nivelId] = Math.max(0, (nivelSuc[nivelId] ?? 0) - item.qty)
+  niveles[suc] = nivelSuc
+
+  await nocoPatch(T.stock, {
+    Id: row.Id,
+    [campo]:       nuevoBase,
+    Total:         (row.Total ?? 0) - deltaBase,
+    StockNiveles:  JSON.stringify(niveles),
+  })
 }
 
 // ── Contexto IA ────────────────────────────────────────
@@ -167,7 +210,11 @@ app.post("/api/login", async (req, res) => {
       res.json({
         ok: true,
         token: SESSION_TOKEN,
-        user: { name: user.Nombre, rol: (user.Rol ?? "vendedor").toLowerCase(), puesto: user.Puesto ?? "", email: email.trim().toLowerCase() }
+        user: {
+          name: user.Nombre, rol: (user.Rol ?? "vendedor").toLowerCase(),
+          puesto: user.Puesto ?? "", email: email.trim().toLowerCase(),
+          sucursalDefault: user.Sucursal ?? "",
+        }
       })
     } else {
       res.status(401).json({ error: "Credenciales incorrectas" })
@@ -190,6 +237,114 @@ app.get("/api/stats-publicas", async (req, res) => {
       .reduce((s, v) => s + (v.Total ?? 0), 0)
     res.json({ numProductos: prods.length, totalVentasMes: totalMes })
   } catch { res.json({ numProductos: 0, totalVentasMes: 0 }) }
+})
+
+// ── ESC/POS raw printing ──────────────────────────────
+const PRINT_SCRIPT = join(__dirname, "print-raw.ps1")
+
+function buildFolioEscPos(folio) {
+  const ESC = 0x1B, GS = 0x1D
+  const folioBytes    = Buffer.from(folio, "ascii")
+  const barcodeData   = Buffer.concat([Buffer.from([0x7B, 0x42]), folioBytes]) // {B + data
+  return Buffer.concat([
+    Buffer.from([ESC, 0x40]),                           // init
+    Buffer.from([ESC, 0x61, 0x01]),                     // center
+    Buffer.from([ESC, 0x45, 0x01, ESC, 0x21, 0x10]),    // bold + 2x height
+    Buffer.from('"EL TIANGUIS"\n', "ascii"),
+    Buffer.from([ESC, 0x45, 0x00, ESC, 0x21, 0x00]),    // reset
+    Buffer.from("--------------------\n", "ascii"),
+    Buffer.from([ESC, 0x21, 0x30]),                     // 2x width + 2x height
+    Buffer.from(folio + "\n", "ascii"),
+    Buffer.from([ESC, 0x21, 0x00]),                     // reset
+    Buffer.from("\n", "ascii"),
+    Buffer.from([GS, 0x68, 0x50]),                      // barcode height 80px
+    Buffer.from([GS, 0x77, 0x02]),                      // module width 2
+    Buffer.from([GS, 0x48, 0x02]),                      // HRI below barcode
+    Buffer.from([GS, 0x6B, 0x49, barcodeData.length]),  // GS k CODE128 + len
+    barcodeData,
+    Buffer.from("\n--------------------\n", "ascii"),
+    Buffer.from("Recibido en caja\n", "ascii"),
+    Buffer.from([ESC, 0x64, 0x06]),                     // feed 6 lines
+    Buffer.from([GS, 0x56, 0x41, 0x00]),                // partial cut
+  ])
+}
+
+function rawPrint(printerName, data) {
+  return new Promise((resolve, reject) => {
+    const tmp = join(tmpdir(), `escpos_${Date.now()}.bin`)
+    writeFileSync(tmp, data)
+    execFile("powershell", [
+      "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+      "-File", PRINT_SCRIPT,
+      "-PrinterName", printerName,
+      "-DataFile", tmp,
+    ], (err, stdout, stderr) => {
+      try { unlinkSync(tmp) } catch {}
+      if (err) return reject(new Error(stderr || err.message))
+      if (!stdout.trim().startsWith("OK")) return reject(new Error(stdout.trim() || "Sin respuesta"))
+      resolve()
+    })
+  })
+}
+
+// Listar impresoras disponibles (sin auth, solo lectura)
+app.get("/api/print/printers", (req, res) => {
+  execFile("powershell", [
+    "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+    "-Command", "Get-Printer | Select-Object -ExpandProperty Name | ConvertTo-Json -Compress",
+  ], (err, stdout) => {
+    if (err) return res.status(500).json({ error: err.message })
+    try {
+      const raw = JSON.parse(stdout.trim())
+      res.json(Array.isArray(raw) ? raw : [raw])
+    } catch { res.json([]) }
+  })
+})
+
+// ── Báscula (SSE, sin auth para evitar preflight issues) ──
+app.get("/api/balanza/stream", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8")
+  res.setHeader("Cache-Control", "no-cache")
+  res.setHeader("Connection", "keep-alive")
+  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.flushHeaders()
+
+  const portPath = process.env.BALANZA_PORT ?? "COM3"
+  const baudRate = Number(process.env.BALANZA_BAUD) || 9600
+
+  let port
+  try {
+    port = new SerialPort({ path: portPath, baudRate, autoOpen: true })
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ gramos: 0, conectada: false, error: err.message })}\n\n`)
+    res.end()
+    return
+  }
+
+  const parser = port.pipe(new ReadlineParser({ delimiter: "\r\n" }))
+
+  // Notificar conexión exitosa
+  port.on("open", () => {
+    res.write(`data: ${JSON.stringify({ gramos: 0, conectada: true })}\n\n`)
+  })
+
+  parser.on("data", (line) => {
+    // La mayoría de básculas emiten: "  1.234 kg" o "   234 g" o "0.234KG"
+    const match = line.trim().match(/([\d]+\.?[\d]*)\s*(kg|g)/i)
+    if (!match) return
+    const valor  = parseFloat(match[1])
+    const unidad = match[2].toLowerCase()
+    const gramos = unidad === "kg" ? Math.round(valor * 1000) : Math.round(valor)
+    res.write(`data: ${JSON.stringify({ gramos, conectada: true })}\n\n`)
+  })
+
+  port.on("error", (err) => {
+    res.write(`data: ${JSON.stringify({ gramos: 0, conectada: false, error: err.message })}\n\n`)
+  })
+
+  req.on("close", () => {
+    try { port.close() } catch {}
+  })
 })
 
 app.use("/api", (req, res, next) => {
@@ -234,13 +389,15 @@ app.get("/api/alertas", async (req, res) => {
     const stockMap = Object.fromEntries(stocks.map((s) => [s.Producto_Codigo, s]))
     const alertas = []
     prods.forEach((p) => {
-      const s = stockMap[p.Codigo] ?? {}
-      const min = p.Stock_Minimo || 5
+      const s      = stockMap[p.Codigo] ?? {}
+      const min    = p.Stock_Minimo || 5
+      const max    = p.InvMaximo || 0
       const nombre = p.Descripcion ?? "Producto"
       ;["Centro","Repostero","Bodega"].forEach((suc) => {
         const v = s[suc] ?? 0
-        if (v <= 0) alertas.push({ type: "err",  title: `Agotado: ${nombre} (${suc})`,   time: "Stock" })
-        else if (v < min) alertas.push({ type: "warn", title: `Stock bajo: ${nombre} (${suc})`, time: "Stock" })
+        if (v <= 0)       alertas.push({ type: "err",  title: `Agotado: ${nombre} (${suc})`,              time: "Stock" })
+        else if (v < min) alertas.push({ type: "warn", title: `Stock bajo: ${nombre} (${suc})`,            time: "Stock" })
+        else if (max > 0 && v > max) alertas.push({ type: "info", title: `Exceso: ${nombre} (${suc}) — ${v} > máx ${max}`, time: "Stock" })
       })
     })
     pedCli.forEach((p) => {
@@ -254,6 +411,16 @@ app.get("/api/alertas", async (req, res) => {
 })
 
 // ── Catálogo ───────────────────────────────────────────
+app.get("/api/catalogo/next-codigo", async (req, res) => {
+  try {
+    const prods = await nocoGet(T.productos)
+    const max   = prods.reduce((m, p) => Math.max(m, parseInt(p.Codigo, 10) || 0), 0)
+    res.json({ next: max + 1 })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 app.get("/api/catalogo", async (req, res) => {
   try {
     const [prods, stocks] = await Promise.all([
@@ -263,6 +430,10 @@ app.get("/api/catalogo", async (req, res) => {
     const stockMap = Object.fromEntries(stocks.map((s) => [s.Producto_Codigo, s]))
     res.json(prods.map((p) => {
       const s = stockMap[p.Codigo] ?? {}
+      let presentaciones = []
+      let stockNiveles   = { centro: {}, repostero: {}, bodega: {} }
+      try { presentaciones = p.Presentaciones ? JSON.parse(p.Presentaciones) : [] } catch {}
+      try { if (s.StockNiveles) stockNiveles = JSON.parse(s.StockNiveles) } catch {}
       return {
         _id: p.Id, _stockId: s.Id ?? null,
         sku: String(p.Codigo).padStart(4, "0"),
@@ -272,7 +443,13 @@ app.get("/api/catalogo", async (req, res) => {
         facturable: p.Facturable !== false && p.Facturable !== 0,
         piezasPorUnidad: p.PiezasPorUnidad ?? 1,
         activo: p.Activo !== false,
+        codigoBarras:   p.CodigoBarras ?? String(p.Codigo).padStart(4, "0"),
+        precioMayoreo:  p.PrecioMayoreo ?? 0,
+        proveedor:      p.Proveedor ?? "",
+        invMaximo:      p.InvMaximo ?? 0,
+        presentaciones,
         stock: { centro: s.Centro ?? 0, repostero: s.Repostero ?? 0, bodega: s.Bodega ?? 0 },
+        stockNiveles,
       }
     }))
   } catch (err) {
@@ -281,7 +458,7 @@ app.get("/api/catalogo", async (req, res) => {
 })
 
 app.patch("/api/catalogo/:id", async (req, res) => {
-  const { nombre, tipo, unidad, marca, min, costo, precio, facturable, piezasPorUnidad } = req.body
+  const { nombre, tipo, unidad, marca, min, costo, precio, facturable, piezasPorUnidad, presentaciones, codigoBarras, precioMayoreo, proveedor, invMaximo } = req.body
   try {
     const update = { Id: parseInt(req.params.id) }
     if (nombre          !== undefined) update.Descripcion     = nombre
@@ -293,6 +470,11 @@ app.patch("/api/catalogo/:id", async (req, res) => {
     if (precio          !== undefined) update.Precio           = Number(precio)
     if (facturable      !== undefined) update.Facturable       = facturable === true || facturable === 1 || facturable === "true"
     if (piezasPorUnidad !== undefined) update.PiezasPorUnidad  = Number(piezasPorUnidad) || 1
+    if (presentaciones  !== undefined) update.Presentaciones   = JSON.stringify(presentaciones)
+    if (codigoBarras    !== undefined) update.CodigoBarras     = codigoBarras
+    if (precioMayoreo   !== undefined) update.PrecioMayoreo    = Number(precioMayoreo) || 0
+    if (proveedor       !== undefined) update.Proveedor        = proveedor
+    if (invMaximo       !== undefined) update.InvMaximo        = Number(invMaximo) || 0
     await nocoPatch(T.productos, update)
     res.json({ ok: true })
   } catch (err) {
@@ -301,19 +483,34 @@ app.patch("/api/catalogo/:id", async (req, res) => {
 })
 
 app.post("/api/catalogo", async (req, res) => {
-  const { sku, nombre, tipo, unidad, marca, min, costo, precio, facturable, piezasPorUnidad } = req.body
+  const { sku, nombre, tipo, unidad, marca, min, costo, precio, facturable, piezasPorUnidad, presentaciones, codigoBarras, proveedor, invMaximo } = req.body
   try {
+    const codigo = parseInt(sku, 10)
+
+    // NocoDB ignora algunos campos en POST — creamos primero, luego fijamos con PATCH
     const prod = await nocoPost(T.productos, {
-      Codigo: parseInt(sku, 10), Descripcion: nombre,
+      Descripcion: nombre,
       Tipo: tipo ?? "", Unidad: unidad ?? "", Marca: marca ?? "",
       Stock_Minimo: Number(min) || 5, Costo: Number(costo) || 0, Precio: Number(precio) || 0,
       Facturable: facturable !== false,
       PiezasPorUnidad: Number(piezasPorUnidad) || 1,
+      Presentaciones: presentaciones ? JSON.stringify(presentaciones) : null,
     })
-    await nocoPost(T.stock, {
-      Producto_Codigo: parseInt(sku, 10), Descripcion: nombre,
+    // PATCH para campos que NocoDB ignora en POST
+    await nocoPatch(T.productos, {
+      Id: prod.Id,
+      Codigo: codigo,
+      CodigoBarras: codigoBarras?.trim() || "",
+      Proveedor: proveedor || "",
+      InvMaximo: Number(invMaximo) || 0,
+    })
+
+    const stockRow = await nocoPost(T.stock, {
+      Descripcion: nombre,
       Centro: 0, Repostero: 0, Bodega: 0, Total: 0,
     })
+    await nocoPatch(T.stock, { Id: stockRow.Id, Producto_Codigo: codigo })
+
     res.json({ ok: true, id: prod.Id })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -338,14 +535,9 @@ app.post("/api/ventas", async (req, res) => {
       Subtotal: subtotal, IVA: iva, Total: total,
       Items_JSON: JSON.stringify(items), Estado: "pagada",
     })
+    const campo = sucursal === "centro" ? "Centro" : sucursal === "repostero" ? "Repostero" : "Bodega"
     for (const item of items) {
-      const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
-      if (!rows.length) continue
-      const row = rows[0]
-      const campo = sucursal === "centro" ? "Centro" : sucursal === "repostero" ? "Repostero" : "Bodega"
-      const ppu   = item.piezasPorUnidad ?? 1
-      const delta = item.qty * ppu
-      await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) - delta, Total: (row.Total ?? 0) - delta })
+      await descontarNiveles({ ...item, sku: item.sku }, campo)
     }
     res.json({ ok: true })
   } catch (err) {
@@ -372,7 +564,7 @@ app.get("/api/movimientos", async (req, res) => {
 })
 
 app.post("/api/movimientos", async (req, res) => {
-  const { tipo, producto_codigo, sucursal, cantidad, descripcion, observaciones } = req.body
+  const { tipo, producto_codigo, sucursal, cantidad, descripcion, observaciones, nivel, factor } = req.body
   try {
     await nocoPost(T.movimientos, {
       Fecha: new Date().toISOString().slice(0, 10),
@@ -382,11 +574,73 @@ app.post("/api/movimientos", async (req, res) => {
     })
     const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${producto_codigo})`)
     if (!rows.length) return res.status(404).json({ error: "Producto no encontrado en stock" })
-    const row = rows[0]
-    const campo = sucursal.toLowerCase() === "centro" ? "Centro" : sucursal.toLowerCase() === "repostero" ? "Repostero" : "Bodega"
-    const delta = tipo === "Entrada" ? Math.abs(cantidad) : -Math.abs(cantidad)
-    await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) + delta, Total: (row.Total ?? 0) + delta })
+    const row        = rows[0]
+    const campo      = sucursal.toLowerCase() === "centro" ? "Centro" : sucursal.toLowerCase() === "repostero" ? "Repostero" : "Bodega"
+    const factorN    = parseFloat(factor) || 1
+    const nivelDelta = tipo === "Entrada" ? Math.abs(cantidad) : -Math.abs(cantidad)
+    const baseDelta  = nivelDelta * factorN   // stock base siempre en piezas
+
+    // Actualizar StockNiveles si se especifica nivel
+    const update = {
+      Id: row.Id,
+      [campo]: (row[campo] ?? 0) + baseDelta,
+      Total:   (row.Total ?? 0) + baseDelta,
+    }
+    if (nivel) {
+      const suc = campo.toLowerCase()
+      let niveles = { centro: {}, repostero: {}, bodega: {} }
+      try { if (row.StockNiveles) niveles = JSON.parse(row.StockNiveles) } catch {}
+      const nivelSuc = niveles[suc] ?? {}
+      nivelSuc[nivel] = Math.max(0, (nivelSuc[nivel] ?? 0) + nivelDelta)  // en unidades del nivel
+      niveles[suc] = nivelSuc
+      update.StockNiveles = JSON.stringify(niveles)
+    }
+    await nocoPatch(T.stock, update)
     res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Abrir caja: -1 caja + N paquetes en StockNiveles
+app.post("/api/abrir-caja", async (req, res) => {
+  const { producto_codigo, sucursal, cajaFactor, paqFactor } = req.body
+  try {
+    const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${producto_codigo})`)
+    if (!rows.length) return res.status(404).json({ error: "Producto no encontrado" })
+    const row   = rows[0]
+    const campo = sucursal.toLowerCase() === "centro" ? "Centro" : sucursal.toLowerCase() === "repostero" ? "Repostero" : "Bodega"
+    const suc   = campo.toLowerCase()
+
+    let niveles = { centro: {}, repostero: {}, bodega: {} }
+    try { if (row.StockNiveles) niveles = JSON.parse(row.StockNiveles) } catch {}
+    const n = niveles[suc] ?? {}
+
+    const cajasActuales = n.caja ?? 0
+    if (cajasActuales <= 0) return res.status(400).json({ error: "Sin cajas disponibles" })
+
+    const paqsNuevos = paqFactor ? Math.floor(cajaFactor / paqFactor) : 0
+
+    n.caja = cajasActuales - 1
+    n.paq  = (n.paq ?? 0) + paqsNuevos
+    niveles[suc] = n
+
+    await nocoPatch(T.stock, {
+      Id: row.Id,
+      StockNiveles: JSON.stringify(niveles),
+    })
+
+    await nocoPost(T.movimientos, {
+      Fecha: new Date().toISOString().slice(0, 10),
+      Tipo: "Apertura de caja",
+      Producto_Codigo: producto_codigo,
+      Descripcion: `Apertura de caja → ${paqsNuevos} paquetes`,
+      Sucursal: campo,
+      Cantidad: cajaFactor,
+      Observaciones: `${cajasActuales - 1} cajas restantes`,
+    })
+
+    res.json({ ok: true, cajasRestantes: cajasActuales - 1, paqsNuevos })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -415,8 +669,7 @@ app.post("/api/pedidos-clientes", async (req, res) => {
       const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
       if (!rows.length) continue
       const row   = rows[0]
-      const ppu   = item.piezasPorUnidad ?? 1
-      const delta = item.qty * ppu
+      const delta = item.qty * (item.factor ?? item.piezasPorUnidad ?? 1)
       await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) - delta, Total: (row.Total ?? 0) - delta })
     }
     res.json({ ok: true })
@@ -522,22 +775,89 @@ app.delete("/api/clientes/:id", async (req, res) => {
 })
 
 // ── Notas (POS → Caja) ────────────────────────────────
-// Crear nota con estado en_caja
+
+// Crear borrador — reserva folio único; reutiliza cancelados del año actual
+app.post("/api/notas/borrador", async (req, res) => {
+  const { sucursal, vendedor } = req.body
+  try {
+    const anio   = new Date().getFullYear()
+    const prefijo = `F-${anio}-`
+    // Intentar reusar el folio cancelado más bajo del año
+    const canceladas = await nocoGet(T.ventas,
+      `&where=(EstadoNota,eq,cancelada)&where=(Folio,like,${prefijo}%)&sort=Folio&limit=1`)
+    if (canceladas.length) {
+      const nota = canceladas[0]
+      await nocoPatch(T.ventas, {
+        Id: nota.Id, EstadoNota: "borrador", Estado: "borrador",
+        Sucursal: sucursal, Vendedor: vendedor ?? "",
+        Fecha: new Date().toISOString().slice(0, 10),
+        Cliente: "Mostrador", Observaciones: "",
+        Items_JSON: "[]", Pagos_JSON: "[]",
+        Subtotal: 0, IVA: 0, Total: 0,
+      })
+      return res.json({ ok: true, id: nota.Id, folio: nota.Folio })
+    }
+    // Sin cancelados — crear nuevo
+    const nota   = await nocoPost(T.ventas, {
+      Fecha: new Date().toISOString().slice(0, 10),
+      Sucursal: sucursal, Vendedor: vendedor ?? "",
+      EstadoNota: "borrador", Estado: "borrador",
+      Subtotal: 0, IVA: 0, Total: 0, Items_JSON: "[]", Pagos_JSON: "[]",
+    })
+    const notaId = nota.Id ?? nota.id
+    const folio  = `${prefijo}${String(notaId).padStart(4, "0")}`
+    await nocoPatch(T.ventas, { Id: notaId, Folio: folio })
+    res.json({ ok: true, id: notaId, folio })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Confirmar borrador → pasa a en_caja con items y totales finales
+app.patch("/api/notas/:id/confirmar", async (req, res) => {
+  const { cliente, vendedor, items, pagos, subtotal, iva, total, observaciones } = req.body
+  try {
+    await nocoPatch(T.ventas, {
+      Id: parseInt(req.params.id),
+      Cliente: cliente ?? "Mostrador", Vendedor: vendedor ?? "",
+      Items_JSON: JSON.stringify(items ?? []),
+      Pagos_JSON: JSON.stringify(pagos ?? []),
+      MetodoPago: (pagos?.[0]?.metodo) ?? "Efectivo",
+      Subtotal: subtotal, IVA: iva, Total: total,
+      EstadoNota: "en_caja", Estado: "pendiente",
+      Observaciones: observaciones ?? "",
+    })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Cancelar borrador — folio queda disponible para reutilizar
+app.patch("/api/notas/:id/cancelar-borrador", async (req, res) => {
+  try {
+    await nocoPatch(T.ventas, {
+      Id: parseInt(req.params.id),
+      EstadoNota: "cancelada", Estado: "cancelada",
+    })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Crear nota con estado en_caja — folio = F-YYYY-{Id}
 app.post("/api/notas", async (req, res) => {
-  const { folio, fecha, cliente, vendedor, sucursal, items, pagos, subtotal, iva, total, observaciones } = req.body
+  const { fecha, cliente, vendedor, sucursal, items, pagos, subtotal, iva, total, observaciones } = req.body
   try {
     const nota = await nocoPost(T.ventas, {
-      Folio: folio, Fecha: fecha, Cliente: cliente ?? "Mostrador",
+      Fecha: fecha, Cliente: cliente ?? "Mostrador",
       Vendedor: vendedor ?? "", Sucursal: sucursal,
       MetodoPago: (pagos?.[0]?.metodo) ?? "Efectivo",
       Subtotal: subtotal, IVA: iva, Total: total,
       Items_JSON: JSON.stringify(items ?? []),
       Pagos_JSON: JSON.stringify(pagos ?? []),
-      EstadoNota: "en_caja",
-      Estado: "pendiente",
+      EstadoNota: "en_caja", Estado: "pendiente",
       Observaciones: observaciones ?? "",
     })
-    res.json({ ok: true, id: nota.Id, folio })
+    const notaId = nota.Id ?? nota.id ?? nota.rowId ?? Object.values(nota ?? {})[0]
+    const folio = `F-${new Date().getFullYear()}-${String(notaId).padStart(4, "0")}`
+    await nocoPatch(T.ventas, { Id: notaId, Folio: folio })
+    res.json({ ok: true, id: notaId, folio })
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
@@ -550,15 +870,18 @@ app.get("/api/caja", async (req, res) => {
 })
 
 // Historial de notas cobradas por rango de tiempo
+// NocoDB no soporta filtros de rango en UpdatedAt, así que filtramos en Node
 app.get("/api/caja/historial", async (req, res) => {
   const rango = req.query.rango ?? "1d"
   const mins  = { "1h": 60, "8h": 480, "1d": 1440, "7d": 10080, "30d": 43200 }
-  const desde = new Date(Date.now() - (mins[rango] ?? 1440) * 60000).toISOString().slice(0, 19).replace("T", " ")
+  const desdeMs = Date.now() - (mins[rango] ?? 1440) * 60000
   try {
-    const notas = await nocoGet(T.ventas,
-      `&where=(EstadoNota,eq,pagada)~and(UpdatedAt,gte,${encodeURIComponent(desde)})&sort=-UpdatedAt`
-    )
-    res.json(notas)
+    const notas = await nocoGet(T.ventas, "&where=(EstadoNota,eq,pagada)&sort=-UpdatedAt")
+    const filtradas = notas.filter(n => {
+      if (!n.UpdatedAt) return false
+      return new Date(n.UpdatedAt).getTime() >= desdeMs
+    })
+    res.json(filtradas)
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
@@ -597,14 +920,9 @@ app.patch("/api/caja/:id/cobrar", async (req, res) => {
     const suc   = (sucursal ?? nota.Sucursal ?? "centro").toLowerCase()
     const campo = suc.includes("repostero") ? "Repostero" : suc.includes("bodega") ? "Bodega" : "Centro"
 
-    // Decrement stock
+    // Decrement stock por nivel
     for (const item of items) {
-      const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
-      if (!rows.length) continue
-      const row   = rows[0]
-      const ppu   = item.piezasPorUnidad ?? 1
-      const delta = item.qty * ppu
-      await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) - delta, Total: (row.Total ?? 0) - delta })
+      await descontarNiveles(item, campo)
     }
 
     // Mark as paid
@@ -620,10 +938,54 @@ app.patch("/api/caja/:id/cobrar", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+// Imprimir folio ESC/POS
+app.post("/api/print/folio", async (req, res) => {
+  const { folio } = req.body
+  if (!folio) return res.status(400).json({ error: "Falta folio" })
+  const printerName = process.env.PRINTER_NAME
+  if (!printerName) return res.status(500).json({ error: "PRINTER_NAME no configurado en .env" })
+  try {
+    await rawPrint(printerName, buildFolioEscPos(folio))
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // Cancelar nota
 app.patch("/api/caja/:id/cancelar", async (req, res) => {
   try {
     await nocoPatch(T.ventas, { Id: parseInt(req.params.id), EstadoNota: "cancelada", Estado: "cancelada" })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ── Facturas CFDI ──────────────────────────────────────────
+app.get("/api/facturas", async (req, res) => {
+  try {
+    const ventas = await nocoGet(T.ventas, "&where=(Estado,eq,pagada)&sort=-Fecha")
+    res.json(ventas)
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.patch("/api/facturas/:id/solicitar", async (req, res) => {
+  const { rfc, nombreFiscal, usoCfdi, regimenReceptor, email } = req.body
+  try {
+    await nocoPatch(T.ventas, {
+      Id: parseInt(req.params.id),
+      Factura_JSON: JSON.stringify({
+        rfc, nombreFiscal, usoCfdi, regimenReceptor, email,
+        estado: "solicitada",
+        fechaSolicitud: new Date().toISOString(),
+      }),
+    })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.patch("/api/facturas/:id/cancelar", async (req, res) => {
+  try {
+    await nocoPatch(T.ventas, { Id: parseInt(req.params.id), Factura_JSON: "" })
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: err.message }) }
 })

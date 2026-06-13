@@ -1,3 +1,218 @@
+// ── Tipos de producto con presentaciones por defecto ──────────────────────────
+// factor: unidades base (piezas o gramos) que equivale esa presentación
+// nivel: "pieza" | "paquete" | "caja" | "bulto" | "gramo"
+// opcional: si el usuario puede activar/desactivar
+// factorEditable: si el usuario puede cambiar el factor al configurar el producto
+// factorOpciones: lista de tamaños predefinidos para elegir
+// multiPaq: si permite agregar múltiples filas de paquete con distintos tamaños
+// unidadBase: "pieza" o "gramo" — define cómo se interpreta el stock
+export const TIPOS_CONFIG = {
+  vasos: {
+    label: "Vasos", prefijo: "Vasos", unidadBase: "pieza", multiPaq: true,
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",   factor: 1,   nivel: "pieza",   activo: false, opcional: true,  descuento: false },
+      { id: "paq",    label: "Paquete", factor: 50,  nivel: "paquete", activo: true,  opcional: false, descuento: false, factorEditable: true, factorOpciones: [25, 50, 100] },
+      { id: "caja",   label: "Caja",    factor: 500, nivel: "caja",    activo: true,  opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  platos: {
+    label: "Platos", prefijo: "Platos", unidadBase: "pieza", multiPaq: true,
+    presentaciones: [
+      { id: "pieza", label: "Pieza",   factor: 1,   nivel: "pieza",   activo: false, opcional: true,  descuento: false },
+      { id: "paq",   label: "Paquete", factor: 25,  nivel: "paquete", activo: true,  opcional: false, descuento: false, factorEditable: true, factorOpciones: [25, 50, 100] },
+      { id: "caja",  label: "Caja",   factor: 250,  nivel: "caja",    activo: true,  opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  cubiertos: {
+    label: "Cubiertos", prefijo: "Cubiertos", unidadBase: "pieza", multiPaq: true,
+    presentaciones: [
+      { id: "pieza", label: "Pieza",   factor: 1,   nivel: "pieza",   activo: false, opcional: true,  descuento: false },
+      { id: "paq",   label: "Paquete", factor: 50,  nivel: "paquete", activo: true,  opcional: false, descuento: false, factorEditable: true, factorOpciones: [25, 50, 100] },
+      { id: "caja",  label: "Caja",   factor: 500,  nivel: "caja",    activo: true,  opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  bolsas: {
+    label: "Bolsas", prefijo: "Bolsas", unidadBase: "gramo",
+    presentaciones: [
+      { id: "detalle", label: "Al detalle",  factor: null,  nivel: "gramo", activo: true, opcional: true,  descuento: false },
+      { id: "cuarto",  label: "1/4 kg",      factor: 250,   nivel: "gramo", activo: true, opcional: false, descuento: false },
+      { id: "medio",   label: "1/2 kg",      factor: 500,   nivel: "gramo", activo: true, opcional: false, descuento: false },
+      { id: "kilo",    label: "1 kg",        factor: 1000,  nivel: "gramo", activo: true, opcional: false, descuento: false },
+      { id: "bulto",   label: "Bulto 25 kg", factor: 25000, nivel: "bulto", activo: true, opcional: true,  descuento: false },
+    ],
+  },
+  moldes_aluminio: {
+    label: "Moldes aluminio", prefijo: "Moldes", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",       factor: 1,  nivel: "pieza",   activo: true, opcional: false, descuento: false },
+      { id: "paq10",  label: "Paq. 10 pzs", factor: 10, nivel: "paquete", activo: true, opcional: true,  descuento: true,  factorEditable: false },
+    ],
+  },
+  domos: {
+    label: "Domos", prefijo: "Domos", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",        factor: 1,   nivel: "pieza",   activo: true, opcional: false, descuento: false },
+      { id: "paq10",  label: "Paq. 10 pzs",  factor: 10,  nivel: "paquete", activo: true, opcional: false, descuento: false },
+      { id: "caja",   label: "Caja",         factor: 100, nivel: "caja",    activo: true, opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  suajes: {
+    label: "Suajes", prefijo: "Suajes", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",       factor: 1,  nivel: "pieza",   activo: true, opcional: false, descuento: false },
+      { id: "paq50",  label: "Paq. 50 pzs", factor: 50, nivel: "paquete", activo: true, opcional: false, descuento: false },
+    ],
+  },
+  bisagras: {
+    label: "Bisagras", prefijo: "Bisagras", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",        factor: 1,   nivel: "pieza",   activo: true, opcional: false, descuento: false },
+      { id: "paq10",  label: "Paq. 10 pzs",  factor: 10,  nivel: "paquete", activo: true, opcional: false, descuento: false },
+      { id: "caja",   label: "Caja",         factor: 100, nivel: "caja",    activo: true, opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  cajas_carton: {
+    label: "Cajas de cartón", prefijo: "Caja Cartón", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza", label: "Pieza",       factor: 1,  nivel: "pieza",   activo: true, opcional: false, descuento: false },
+      { id: "paq6",  label: "Paq. 6 pzs",  factor: 6,  nivel: "paquete", activo: true, opcional: false, descuento: false },
+      { id: "caja",  label: "Caja",        factor: 48, nivel: "caja",    activo: true, opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  bolsas_carton: {
+    label: "Bolsas de cartón", prefijo: "Bolsa Cartón", unidadBase: "pieza", multiPaq: true,
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",            factor: 1,    nivel: "pieza",   activo: false, opcional: true,  descuento: false },
+      { id: "paq25",  label: "Paq. 25 pzs",      factor: 25,   nivel: "paquete", activo: true,  opcional: false, descuento: false, factorOpciones: [25, 50, 100] },
+      { id: "paq50",  label: "Paq. 50 pzs",      factor: 50,   nivel: "paquete", activo: false, opcional: true,  descuento: false, factorOpciones: [25, 50, 100] },
+      { id: "paq100", label: "Paq. 100 pzs",     factor: 100,  nivel: "paquete", activo: false, opcional: true,  descuento: false, factorOpciones: [25, 50, 100] },
+      { id: "millar", label: "Millar (1000 pzs)", factor: 1000, nivel: "caja",    activo: true,  opcional: true,  descuento: true },
+    ],
+  },
+  contenedores: {
+    label: "Contenedores", prefijo: "Contenedores", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",           factor: 1,   nivel: "pieza",   activo: true, opcional: false, descuento: false },
+      { id: "paq25",  label: "Paq. 25 pzs",     factor: 25,  nivel: "paquete", activo: true, opcional: false, descuento: false },
+      { id: "paq50",  label: "Paq. 50 pzs",     factor: 50,  nivel: "paquete", activo: true, opcional: false, descuento: false },
+      { id: "bulto",  label: "Bulto (200 pzs)",  factor: 200, nivel: "bulto",   activo: true, opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  charolas: {
+    label: "Charolas", prefijo: "Charolas", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",       factor: 1,   nivel: "pieza",   activo: true,  opcional: false, descuento: false },
+      { id: "paq10",  label: "Paq. 10 pzs", factor: 10,  nivel: "paquete", activo: true,  opcional: false, descuento: false },
+      { id: "paq50",  label: "Paq. 50 pzs", factor: 50,  nivel: "paquete", activo: false, opcional: true,  descuento: false },
+      { id: "caja",   label: "Caja",        factor: 100, nivel: "caja",    activo: true,  opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  velas: {
+    label: "Velas", prefijo: "Velas", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza", label: "Pieza", factor: 1,  nivel: "pieza", activo: true, opcional: false, descuento: false },
+      { id: "caja",  label: "Caja",  factor: 24, nivel: "caja",  activo: true, opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  moldes_pastel: {
+    label: "Moldes de pastel", prefijo: "Molde Pastel", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza", label: "Pieza", factor: 1, nivel: "pieza", activo: true, opcional: false, descuento: false },
+    ],
+  },
+  colorantes_enco: {
+    label: "Colorantes ENCO", prefijo: "Colorante", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza", label: "Pieza", factor: 1,  nivel: "pieza", activo: true, opcional: false, descuento: false },
+      { id: "caja",  label: "Caja",  factor: 12, nivel: "caja",  activo: true, opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  celofan: {
+    label: "Celofán", prefijo: "Celofán", unidadBase: "pieza", multiPaq: true,
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",        factor: 1,   nivel: "pieza",   activo: false, opcional: true,  descuento: false },
+      { id: "paq50",  label: "Paq. 50 pzs",  factor: 50,  nivel: "paquete", activo: true,  opcional: false, descuento: false, factorOpciones: [50, 100] },
+      { id: "paq100", label: "Paq. 100 pzs", factor: 100, nivel: "paquete", activo: false, opcional: true,  descuento: false, factorOpciones: [50, 100] },
+      { id: "caja",   label: "Caja",         factor: 500, nivel: "caja",    activo: true,  opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  ziploc: {
+    label: "Ziploc", prefijo: "Ziploc", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",        factor: 1,    nivel: "pieza",   activo: true, opcional: false, descuento: false },
+      { id: "paq100", label: "Paq. 100 pzs", factor: 100,  nivel: "paquete", activo: true, opcional: false, descuento: false },
+      { id: "caja",   label: "Caja",         factor: 1000, nivel: "caja",    activo: true, opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  comestibles: {
+    label: "Comestibles (a granel)", prefijo: "Comestible", unidadBase: "gramo",
+    presentaciones: [
+      { id: "granel", label: "A granel",       factor: null, nivel: "gramo", activo: true,  opcional: true,  descuento: false },
+      { id: "10g",    label: "10 g",            factor: 10,   nivel: "gramo", activo: false, opcional: true,  descuento: false, factorEditable: true },
+      { id: "cuarto", label: "1/4 kg (250 g)",  factor: 250,  nivel: "gramo", activo: true,  opcional: false, descuento: false },
+      { id: "medio",  label: "1/2 kg (500 g)",  factor: 500,  nivel: "gramo", activo: true,  opcional: false, descuento: false },
+      { id: "kilo",   label: "1 kg",            factor: 1000, nivel: "gramo", activo: true,  opcional: false, descuento: false },
+    ],
+  },
+  globos: {
+    label: "Globos", prefijo: "Globos", unidadBase: "pieza", multiPaq: true,
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",        factor: 1,   nivel: "pieza",   activo: true,  opcional: false, descuento: false },
+      { id: "paq25",  label: "Paq. 25 pzs",  factor: 25,  nivel: "paquete", activo: true,  opcional: false, descuento: false },
+      { id: "paq50",  label: "Paq. 50 pzs",  factor: 50,  nivel: "paquete", activo: false, opcional: true,  descuento: false },
+      { id: "paq100", label: "Paq. 100 pzs", factor: 100, nivel: "paquete", activo: false, opcional: true,  descuento: false },
+    ],
+  },
+  concentrados_deyman: {
+    label: "Concentrados DEYMAN", prefijo: "Conc. DEYMAN", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza", label: "Pieza", factor: 1, nivel: "pieza", activo: true, opcional: false, descuento: false },
+    ],
+  },
+  concentrados_env: {
+    label: "Concentrados envasados", prefijo: "Conc.", unidadBase: "pieza",
+    presentaciones: [
+      { id: "cuarto", label: "1/4 Lt", factor: 1, nivel: "pieza", activo: true, opcional: true, descuento: false },
+      { id: "medio",  label: "1/2 Lt", factor: 1, nivel: "pieza", activo: true, opcional: true, descuento: false },
+      { id: "litro",  label: "1 Lt",   factor: 1, nivel: "pieza", activo: true, opcional: true, descuento: false },
+    ],
+  },
+  botellas: {
+    label: "Botellas", prefijo: "Botellas", unidadBase: "pieza",
+    presentaciones: [
+      { id: "pieza", label: "Pieza",  factor: 1,  nivel: "pieza", activo: true, opcional: false, descuento: false },
+      { id: "bulto", label: "Bulto",  factor: 24, nivel: "bulto", activo: true, opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  tapas: {
+    label: "Tapas", prefijo: "Tapas", unidadBase: "pieza", multiPaq: true,
+    presentaciones: [
+      { id: "pieza",  label: "Pieza",        factor: 1,   nivel: "pieza",   activo: true,  opcional: false, descuento: false },
+      { id: "paq25",  label: "Paq. 25 pzs",  factor: 25,  nivel: "paquete", activo: true,  opcional: false, descuento: false },
+      { id: "paq50",  label: "Paq. 50 pzs",  factor: 50,  nivel: "paquete", activo: false, opcional: true,  descuento: false },
+      { id: "paq100", label: "Paq. 100 pzs", factor: 100, nivel: "paquete", activo: false, opcional: true,  descuento: false },
+      { id: "caja",   label: "Caja",         factor: 500, nivel: "caja",    activo: true,  opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
+  voplsass: {
+    label: "Voplsass", prefijo: "Voplsass", unidadBase: "gramo",
+    presentaciones: [
+      { id: "detalle", label: "Al detalle", factor: null, nivel: "gramo", activo: true, opcional: true,  descuento: false },
+      { id: "cuarto",  label: "1/4 kg",     factor: 250,  nivel: "gramo", activo: true, opcional: false, descuento: false },
+      { id: "medio",   label: "1/2 kg",     factor: 500,  nivel: "gramo", activo: true, opcional: false, descuento: false },
+      { id: "kilo",    label: "1 kg",       factor: 1000, nivel: "gramo", activo: true, opcional: false, descuento: false },
+    ],
+  },
+  otro: {
+    label: "Otro", prefijo: "", unidadBase: "pieza", libre: true,
+    presentaciones: [
+      { id: "pieza", label: "Pieza", factor: 1, nivel: "pieza", activo: true, opcional: false, descuento: false },
+    ],
+  },
+}
+
+export const TIPOS_LISTA = Object.entries(TIPOS_CONFIG).map(([id, c]) => ({ id, label: c.label }))
+
 export const SUCURSALES = [
   { id: "centro", name: "Tianguis Centro", short: "Centro", desc: "Sucursal principal · Av. Hidalgo 245" },
   { id: "repostero", name: "Tianguis Repostero", short: "Repostero", desc: "Sucursal repostería · Calle Morelos 88" },

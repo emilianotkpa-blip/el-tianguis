@@ -12,11 +12,15 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
+    "@fontsource/libre-barcode-128-text": "^5.2.8",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "jsbarcode": "^3.12.3",
     "openai": "^6.38.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "serialport": "^13.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
