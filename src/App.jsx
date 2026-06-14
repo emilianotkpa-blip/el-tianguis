@@ -216,6 +216,23 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
   const [notasCaja, setNotasCaja] = useState(0)
   const [globalSearch, setGlobalSearch] = useState("")
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState(null)
+  const [installed, setInstalled] = useState(false)
+
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setInstallPrompt(e) }
+    window.addEventListener("beforeinstallprompt", handler)
+    window.addEventListener("appinstalled", () => { setInstalled(true); setInstallPrompt(null) })
+    return () => window.removeEventListener("beforeinstallprompt", handler)
+  }, [])
+
+  const handleInstall = async () => {
+    if (!installPrompt) return
+    installPrompt.prompt()
+    const { outcome } = await installPrompt.userChoice
+    if (outcome === "accepted") setInstalled(true)
+    setInstallPrompt(null)
+  }
   const searchRef = useRef(null)
 
   useEffect(() => {
@@ -322,6 +339,32 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
             )
           })}
         </nav>
+
+        {installPrompt && !installed && (
+          <button
+            onClick={handleInstall}
+            style={{
+              margin: "8px 10px 4px", padding: "9px 12px",
+              background: "rgba(240,191,46,.15)", border: "1px solid rgba(240,191,46,.4)",
+              borderRadius: 8, cursor: "pointer", width: "calc(100% - 20px)",
+              display: "flex", alignItems: "center", gap: 8, color: "var(--gold-500)",
+              fontSize: 12, fontWeight: 600,
+            }}
+          >
+            <Icon name="download" size={14} />
+            Instalar aplicación
+          </button>
+        )}
+        {installed && (
+          <div style={{
+            margin: "8px 10px 4px", padding: "8px 12px",
+            background: "rgba(63,204,110,.1)", border: "1px solid rgba(63,204,110,.3)",
+            borderRadius: 8, fontSize: 11, color: "#3fcc6e", fontWeight: 600,
+            display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <Icon name="check" size={13} /> App instalada
+          </div>
+        )}
 
         <div className="sidebar-footer">
           <span>v{__APP_VERSION__}</span>
