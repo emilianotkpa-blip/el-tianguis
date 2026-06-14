@@ -349,7 +349,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
             onChange={(e) => setGlobalSearch(e.target.value)}
           />
           {globalSearch && (
-            <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,.15)", zIndex: 100, maxHeight: 280, overflowY: "auto" }}>
+            <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "var(--bg-elev)", border: "1px solid var(--border)", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,.15)", zIndex: 100, maxHeight: 280, overflowY: "auto" }}>
               {[
                 { label: "Productos",        page: "productos",        key: "productos" },
                 { label: "Clientes",          page: "clientes",         key: "clientes" },
@@ -481,7 +481,7 @@ function SettingsModal({ onClose, addToast }) {
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 900 }} onClick={onClose} />
       <div style={{
         position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
-        background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12,
+        background: "var(--bg-elev)", border: "1px solid var(--border)", borderRadius: 12,
         padding: "28px 28px 24px", zIndex: 901, width: 420, maxWidth: "92vw",
         boxShadow: "0 12px 40px rgba(0,0,0,.35)",
       }}>
@@ -514,7 +514,7 @@ function SettingsModal({ onClose, addToast }) {
               <label key={p} style={{
                 display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
                 borderRadius: 8, cursor: "pointer", fontSize: 13,
-                background: selected === p ? "rgba(240,191,46,.1)" : "var(--bg-hover)",
+                background: selected === p ? "rgba(240,191,46,.1)" : "var(--bg-sunken)",
                 border: selected === p ? "1px solid var(--gold-400)" : "1px solid var(--border)",
                 transition: "all .15s",
               }}>
