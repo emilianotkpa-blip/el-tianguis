@@ -340,31 +340,11 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
           })}
         </nav>
 
-        {installPrompt && !installed && (
-          <button
-            onClick={handleInstall}
-            style={{
-              margin: "8px 10px 4px", padding: "9px 12px",
-              background: "rgba(240,191,46,.15)", border: "1px solid rgba(240,191,46,.4)",
-              borderRadius: 8, cursor: "pointer", width: "calc(100% - 20px)",
-              display: "flex", alignItems: "center", gap: 8, color: "var(--gold-500)",
-              fontSize: 12, fontWeight: 600,
-            }}
-          >
-            <Icon name="download" size={14} />
-            Instalar aplicación
-          </button>
-        )}
-        {installed && (
-          <div style={{
-            margin: "8px 10px 4px", padding: "8px 12px",
-            background: "rgba(63,204,110,.1)", border: "1px solid rgba(63,204,110,.3)",
-            borderRadius: 8, fontSize: 11, color: "#3fcc6e", fontWeight: 600,
-            display: "flex", alignItems: "center", gap: 6,
-          }}>
-            <Icon name="check" size={13} /> App instalada
-          </div>
-        )}
+        <InstallBanner
+          installPrompt={installPrompt}
+          installed={installed}
+          onInstall={handleInstall}
+        />
 
         <div className="sidebar-footer">
           <span>v{__APP_VERSION__}</span>
@@ -489,6 +469,74 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
 
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} addToast={addToast} />}
       <Toast toasts={toasts} onDismiss={dismissToast} />
+    </div>
+  )
+}
+
+function InstallBanner({ installPrompt, installed, onInstall }) {
+  const [showTip, setShowTip] = useState(false)
+
+  if (installed) {
+    return (
+      <div style={{
+        margin: "8px 10px 4px", padding: "8px 12px",
+        background: "rgba(63,204,110,.1)", border: "1px solid rgba(63,204,110,.3)",
+        borderRadius: 8, fontSize: 11, color: "#3fcc6e", fontWeight: 600,
+        display: "flex", alignItems: "center", gap: 6,
+      }}>
+        <Icon name="check" size={13} /> App instalada
+      </div>
+    )
+  }
+
+  if (installPrompt) {
+    return (
+      <button
+        onClick={onInstall}
+        style={{
+          margin: "8px 10px 4px", padding: "9px 12px",
+          background: "rgba(240,191,46,.15)", border: "1px solid rgba(240,191,46,.4)",
+          borderRadius: 8, cursor: "pointer", width: "calc(100% - 20px)",
+          display: "flex", alignItems: "center", gap: 8, color: "var(--gold-500)",
+          fontSize: 12, fontWeight: 600,
+        }}
+      >
+        <Icon name="download" size={14} />
+        Instalar aplicación
+      </button>
+    )
+  }
+
+  return (
+    <div style={{ margin: "8px 10px 4px", position: "relative" }}>
+      <button
+        onClick={() => setShowTip(t => !t)}
+        style={{
+          padding: "9px 12px", width: "100%",
+          background: "rgba(240,191,46,.08)", border: "1px dashed rgba(240,191,46,.3)",
+          borderRadius: 8, cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 8, color: "rgba(240,191,46,.7)",
+          fontSize: 12, fontWeight: 600,
+        }}
+      >
+        <Icon name="download" size={14} />
+        Instalar aplicación
+      </button>
+      {showTip && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 8px)", left: 0, right: 0,
+          background: "var(--bg-elev)", border: "1px solid var(--border)",
+          borderRadius: 8, padding: "12px 14px", fontSize: 11,
+          color: "var(--text-muted)", lineHeight: 1.6, zIndex: 50,
+          boxShadow: "0 4px 16px rgba(0,0,0,.25)",
+        }}>
+          <div style={{ fontWeight: 700, color: "var(--text)", marginBottom: 6, fontSize: 12 }}>¿Cómo instalar?</div>
+          <div><strong>Chrome / Edge</strong> — Busca el ícono <strong>⊕</strong> o <strong>↓</strong> en la barra de dirección y haz clic en "Instalar".</div>
+          <div style={{ marginTop: 6 }}><strong>Android</strong> — Menú ⋮ → "Añadir a pantalla de inicio".</div>
+          <div style={{ marginTop: 6 }}><strong>iPhone/iPad</strong> — Safari → Compartir <strong>⎙</strong> → "Añadir a pantalla de inicio".</div>
+          <div style={{ marginTop: 8, color: "var(--gold-500)", fontSize: 10 }}>El botón automático aparece solo en Chrome/Edge sobre HTTPS.</div>
+        </div>
+      )}
     </div>
   )
 }

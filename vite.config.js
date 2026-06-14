@@ -22,6 +22,7 @@ export default defineConfig({
           { src: '/logo.jpeg', sizes: '512x512', type: 'image/jpeg', purpose: 'any maskable' },
         ],
       },
+      devOptions: { enabled: true },
       workbox: {
         navigateFallback: null,
         globPatterns: ['**/*.{js,css,html,jpeg,jpg,png,svg,ico,woff2}'],
