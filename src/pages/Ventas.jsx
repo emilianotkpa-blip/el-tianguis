@@ -727,7 +727,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
                 {!folioImpreso ? (
                   <button className="btn btn-wine" onClick={async () => {
                     try {
-                      await printFolio(notaEnviada.folio)
+                      await printFolio(notaEnviada.folio, localStorage.getItem("elt_printer") || undefined)
                       addToast({ kind: "ok", msg: "Folio enviado a impresora" })
                     } catch (e) {
                       addToast({ kind: "err", msg: `Error al imprimir: ${e.message}` })

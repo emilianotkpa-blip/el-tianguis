@@ -940,10 +940,10 @@ app.patch("/api/caja/:id/cobrar", async (req, res) => {
 
 // Imprimir folio ESC/POS
 app.post("/api/print/folio", async (req, res) => {
-  const { folio } = req.body
+  const { folio, printerName: bodyPrinter } = req.body
   if (!folio) return res.status(400).json({ error: "Falta folio" })
-  const printerName = process.env.PRINTER_NAME
-  if (!printerName) return res.status(500).json({ error: "PRINTER_NAME no configurado en .env" })
+  const printerName = bodyPrinter || process.env.PRINTER_NAME
+  if (!printerName) return res.status(500).json({ error: "No hay impresora configurada. Selecciónala en Ajustes." })
   try {
     await rawPrint(printerName, buildFolioEscPos(folio))
     res.json({ ok: true })

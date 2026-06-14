@@ -42,7 +42,7 @@ export const getPedidosMercancia  = ()      => apiFetch("/api/pedidos-mercancia"
 export const postPedidoMercancia  = (b)     => apiFetch("/api/pedidos-mercancia", json(b))
 export const patchPedidoMercancia = (id, b) => apiFetch(`/api/pedidos-mercancia/${id}`, patch(b))
 
-export const printFolio        = (folio)  => apiFetch("/api/print/folio", json({ folio }))
+export const printFolio        = (folio, printerName) => apiFetch("/api/print/folio", json({ folio, printerName }))
 export const getPrinters       = ()       => fetch("/api/print/printers").then(r => r.json())
 
 export const postNota          = (b)      => apiFetch("/api/notas", json(b))

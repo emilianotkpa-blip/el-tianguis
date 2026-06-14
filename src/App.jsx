@@ -15,7 +15,7 @@ import TianguisIAPage from "./pages/TianguisIA"
 import ClientesPage from "./pages/Clientes"
 import CajaPage from "./pages/Caja"
 import BásculaPage from "./pages/Balanza"
-import { getStats, getAlertas, getCatalogo, getClientes } from "./api"
+import { getStats, getAlertas, getCatalogo, getClientes, getPrinters } from "./api"
 import logoUrl from "./assets/logo.jpeg"
 
 function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone }) {
@@ -215,6 +215,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
   const [alertas, setAlertas]   = useState(() => preloadedData?.alertas ?? [])
   const [notasCaja, setNotasCaja] = useState(0)
   const [globalSearch, setGlobalSearch] = useState("")
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const searchRef = useRef(null)
 
   useEffect(() => {
@@ -419,6 +420,10 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
           )}
         </div>
 
+        <button className="header-icon-btn" onClick={() => setSettingsOpen(true)} title="Ajustes">
+          <Icon name="settings" size={16} />
+        </button>
+
         <div style={{ width: 1, height: 24, background: "var(--border)", margin: "0 4px" }}></div>
 
         <div className="header-user">
@@ -439,8 +444,117 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
         </ErrorBoundary>
       </main>
 
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} addToast={addToast} />}
       <Toast toasts={toasts} onDismiss={dismissToast} />
     </div>
+  )
+}
+
+function SettingsModal({ onClose, addToast }) {
+  const [printers, setPrinters]     = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [selected, setSelected]     = useState(() => localStorage.getItem("elt_printer") ?? "")
+  const [saving, setSaving]         = useState(false)
+
+  useEffect(() => {
+    getPrinters()
+      .then(data => {
+        setPrinters(Array.isArray(data) ? data : (data.printers ?? []))
+        setLoading(false)
+      })
+      .catch(() => { setPrinters([]); setLoading(false) })
+  }, [])
+
+  const save = () => {
+    if (!selected) return
+    setSaving(true)
+    localStorage.setItem("elt_printer", selected)
+    setTimeout(() => {
+      setSaving(false)
+      addToast({ type: "ok", title: `Impresora guardada: ${selected}` })
+      onClose()
+    }, 300)
+  }
+
+  return (
+    <>
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 900 }} onClick={onClose} />
+      <div style={{
+        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+        background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12,
+        padding: "28px 28px 24px", zIndex: 901, width: 420, maxWidth: "92vw",
+        boxShadow: "0 12px 40px rgba(0,0,0,.35)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Icon name="settings" size={18} style={{ color: "var(--gold-500)" }} />
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Ajustes del dispositivo</h3>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+
+        <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: "var(--text-muted)" }}>
+          IMPRESORA DE TICKETS
+        </div>
+        <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
+          Selecciona la impresora de este dispositivo. Se guarda localmente y no afecta a otros equipos.
+        </p>
+
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)", fontSize: 13 }}>
+            Cargando impresoras…
+          </div>
+        ) : printers.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-muted)", fontSize: 13 }}>
+            No se encontraron impresoras instaladas en el servidor.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16, maxHeight: 220, overflowY: "auto" }}>
+            {printers.map(p => (
+              <label key={p} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                borderRadius: 8, cursor: "pointer", fontSize: 13,
+                background: selected === p ? "rgba(240,191,46,.1)" : "var(--bg-hover)",
+                border: selected === p ? "1px solid var(--gold-400)" : "1px solid var(--border)",
+                transition: "all .15s",
+              }}>
+                <input
+                  type="radio"
+                  name="printer"
+                  value={p}
+                  checked={selected === p}
+                  onChange={() => setSelected(p)}
+                  style={{ accentColor: "var(--gold-500)" }}
+                />
+                <Icon name="print" size={14} style={{ color: selected === p ? "var(--gold-500)" : "var(--text-muted)", flexShrink: 0 }} />
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p}</span>
+                {selected === p && localStorage.getItem("elt_printer") === p && (
+                  <span style={{ fontSize: 10, color: "var(--gold-500)", fontWeight: 700 }}>ACTIVA</span>
+                )}
+              </label>
+            ))}
+          </div>
+        )}
+
+        {selected && (
+          <div style={{ marginBottom: 16, padding: "8px 12px", background: "rgba(240,191,46,.08)", borderRadius: 8, fontSize: 12, color: "var(--text-muted)" }}>
+            Seleccionada: <strong style={{ color: "var(--gold-500)" }}>{selected}</strong>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button
+            className="btn btn-primary"
+            onClick={save}
+            disabled={!selected || saving}
+            style={{ minWidth: 120 }}
+          >
+            {saving ? "Guardando…" : "Guardar impresora"}
+          </button>
+        </div>
+      </div>
+    </>
   )
 }
 
