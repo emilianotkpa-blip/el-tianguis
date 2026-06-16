@@ -404,17 +404,17 @@ function PedidoCard({ pedido, esBodega, usuarios, onRefresh, addToast }) {
                 <Icon name="truck" size={13} /> Iniciar envío
               </button>
             )}
-            {!esBodega && norm === "en_curso" && (
+            {norm === "en_curso" && (
               <button className="btn btn-wine btn-sm" disabled={saving} onClick={() => setConfirm({ accion: "confirmar_entrega" })}>
                 <Icon name="check" size={13} /> Confirmar recepción
               </button>
             )}
-            {esBodega && norm === "entregado" && (
+            {(esBodega || norm === "entregado") && norm === "entregado" && (
               <button className="btn btn-wine btn-sm" disabled={saving} onClick={() => doAvanzar("iniciar_regreso")}>
                 <Icon name="refresh" size={13} /> Iniciar regreso
               </button>
             )}
-            {esBodega && norm === "regresando" && (
+            {norm === "regresando" && (
               <button className="btn btn-wine btn-sm" disabled={saving} onClick={() => setConfirm({ accion: "confirmar_llegada" })}>
                 <Icon name="warehouse" size={13} /> Confirmar llegada
               </button>

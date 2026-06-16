@@ -1711,11 +1711,24 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   transition: left .5s ease;
   z-index: 1;
 }
-.tr-truck-wrap.tr-going     { animation: trGo 4s ease-in-out infinite alternate; }
-.tr-truck-wrap.tr-returning { animation: trBack 4s ease-in-out infinite alternate; transform: translateY(-50%) scaleX(-1); }
+.tr-truck-wrap.tr-going     { animation: trGo 2.8s linear infinite; }
+.tr-truck-wrap.tr-returning { animation: trBack 2.8s linear infinite; transform: translateY(-50%) scaleX(-1); }
 
-@keyframes trGo   { 0% { left: 4px; } 100% { left: calc(100% - 32px); } }
-@keyframes trBack { 0% { left: calc(100% - 32px); } 100% { left: 4px; } }
+/* One-way loops: truck moves from A to B then snaps back and repeats */
+@keyframes trGo {
+  0%   { left: 4px; }
+  80%  { left: calc(100% - 32px); opacity: 1; }
+  81%  { left: 4px; opacity: 0; }
+  90%  { left: 4px; opacity: 0; }
+  100% { left: 4px; opacity: 1; }
+}
+@keyframes trBack {
+  0%   { left: calc(100% - 32px); }
+  80%  { left: 4px; opacity: 1; }
+  81%  { left: calc(100% - 32px); opacity: 0; }
+  90%  { left: calc(100% - 32px); opacity: 0; }
+  100% { left: calc(100% - 32px); opacity: 1; }
+}
 
 /* Step bar */
 .pm-steps {
