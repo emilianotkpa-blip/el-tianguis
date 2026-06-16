@@ -32,7 +32,11 @@ const authHeaders = () => ({
 const avanzarPedido = (id, body) =>
   fetch(`/api/pedidos-mercancia/${id}/avanzar`, {
     method: "POST", headers: authHeaders(), body: JSON.stringify(body),
-  }).then(r => r.json())
+  }).then(async r => {
+    const text = await r.text()
+    try { return JSON.parse(text) }
+    catch { return { error: `Error del servidor (${r.status}) — reinicia el servidor` } }
+  })
 
 const fetchEquipo = () =>
   fetch("/api/equipo/lista", { headers: authHeaders() })
@@ -41,7 +45,7 @@ const fetchEquipo = () =>
 
 const fetchNextFolio = () =>
   fetch("/api/pedidos-mercancia/next-folio", { headers: authHeaders() })
-    .then(r => r.json())
+    .then(async r => { const t = await r.text(); try { return JSON.parse(t) } catch { return {} } })
     .then(d => d.folio ?? ("PM-" + Date.now().toString(36).toUpperCase()))
     .catch(() => "PM-" + Date.now().toString(36).toUpperCase())
 
