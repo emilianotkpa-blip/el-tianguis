@@ -1863,6 +1863,46 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   flex-shrink: 0;
 }
 
+/* ── Pedidos Clientes — step bar + timing ──────────────────────────────── */
+.pc-steps {
+  display: flex; align-items: flex-start; gap: 0;
+  margin-bottom: 16px; padding: 12px 8px;
+  background: var(--bg-elev); border-radius: 8px;
+}
+.pc-step-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1; position: relative;
+}
+.pc-step-line {
+  position: absolute; top: 7px; right: 50%; left: -50%;
+  height: 2px; background: var(--border);
+}
+.pc-step-line.pc-step-line-done { background: var(--wine-500); }
+.pc-step-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--bg-sunken); border: 2px solid var(--border);
+  margin-bottom: 4px; position: relative; z-index: 1; flex-shrink: 0;
+}
+.pc-step-dot.done    { background: var(--wine-500); border-color: var(--wine-500); }
+.pc-step-dot.current { background: #fff; border-color: var(--wine-500); box-shadow: 0 0 0 3px rgba(160,35,64,.18); }
+.pc-step-lbl {
+  font-size: 10.5px; color: var(--text-muted); text-align: center; line-height: 1.2;
+}
+.pc-step-lbl.done    { color: var(--wine-600); }
+.pc-step-lbl.current { color: var(--wine-500); font-weight: 700; }
+
+.pc-delivery-time {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 12px; margin-bottom: 14px;
+  background: rgba(160,35,64,.06); border: 1px solid rgba(160,35,64,.15);
+  border-radius: 8px; font-size: 13px; color: var(--text-body);
+}
+.pc-delivery-time .muted { color: var(--text-muted); }
+.pc-duracion {
+  font-weight: 700; color: var(--wine-600);
+  background: rgba(160,35,64,.1); padding: 1px 7px; border-radius: 12px;
+}
+
 /* Responsive */
 @media (max-width: 1100px) {
   .login-shell { grid-template-columns: 1fr; }

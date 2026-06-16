@@ -7,10 +7,24 @@ import { fmtMoney, todayISO } from "../utils"
 
 const SUCURSALES = ["Centro", "Repostero", "Bodega"]
 const TIPOS_CLIENTE = ["Mayorista", "Frecuente", "Público", "General"]
+const STEPS_PC = ["preparando", "listo", "en_camino", "entregado"]
+
+const parseMeta = (s) => { try { return JSON.parse(s || "{}") } catch { return {} } }
+
+const fmtHora = (ts) => ts
+  ? new Date(ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false })
+  : null
+
+const fmtDur = (ts1, ts2) => {
+  if (!ts1 || !ts2) return null
+  const min = Math.round((ts2 - ts1) / 60000)
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h ${min % 60}m`
+}
 
 function badge(e) {
   if (e === "preparando") return <span className="badge badge-info">● Preparando</span>
   if (e === "listo")      return <span className="badge badge-warn">● Listo p/entrega</span>
+  if (e === "en_camino")  return <span className="badge" style={{ background: "rgba(160,35,64,.12)", color: "var(--wine-600)" }}>● En camino</span>
   if (e === "entregado")  return <span className="badge badge-ok">● Entregado</span>
   if (e === "cancelado")  return <span className="badge badge-err">● Cancelado</span>
   return <span className="badge badge-neutral">{e}</span>
@@ -105,7 +119,11 @@ export default function PedidosClientesPage({ addToast }) {
 
   const cambiarEstado = async (id, nuevoEstado) => {
     try {
-      await patchPedidoCliente(id, { Estado: nuevoEstado })
+      const pedido = pedidos.find(p => String(p.Id) === String(id))
+      const meta = parseMeta(pedido?.Meta_JSON)
+      if (nuevoEstado === "en_camino")  meta.ts_salida    = Date.now()
+      if (nuevoEstado === "entregado")  meta.ts_entregado = Date.now()
+      await patchPedidoCliente(id, { Estado: nuevoEstado, Meta_JSON: JSON.stringify(meta) })
       addToast({ kind: "ok", msg: "Estado actualizado" }); cargar()
     } catch (err) { addToast({ kind: "err", msg: err.message }) }
   }
@@ -301,6 +319,7 @@ export default function PedidosClientesPage({ addToast }) {
               <option value="todos">Todos los estados</option>
               <option value="preparando">Preparando</option>
               <option value="listo">Listos</option>
+              <option value="en_camino">En camino</option>
               <option value="entregado">Entregados</option>
               <option value="cancelado">Cancelados</option>
             </select>
@@ -337,7 +356,12 @@ export default function PedidosClientesPage({ addToast }) {
                           </button>
                         )}
                         {p.Estado === "listo" && (
-                          <button className="btn btn-ghost btn-sm" title="Marcar entregado" onClick={() => setConfirm({ id: p.Id, estado: "entregado" })}>
+                          <button className="btn btn-ghost btn-sm" title="Salió de sucursal" onClick={() => setConfirm({ id: p.Id, estado: "en_camino" })}>
+                            <Icon name="truck" size={12} />
+                          </button>
+                        )}
+                        {p.Estado === "en_camino" && (
+                          <button className="btn btn-ghost btn-sm" title="Pedido entregado" onClick={() => setConfirm({ id: p.Id, estado: "entregado" })}>
                             <Icon name="check" size={12} />
                           </button>
                         )}
@@ -355,9 +379,21 @@ export default function PedidosClientesPage({ addToast }) {
 
       <Confirm
         open={!!confirm}
-        title={confirm?.estado === "entregado" ? "¿Marcar como entregado?" : "¿Marcar como listo?"}
-        message={confirm?.estado === "entregado" ? "Esta acción no se puede revertir." : "El pedido pasará a estado 'Listo para entrega'."}
-        confirmLabel={confirm?.estado === "entregado" ? "Sí, entregar" : "Sí, marcar listo"}
+        title={
+          confirm?.estado === "en_camino"  ? "¿Salió de sucursal?" :
+          confirm?.estado === "entregado"  ? "¿Pedido entregado al cliente?" :
+                                             "¿Marcar como listo?"
+        }
+        message={
+          confirm?.estado === "en_camino"  ? "Se registrará la hora exacta de salida." :
+          confirm?.estado === "entregado"  ? "El repartidor regresó. Se registrará la hora de entrega." :
+                                             "El pedido pasará a estado 'Listo para entrega'."
+        }
+        confirmLabel={
+          confirm?.estado === "en_camino"  ? "Sí, salió" :
+          confirm?.estado === "entregado"  ? "Sí, entregado" :
+                                             "Sí, marcar listo"
+        }
         onConfirm={() => { cambiarEstado(confirm.id, confirm.estado); setConfirm(null) }}
         onCancel={() => setConfirm(null)}
       />
@@ -371,13 +407,48 @@ export default function PedidosClientesPage({ addToast }) {
         {detalle && (() => {
           let items = []
           try { items = JSON.parse(detalle.Items_JSON || "[]") } catch {}
+          const meta    = parseMeta(detalle.Meta_JSON)
+          const estNorm = (detalle.Estado ?? "").toLowerCase()
+          const stepIdx = STEPS_PC.indexOf(estNorm)
+          const horaSalida    = fmtHora(meta.ts_salida)
+          const horaEntregado = fmtHora(meta.ts_entregado)
+          const duracion      = fmtDur(meta.ts_salida, meta.ts_entregado)
           return (
             <div>
+              {/* Step bar */}
+              <div className="pc-steps">
+                {STEPS_PC.map((s, i) => {
+                  const done    = i < stepIdx
+                  const current = i === stepIdx
+                  const labels  = { preparando: "Preparando", listo: "Listo", en_camino: "En camino", entregado: "Entregado" }
+                  return (
+                    <div key={s} className="pc-step-wrap">
+                      {i > 0 && <div className={`pc-step-line${done || current ? " pc-step-line-done" : ""}`} />}
+                      <div className={`pc-step-dot${done ? " done" : current ? " current" : ""}`} />
+                      <span className={`pc-step-lbl${current ? " current" : done ? " done" : ""}`}>{labels[s]}</span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Timing banner — only if ts_salida is set */}
+              {horaSalida && (
+                <div className="pc-delivery-time">
+                  <Icon name="truck" size={14} />
+                  <span>Salió: <strong>{horaSalida}</strong></span>
+                  {horaEntregado && <>
+                    <span className="muted">·</span>
+                    <span>Entregado: <strong>{horaEntregado}</strong></span>
+                    {duracion && <><span className="muted">·</span><span className="pc-duracion">{duracion}</span></>}
+                  </>}
+                </div>
+              )}
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", fontSize: 13, marginBottom: 16 }}>
                 <div><span className="muted">Sucursal:</span> {detalle.Sucursal}</div>
                 <div><span className="muted">Fecha:</span> {detalle.Fecha}</div>
                 <div><span className="muted">Entrega:</span> {detalle.FechaEntrega ?? "—"}</div>
-                <div><span className="muted">Estado:</span> {badge((detalle.Estado ?? "").toLowerCase())}</div>
+                <div><span className="muted">Estado:</span> {badge(estNorm)}</div>
                 {detalle.Observaciones && <div style={{ gridColumn: "1/-1" }}><span className="muted">Obs:</span> {detalle.Observaciones}</div>}
               </div>
               {items.length > 0
