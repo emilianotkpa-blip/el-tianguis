@@ -50,6 +50,7 @@ const T = {
   pedidosClientes:  process.env.NOCO_TABLE_PEDIDOS_CLIENTES,
   pedidosMercancia: process.env.NOCO_TABLE_PEDIDOS_MERCANCIA,
   clientes:         process.env.NOCO_TABLE_CLIENTES,
+  equipo:           process.env.NOCO_TABLE_EQUIPO,
 }
 
 async function nocoGet(tableId, params = "") {
@@ -743,6 +744,123 @@ app.patch("/api/pedidos-mercancia/:id", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
+})
+
+// Lista de equipo activo (para confirmaciones de entrega)
+app.get("/api/equipo/lista", async (req, res) => {
+  try {
+    const rows = await nocoGet(T.equipo, "&sort=Nombre")
+    res.json(rows
+      .filter(u => u.Activo !== false && u.Activo !== 0)
+      .map(u => ({ nombre: u.Nombre, sucursal: u.Sucursal, rol: u.Rol }))
+    )
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Avanzar estado de pedido de mercancía
+app.post("/api/pedidos-mercancia/:id/avanzar", async (req, res) => {
+  const id = parseInt(req.params.id)
+  const { accion, nombre, contrasena, checklist } = req.body
+  try {
+    const rows = await nocoGet(T.pedidosMercancia, `&where=(Id,eq,${id})`)
+    if (!rows.length) return res.status(404).json({ error: "Pedido no encontrado" })
+    const pedido = rows[0]
+    const estado = pedido.Estado ?? "solicitado"
+    const items  = (() => { try { return JSON.parse(pedido.Items_JSON || "[]") } catch { return [] } })()
+    let meta = (() => { try { return JSON.parse(pedido.Meta_JSON || "{}") } catch { return {} } })()
+
+    let nuevoEstado = estado
+
+    if (accion === "aceptar") {
+      // solicitado → preparando: inicializa checklist desde items
+      if (!["solicitado", "en tránsito"].includes(estado))
+        return res.status(400).json({ error: "El pedido no está en estado solicitado" })
+      nuevoEstado = "preparando"
+      meta.checklist = items.map((it, i) => ({
+        id: `${it.sku}__${i}`,
+        sku: it.sku,
+        nombre: it.name ?? it.nombre ?? "",
+        qty: it.qty,
+        unidad: it.presLabel ?? it.unidad ?? "pza",
+        preparado: false,
+        pendiente: false,
+        nota: "",
+      }))
+
+    } else if (accion === "iniciar") {
+      // preparando → en_curso
+      if (estado !== "preparando")
+        return res.status(400).json({ error: "El pedido no está en preparación" })
+      nuevoEstado = "en_curso"
+      meta.timers = { ...(meta.timers ?? {}), inicio_curso: Date.now() }
+
+    } else if (accion === "confirmar_entrega") {
+      // en_curso → entregado (requiere verificación de usuario)
+      if (estado !== "en_curso")
+        return res.status(400).json({ error: "El pedido no está en camino" })
+      if (!nombre || !contrasena)
+        return res.status(400).json({ error: "Se requiere nombre y contraseña" })
+      const equipo = await nocoGet(T.equipo, "")
+      const usu = equipo.find(u => u.Nombre === nombre && u.Contrasena === contrasena && u.Activo !== false && u.Activo !== 0)
+      if (!usu) return res.status(401).json({ error: "Nombre o contraseña incorrectos" })
+      nuevoEstado = "entregado"
+      meta.timers = { ...(meta.timers ?? {}), fin_curso: Date.now() }
+      meta.confirmacion_entrega = {
+        nombre,
+        hora: new Date().toTimeString().slice(0, 5),
+        fecha: new Date().toISOString().slice(0, 10),
+      }
+      // Actualizar stock en la sucursal de destino
+      const destStr = (pedido.Destino ?? "").toLowerCase()
+      const campoStock = destStr.includes("repostero") ? "Repostero" : destStr.includes("bodega") ? "Bodega" : "Centro"
+      for (const item of items) {
+        const stockRows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
+        if (!stockRows.length) continue
+        const row = stockRows[0]
+        await nocoPatch(T.stock, { Id: row.Id, [campoStock]: (row[campoStock] ?? 0) + item.qty, Total: (row.Total ?? 0) + item.qty })
+      }
+
+    } else if (accion === "iniciar_regreso") {
+      // entregado → regresando
+      if (estado !== "entregado")
+        return res.status(400).json({ error: "El pedido no ha sido entregado" })
+      nuevoEstado = "regresando"
+      meta.timers = { ...(meta.timers ?? {}), inicio_regreso: Date.now() }
+
+    } else if (accion === "confirmar_llegada") {
+      // regresando → finalizado (requiere verificación de usuario)
+      if (estado !== "regresando")
+        return res.status(400).json({ error: "El pedido no está en camino de regreso" })
+      if (!nombre || !contrasena)
+        return res.status(400).json({ error: "Se requiere nombre y contraseña" })
+      const equipo = await nocoGet(T.equipo, "")
+      const usu = equipo.find(u => u.Nombre === nombre && u.Contrasena === contrasena && u.Activo !== false && u.Activo !== 0)
+      if (!usu) return res.status(401).json({ error: "Nombre o contraseña incorrectos" })
+      nuevoEstado = "finalizado"
+      meta.timers = { ...(meta.timers ?? {}), fin_regreso: Date.now() }
+      meta.confirmacion_regreso = {
+        nombre,
+        hora: new Date().toTimeString().slice(0, 5),
+        fecha: new Date().toISOString().slice(0, 10),
+      }
+
+    } else if (accion === "checklist") {
+      // actualizar checklist sin cambiar estado
+      if (estado !== "preparando")
+        return res.status(400).json({ error: "Solo se puede actualizar checklist en preparación" })
+      meta.checklist = checklist
+
+    } else {
+      return res.status(400).json({ error: `Acción desconocida: ${accion}` })
+    }
+
+    await nocoPatch(T.pedidosMercancia, {
+      Id: id,
+      Estado: nuevoEstado,
+      Meta_JSON: JSON.stringify(meta),
+    })
+    res.json({ ok: true, estado: nuevoEstado, meta })
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // ── Clientes ───────────────────────────────────────────
