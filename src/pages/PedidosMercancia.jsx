@@ -35,7 +35,15 @@ const avanzarPedido = (id, body) =>
   }).then(r => r.json())
 
 const fetchEquipo = () =>
-  fetch("/api/equipo/lista", { headers: authHeaders() }).then(r => r.json())
+  fetch("/api/equipo/lista", { headers: authHeaders() })
+    .then(r => r.json())
+    .catch(() => [])
+
+const fetchNextFolio = () =>
+  fetch("/api/pedidos-mercancia/next-folio", { headers: authHeaders() })
+    .then(r => r.json())
+    .then(d => d.folio ?? ("PM-" + Date.now().toString(36).toUpperCase()))
+    .catch(() => "PM-" + Date.now().toString(36).toUpperCase())
 
 // ── TIMER ─────────────────────────────────────────────
 function Timer({ startTs, endTs }) {
@@ -487,10 +495,12 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
   const [loadProds, setLoadProds] = useState(false)
 
   const sucObj = SUCURSALES.find(s => s.id === sucursal)
+  // Match by sucursal id OR by any part of the name (e.g. "centro" matches "Tianguis Centro")
   const myPedidos = pedidos.filter(p => {
     const d = (p.Destino ?? "").toLowerCase()
-    const k = (sucObj?.name ?? sucursal).toLowerCase()
-    return d.includes(k) || d.includes(sucursal?.toLowerCase() ?? "")
+    return d.includes((sucursal ?? "").toLowerCase()) ||
+           (sucObj?.name && d.includes(sucObj.name.toLowerCase())) ||
+           (sucObj?.short && d.includes(sucObj.short.toLowerCase()))
   })
   const active  = myPedidos.filter(p => !["finalizado", "recibido"].includes(p.Estado ?? ""))
   const history = myPedidos.filter(p => ["finalizado", "recibido"].includes(p.Estado ?? ""))
@@ -524,7 +534,7 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
     if (!cart.length) return
     setSaving(true)
     try {
-      const folio = "PM-" + Date.now().toString(36).toUpperCase()
+      const folio = await fetchNextFolio()
       await postPedidoMercancia({
         folio,
         fecha: todayISO(),
@@ -694,11 +704,15 @@ export default function PedidosMercanciaPage({ addToast, user }) {
   const esBodega = sucursal === "bodega"
 
   const cargar = useCallback(() =>
-    Promise.all([getPedidosMercancia(), fetchEquipo()])
+    Promise.all([
+      getPedidosMercancia(),
+      fetchEquipo(), // already .catch(() => []) — never rejects
+    ])
       .then(([peds, eqs]) => {
         setPedidos(Array.isArray(peds) ? peds : [])
         setUsuarios(Array.isArray(eqs) ? eqs : [])
       })
+      .catch(() => {}) // ignore network failures silently
       .finally(() => setLoading(false)),
   [])
 

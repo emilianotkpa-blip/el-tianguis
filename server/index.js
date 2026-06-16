@@ -700,7 +700,22 @@ app.patch("/api/pedidos-clientes/:id", async (req, res) => {
 // ── Pedidos de mercancía ───────────────────────────────
 app.get("/api/pedidos-mercancia", async (req, res) => {
   try {
-    res.json(await nocoGet(T.pedidosMercancia, "&sort=-Fecha"))
+    res.json(await nocoGet(T.pedidosMercancia, "&sort=-Id"))
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Siguiente folio para pedido de mercancía (PM-XXXX)
+app.get("/api/pedidos-mercancia/next-folio", async (req, res) => {
+  try {
+    const rows = await nocoGet(T.pedidosMercancia, "&fields=Folio")
+    const nums = rows
+      .map(r => r.Folio?.match(/PM-(\d+)/i)?.[1])
+      .filter(Boolean)
+      .map(Number)
+    const next = nums.length ? Math.max(...nums) + 1 : 1
+    res.json({ folio: `PM-${String(next).padStart(4, "0")}` })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
