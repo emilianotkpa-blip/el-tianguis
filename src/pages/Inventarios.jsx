@@ -77,10 +77,16 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
     setSaving(true)
     try {
       // Buscar el factor de la presentación seleccionada
-      const pres     = adjustingP.presentaciones ?? []
-      const nivelKeys = movNivel === "caja" ? ["caja"] : movNivel === "paq" ? ["paquete", "bulto"] : null
-      const presObj   = nivelKeys ? pres.find(p => nivelKeys.includes(p.nivel)) : null
-      const factor    = presObj?.factor ?? 1
+      const pres = adjustingP.presentaciones ?? []
+      let presObj = null
+      if (movNivel === "caja") {
+        presObj = pres.find(p => p.nivel === "caja" || p.nivel === "bulto")
+      } else if (movNivel === "paq") {
+        // Primero buscar nivel "paquete"; fallback a gramo con factor >= 1000 (bolsas sin migrar)
+        presObj = pres.find(p => p.nivel === "paquete")
+          || pres.find(p => p.nivel === "gramo" && p.factor >= 1000)
+      }
+      const factor = presObj?.factor ?? 1
 
       await postMovimiento({
         tipo:            movTipo,
@@ -299,13 +305,18 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
               <label>Unidad de entrada</label>
               <select value={movNivel} onChange={e => setMovNivel(e.target.value)}>
                 <option value="pieza">{adjustingP.unidadBase === "gramo" ? "Gramo / unidad suelta" : "Pieza / unidad suelta"}</option>
-                {adjustingP.presentaciones?.filter(p => p.nivel === "paquete" || p.nivel === "bulto").map(p => {
+                {/* Paquetes: nivel "paquete" o gramo con factor ≥ 1000 (bolsas 1kg sin migrar) */}
+                {adjustingP.presentaciones?.filter(p =>
+                  p.nivel === "paquete" ||
+                  (p.nivel === "gramo" && p.factor >= 1000 && p.id !== "detalle")
+                ).map(p => {
                   const u = adjustingP.unidadBase === "gramo"
                     ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
                     : `${p.factor} pzs c/u`
                   return <option key={p.id} value="paq">{p.label} ({u})</option>
                 })}
-                {adjustingP.presentaciones?.filter(p => p.nivel === "caja").map(p => {
+                {/* Cajas/Bultos: se registran en stockNiveles.caja (unidad de contenedor cerrada) */}
+                {adjustingP.presentaciones?.filter(p => p.nivel === "caja" || p.nivel === "bulto").map(p => {
                   const u = adjustingP.unidadBase === "gramo"
                     ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
                     : `${p.factor} pzs c/u`
@@ -328,8 +339,11 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                 const sucId    = movSuc.toLowerCase()
                 const n        = adjustingP.stockNiveles?.[sucId] ?? {}
                 const pres     = adjustingP.presentaciones ?? []
-                const paqP     = pres.find(p => p.nivel === "paquete" || p.nivel === "bulto")
-                const cajP     = pres.find(p => p.nivel === "caja")
+                // paqP: nivel "paquete" o gramo con factor >= 1000 (bolsas 1kg sin migrar)
+                const paqP = pres.find(p => p.nivel === "paquete")
+                  || pres.find(p => p.nivel === "gramo" && p.factor >= 1000)
+                // cajP: caja o bulto (contenedor cerrado)
+                const cajP = pres.find(p => p.nivel === "caja" || p.nivel === "bulto")
                 const cajFac   = cajP?.factor ?? 0
                 const paqFac   = paqP?.factor ?? 0
                 const esGramo  = adjustingP.unidadBase === "gramo"

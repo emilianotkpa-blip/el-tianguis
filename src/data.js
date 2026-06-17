@@ -37,7 +37,7 @@ export const TIPOS_CONFIG = {
       { id: "detalle", label: "Al detalle",  factor: null,  nivel: "gramo", activo: true, opcional: true,  descuento: false },
       { id: "cuarto",  label: "1/4 kg",      factor: 250,   nivel: "gramo", activo: true, opcional: false, descuento: false },
       { id: "medio",   label: "1/2 kg",      factor: 500,   nivel: "gramo", activo: true, opcional: false, descuento: false },
-      { id: "kilo",    label: "1 kg",        factor: 1000,  nivel: "gramo", activo: true, opcional: false, descuento: false },
+      { id: "kilo",    label: "1 kg",        factor: 1000,  nivel: "paquete", activo: true, opcional: false, descuento: false },
       { id: "bulto",   label: "Bulto 25 kg", factor: 25000, nivel: "bulto", activo: true, opcional: true,  descuento: false },
     ],
   },

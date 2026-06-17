@@ -82,6 +82,8 @@ export default function ProductosPage({ addToast }) {
     const pres = p.presentaciones?.length
       ? p.presentaciones.map(x => ({
           ...x,
+          // Solo se guardan las activas; al cargarlas de vuelta se deben considerar activas
+          activo:        x.activo !== false ? true : false,
           precio:        String(x.precio ?? ""),
           codigoBarras:  x.codigoBarras ?? "",
           mayoreo:       x.mayoreo ?? false,
@@ -223,6 +225,7 @@ export default function ProductosPage({ addToast }) {
       const presPayload = presActivas.map(p => ({
         id: p.id, label: p.label, factor: p.factor ?? null,
         nivel: p.nivel, precio: parseFloat(p.precio) || 0,
+        activo: true,
         descuento: p.descuento || false,
         codigoBarras: p.codigoBarras?.trim() || "",
         mayoreo: p.mayoreo || false,

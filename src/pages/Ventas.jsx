@@ -523,7 +523,11 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       .filter(it => it.sku === p.sku && it.presId === pres.id)
       .reduce((s, it) => s + it.qty, 0)
 
-    if (pres.nivel === "paquete") {
+    // Nivel "paquete" O gramo con factor ≥ 1000 (bolsas 1kg en productos sin migrar)
+    const esPaqLevel = pres.nivel === "paquete" ||
+      (pres.nivel === "gramo" && pres.factor >= 1000 && pres.id !== "detalle")
+
+    if (esPaqLevel) {
       const factor = pres.factor ?? 1
       // baseStock es la fuente de verdad (incluye cajas cerradas); StockNiveles puede estar desincronizado
       const totalDisp = stockBase > 0
@@ -534,12 +538,12 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
         addToast({ kind: "warn", msg: `Sin stock: ${p.name} en ${suc}` })
         return
       }
-      // Sin paq sueltos pero hay caja cerrada → preguntar antes de agregar
+      // Sin paq sueltos pero hay caja/bulto cerrado → preguntar antes de agregar
       if (paqDisp === 0 && cajasDisp > 0) {
         const cajaLevel = (p.presentaciones || []).find(x => x.nivel === "caja" || x.nivel === "bulto")
         if (cajaLevel) { setCajaModal({ producto: p, pres, cajaLevel }); return }
       }
-      // Primera vez que se cruza el límite de paq sueltos → avisar que hay que abrir caja
+      // Primera vez que se cruza el límite de paq sueltos → avisar que hay que abrir caja/bulto
       if (paqDisp > 0 && enCarrito === paqDisp) {
         addToast({ kind: "warn", msg: `📦 Paq sueltos agotados — necesitas abrir una caja de ${p.name}` })
       }
