@@ -126,69 +126,93 @@ function StepBar({ estado }) {
 }
 
 // ── CHECKLIST ─────────────────────────────────────────
+export function checklistCompleto(checklist) {
+  if (!checklist.length) return true
+  return checklist.every(it => it.preparado || (it.noHay && it.nota?.trim()))
+}
+
 function ChecklistPanel({ checklist, onChange, readOnly }) {
-  const total    = checklist.length
-  const listos   = checklist.filter(i => i.preparado).length
-  const issues   = checklist.filter(i => i.pendiente).length
-  const pct      = total ? Math.round((listos / total) * 100) : 0
+  const total     = checklist.length
+  const listos    = checklist.filter(i => i.preparado).length
+  const sinStock  = checklist.filter(i => i.noHay).length
+  const pendientes = total - listos - sinStock
+  const pct       = total ? Math.round(((listos + sinStock) / total) * 100) : 0
 
   return (
     <div className="pm-checklist">
       <div className="pm-cl-head">
         <span className="pm-cl-title">Lista de empaque</span>
         <span className="pm-cl-prog">
-          {listos}/{total}
-          {issues > 0 && <span className="pm-cl-issues"> · {issues} pendiente{issues > 1 ? "s" : ""}</span>}
+          {listos + sinStock}/{total}
+          {pendientes > 0 && <span className="pm-cl-issues"> · {pendientes} pendiente{pendientes > 1 ? "s" : ""}</span>}
+          {sinStock > 0 && <span className="pm-cl-nohay-count"> · {sinStock} sin stock</span>}
         </span>
-        <div className="pm-cl-bar"><div style={{ width: pct + "%" }} /></div>
+        <div className="pm-cl-bar">
+          <div className="pm-cl-bar-fill" style={{ width: pct + "%" }} />
+        </div>
       </div>
 
       <div className="pm-cl-items">
-        {checklist.map((it, i) => (
-          <div key={it.id} className={`pm-cl-item ${it.preparado ? "ready" : it.pendiente ? "issue" : ""}`}>
-            <button
-              className={`pm-cl-chk ${it.preparado ? "on" : ""}`}
-              disabled={readOnly}
-              onClick={() => !readOnly && onChange(checklist.map((x, j) =>
-                j !== i ? x : { ...x, preparado: !x.preparado, pendiente: x.preparado ? x.pendiente : false }
-              ))}
-            >
-              {it.preparado ? <Icon name="check" size={10} /> : null}
-            </button>
+        {checklist.map((it, i) => {
+          const notaRequerida = it.noHay && !it.nota?.trim()
+          return (
+            <div key={it.id} className={`pm-cl-item ${it.preparado ? "ready" : it.noHay ? "nohay" : ""}`}>
+              <div className="pm-cl-btns">
+                {/* ✓ hay */}
+                <button
+                  className={`pm-cl-chk ${it.preparado ? "on" : ""}`}
+                  disabled={readOnly || it.noHay}
+                  title="Hay / listo"
+                  onClick={() => !readOnly && onChange(checklist.map((x, j) =>
+                    j !== i ? x : { ...x, preparado: !x.preparado, noHay: false }
+                  ))}
+                >
+                  {it.preparado ? <Icon name="check" size={10} /> : null}
+                </button>
+                {/* ✕ no hay */}
+                <button
+                  className={`pm-cl-x ${it.noHay ? "on" : ""}`}
+                  disabled={readOnly || it.preparado}
+                  title="No hay / sin stock"
+                  onClick={() => !readOnly && onChange(checklist.map((x, j) =>
+                    j !== i ? x : { ...x, noHay: !x.noHay, preparado: false }
+                  ))}
+                >
+                  ✕
+                </button>
+              </div>
 
-            <div className="pm-cl-info">
-              <div className="pm-cl-name">{it.nombre}</div>
-              <div className="pm-cl-qty">{it.qty} {it.unidad}</div>
+              <div className="pm-cl-info">
+                <div className="pm-cl-name">{it.nombre}</div>
+                <div className="pm-cl-qty">{it.qty} {it.unidad}</div>
+                {/* Nota inline — requerida si noHay, opcional si preparado */}
+                {!readOnly && (it.preparado || it.noHay) && (
+                  <input
+                    className={`pm-cl-nota${notaRequerida ? " required" : ""}`}
+                    placeholder={it.noHay ? "Motivo obligatorio…" : "Nota (opcional)…"}
+                    value={it.nota ?? ""}
+                    onChange={e => onChange(checklist.map((x, j) =>
+                      j !== i ? x : { ...x, nota: e.target.value }
+                    ))}
+                  />
+                )}
+                {readOnly && it.nota && (
+                  <span className="pm-cl-nota-ro">{it.nota}</span>
+                )}
+              </div>
             </div>
-
-            {!it.preparado && !readOnly && (
-              <button
-                className={`pm-cl-pend ${it.pendiente ? "on" : ""}`}
-                onClick={() => onChange(checklist.map((x, j) =>
-                  j !== i ? x : { ...x, pendiente: !x.pendiente }
-                ))}
-              >
-                {it.pendiente ? "⚠ Pendiente" : "Pendiente"}
-              </button>
-            )}
-
-            {it.pendiente && !readOnly && (
-              <input
-                className="pm-cl-nota"
-                placeholder="¿Motivo?"
-                value={it.nota}
-                onChange={e => onChange(checklist.map((x, j) =>
-                  j !== i ? x : { ...x, nota: e.target.value }
-                ))}
-              />
-            )}
-
-            {it.pendiente && readOnly && it.nota && (
-              <span className="pm-cl-nota-ro">{it.nota}</span>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
+
+      {!readOnly && !checklistCompleto(checklist) && (
+        <div className="pm-cl-warning">
+          <Icon name="alert" size={12} />
+          {checklist.some(it => it.noHay && !it.nota?.trim())
+            ? "Agrega el motivo de los productos sin stock para continuar"
+            : "Marca cada producto como listo o sin stock para continuar"}
+        </div>
+      )}
     </div>
   )
 }
@@ -282,6 +306,7 @@ function PedidoCard({ pedido, esBodega, usuarios, onRefresh, addToast }) {
   const [chk,     setChk]     = useState(meta.checklist ?? [])
   const [saving,  setSaving]  = useState(false)
   const [confirm, setConfirm] = useState(null) // { accion }
+  const listo = checklistCompleto(chk)
   const [open,    setOpen]    = useState(!["finalizado", "recibido"].includes(estado))
   const saveRef = useRef(null)
 
@@ -343,6 +368,12 @@ function PedidoCard({ pedido, esBodega, usuarios, onRefresh, addToast }) {
       {/* ── body ── */}
       {open && (
         <div className="pm-card-body">
+          {pedido.Observaciones && (
+            <div className="pm-obs">
+              <Icon name="alert" size={12} />
+              <span>{pedido.Observaciones}</span>
+            </div>
+          )}
           <TruckRoute estado={norm} destinoLabel={destLabel} />
           <StepBar estado={norm} />
 
@@ -405,7 +436,12 @@ function PedidoCard({ pedido, esBodega, usuarios, onRefresh, addToast }) {
               </button>
             )}
             {esBodega && norm === "preparando" && (
-              <button className="btn btn-wine btn-sm" disabled={saving} onClick={() => doAvanzar("iniciar")}>
+              <button
+                className="btn btn-wine btn-sm"
+                disabled={saving || !listo}
+                title={!listo ? "Completa el checklist antes de iniciar" : ""}
+                onClick={() => doAvanzar("iniciar")}
+              >
                 <Icon name="truck" size={13} /> Iniciar envío
               </button>
             )}
