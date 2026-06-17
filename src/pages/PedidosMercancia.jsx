@@ -111,7 +111,12 @@ function StepBar({ estado }) {
     <div className="pm-steps">
       {STEPS.map((s, i) => (
         <div key={s} className={`pm-step ${i < cur ? "past" : i === cur ? "active" : ""}`}>
-          {i < STEPS.length - 1 && <div className={`pm-step-line ${i < cur ? "done" : ""}`} />}
+          {i < STEPS.length - 1 && (
+            <div
+              className={`pm-step-line ${i < cur ? "done" : ""}`}
+              style={i < cur ? { "--line-delay": `${i * 0.1}s` } : {}}
+            />
+          )}
           <div className="pm-step-dot">{i < cur ? <Icon name="check" size={9} /> : null}</div>
           <div className="pm-step-lbl">{ESTADOS[s]?.label}</div>
         </div>

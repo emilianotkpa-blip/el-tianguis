@@ -1733,24 +1733,54 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 /* Step bar */
 .pm-steps {
   display: flex; align-items: flex-start; position: relative;
-  margin: 12px 0 8px; overflow-x: auto; padding-bottom: 2px;
+  margin: 12px 0 8px; padding: 12px 0 6px; overflow: visible;
 }
-.pm-step { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; min-width: 54px; }
+.pm-step {
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1; position: relative; min-width: 48px;
+}
 .pm-step-line {
   position: absolute; top: 8px; left: calc(50% + 10px); right: calc(-50% + 10px);
   height: 2px; background: var(--border); z-index: 0;
+  overflow: hidden; border-radius: 1px;
 }
-.pm-step-line.done { background: var(--wine-600); }
+/* fill animation izq→der usando variable CSS para escalonar */
+.pm-step-line::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--wine-600);
+  transform: translateX(-100%);
+}
+.pm-step-line.done::after {
+  animation: pmLineFill 0.5s ease var(--line-delay, 0s) forwards;
+}
 .pm-step-dot {
   width: 18px; height: 18px; border-radius: 50%;
   background: var(--bg-sunken); border: 2px solid var(--border);
   position: relative; z-index: 1; display: grid; place-items: center;
   flex-shrink: 0;
 }
-.pm-step.past .pm-step-dot  { background: var(--wine-600); border-color: var(--wine-600); color: #fff; }
-.pm-step.active .pm-step-dot { background: var(--wine-600); border-color: var(--wine-600); box-shadow: 0 0 0 3px rgba(160,35,64,.2); }
-.pm-step-lbl { font-size: 9.5px; color: var(--text-muted); margin-top: 5px; text-align: center; line-height: 1.2; }
+.pm-step.past .pm-step-dot { background: var(--wine-600); border-color: var(--wine-600); color: #fff; }
+.pm-step.active .pm-step-dot { background: var(--wine-600); border-color: var(--wine-600); }
+/* Ondas tipo gota de agua en el punto activo */
+.pm-step.active .pm-step-dot::before,
+.pm-step.active .pm-step-dot::after {
+  content: ''; position: absolute; inset: -2px; border-radius: 50%;
+  border: 2px solid var(--wine-500); opacity: 0;
+  animation: pmDotRipple 2.2s ease-out infinite;
+  pointer-events: none;
+}
+.pm-step.active .pm-step-dot::after { animation-delay: 1.1s; }
+.pm-step-lbl { font-size: 9.5px; color: var(--text-muted); margin-top: 5px; text-align: center; line-height: 1.2; white-space: nowrap; }
 .pm-step.past .pm-step-lbl, .pm-step.active .pm-step-lbl { color: var(--text-secondary); }
+
+@keyframes pmLineFill {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes pmDotRipple {
+  0%   { transform: scale(1);   opacity: 0.65; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
 
 /* Timers */
 .pm-timers { display: flex; flex-direction: column; gap: 3px; margin: 6px 0; }
