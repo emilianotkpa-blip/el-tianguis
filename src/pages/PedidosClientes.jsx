@@ -3,7 +3,7 @@ import Icon from "../components/Icon"
 import Modal from "../components/Modal"
 import Confirm from "../components/Confirm"
 import { getPedidosClientes, postPedidoCliente, patchPedidoCliente, getCatalogo, getClientes, postCliente } from "../api"
-import { fmtMoney, todayISO } from "../utils"
+import { fmtMoney, todayISO, fmtDateTime } from "../utils"
 
 const SUCURSALES = ["Centro", "Repostero", "Bodega"]
 const TIPOS_CLIENTE = ["Mayorista", "Frecuente", "Público", "General"]
@@ -340,7 +340,7 @@ export default function PedidosClientesPage({ addToast }) {
                   {filtered.map((p) => (
                     <tr key={p.Id}>
                       <td className="tnum">{p.Folio}</td>
-                      <td className="muted">{p.Fecha}</td>
+                      <td className="muted">{fmtDateTime(parseMeta(p.Meta_JSON).ts_creado) ?? p.Fecha}</td>
                       <td><strong>{p.Cliente}</strong></td>
                       <td>{p.Sucursal}</td>
                       <td className="num"><strong>{fmtMoney(p.Total ?? 0)}</strong></td>
@@ -446,7 +446,7 @@ export default function PedidosClientesPage({ addToast }) {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", fontSize: 13, marginBottom: 16 }}>
                 <div><span className="muted">Sucursal:</span> {detalle.Sucursal}</div>
-                <div><span className="muted">Fecha:</span> {detalle.Fecha}</div>
+                <div><span className="muted">Pedido:</span> {fmtDateTime(meta.ts_creado) ?? detalle.Fecha}</div>
                 <div><span className="muted">Entrega:</span> {detalle.FechaEntrega ?? "—"}</div>
                 <div><span className="muted">Estado:</span> {badge(estNorm)}</div>
                 {detalle.Observaciones && <div style={{ gridColumn: "1/-1" }}><span className="muted">Obs:</span> {detalle.Observaciones}</div>}

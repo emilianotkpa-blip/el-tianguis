@@ -673,6 +673,7 @@ app.post("/api/pedidos-clientes", async (req, res) => {
       Estado: estado ?? "preparando", FechaEntrega: fechaEntrega ?? null,
       Total: total, Items_JSON: JSON.stringify(items ?? []),
       Observaciones: observaciones ?? "",
+      Meta_JSON: JSON.stringify({ ts_creado: Date.now() }),
     })
     const campo = sucursal === "Repostero" ? "Repostero" : sucursal === "Bodega" ? "Bodega" : "Centro"
     for (const item of (items ?? [])) {
@@ -729,6 +730,7 @@ app.post("/api/pedidos-mercancia", async (req, res) => {
       Estado: estado ?? "en tránsito", FechaEntrega: fechaEntrega ?? null,
       Total: total, Items_JSON: JSON.stringify(items ?? []),
       Observaciones: observaciones ?? "",
+      Meta_JSON: JSON.stringify({ ts_creado: Date.now() }),
     })
     res.json({ ok: true })
   } catch (err) {

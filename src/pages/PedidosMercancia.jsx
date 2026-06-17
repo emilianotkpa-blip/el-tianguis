@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import Icon from "../components/Icon"
 import { SUCURSALES } from "../data"
 import { getCatalogo, getPedidosMercancia, postPedidoMercancia } from "../api"
-import { todayISO } from "../utils"
+import { todayISO, fmtDateTime } from "../utils"
 
 // ── ESTADOS ────────────────────────────────────────────
 const ESTADOS = {
@@ -327,7 +327,7 @@ function PedidoCard({ pedido, esBodega, usuarios, onRefresh, addToast }) {
       <div className="pm-card-head" onClick={() => setOpen(o => !o)}>
         <div className="pm-card-left">
           <span className="pm-folio">{pedido.Folio}</span>
-          <span className="pm-fecha">{pedido.Fecha}</span>
+          <span className="pm-fecha">{fmtDateTime(meta.ts_creado) ?? pedido.Fecha}</span>
         </div>
         <div className="pm-card-dest">
           <Icon name="building" size={11} />

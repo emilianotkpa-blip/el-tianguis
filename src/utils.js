@@ -11,6 +11,14 @@ export const fmtNum = (n) => Number(n).toLocaleString("es-MX")
 
 export const todayISO = () => new Date().toISOString().slice(0, 10)
 
+export const fmtDateTime = (ts) => {
+  if (!ts) return null
+  const d = new Date(ts)
+  const date = d.toLocaleDateString("es-MX", { day: "2-digit", month: "short" })
+  const time = d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false })
+  return `${date} · ${time}`
+}
+
 export function exportCSV(rows, filename) {
   if (!rows.length) return
   const keys = Object.keys(rows[0])
