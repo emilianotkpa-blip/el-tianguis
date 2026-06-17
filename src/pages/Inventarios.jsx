@@ -14,7 +14,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
   const [statusFilter, setStatus]   = useState("todos")
   const [adjustingP, setAdjustingP] = useState(null)
   const [page, setPage] = useState(1)
-  const PAGE_SIZE = 100
+  const PAGE_SIZE = 250
   const [productos, setProductos]   = useState([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
@@ -152,30 +152,24 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
       </div>
 
       <div className="kpi-grid">
-        <div className="kpi">
-          <div className="kpi-accent"></div>
-          <div className="kpi-label">Productos en sucursal</div>
-          <div className="kpi-value">{cur.total}</div>
-          <div className="kpi-delta"><span className="label">SKUs activos</span></div>
-        </div>
-        <div className="kpi">
-          <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
-          <div className="kpi-label">Stock normal</div>
-          <div className="kpi-value">{cur.normal}</div>
-          <div className="kpi-delta up">▲ Saludable</div>
-        </div>
-        <div className="kpi">
-          <div className="kpi-accent" style={{ background: "var(--warn)" }}></div>
-          <div className="kpi-label">Stock bajo</div>
-          <div className="kpi-value">{cur.bajo}</div>
-          <div className="kpi-delta down">⚠ Requiere reposición</div>
-        </div>
-        <div className="kpi">
-          <div className="kpi-accent" style={{ background: "var(--err)" }}></div>
-          <div className="kpi-label">Agotados</div>
-          <div className="kpi-value">{cur.agotado}</div>
-          <div className="kpi-delta down">● Reabastecer urgente</div>
-        </div>
+        {[
+          { key: "todos",   accent: "",                         label: "Productos en sucursal", value: cur.total,   delta: <span className="label">SKUs activos</span>,    deltaUp: null },
+          { key: "normal",  accent: "var(--ok)",                label: "Stock normal",           value: cur.normal,  delta: "▲ Saludable",                                   deltaUp: true },
+          { key: "bajo",    accent: "var(--warn)",              label: "Stock bajo",             value: cur.bajo,    delta: "⚠ Requiere reposición",                          deltaUp: false },
+          { key: "agotado", accent: "var(--err)",               label: "Agotados",               value: cur.agotado, delta: "● Reabastecer urgente",                          deltaUp: false },
+        ].map(({ key, accent, label, value, delta, deltaUp }) => (
+          <div
+            key={key}
+            className="kpi"
+            onClick={() => { setStatus(key); setPage(1) }}
+            style={{ cursor: "pointer", outline: statusFilter === key ? "2px solid var(--wine-500)" : "none", outlineOffset: 2 }}
+          >
+            <div className="kpi-accent" style={accent ? { background: accent } : {}}></div>
+            <div className="kpi-label">{label}</div>
+            <div className="kpi-value">{value}</div>
+            <div className={`kpi-delta${deltaUp === true ? " up" : deltaUp === false ? " down" : ""}`}>{delta}</div>
+          </div>
+        ))}
       </div>
 
       <div className="card">
@@ -201,8 +195,21 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
             )}
           </div>
         </div>
-        <div className="card-body flush">
-          <table className="table">
+        <div className="card-body flush" style={{ overflowX: "auto" }}>
+          <table className="table" style={{ tableLayout: "fixed", minWidth: 900 }}>
+            <colgroup>
+              <col style={{ width: 130 }} />
+              <col style={{ width: "30%" }} />
+              <col style={{ width: 110 }} />
+              <col style={{ width: 70 }} />
+              <col style={{ width: 70 }} />
+              <col style={{ width: 100 }} />
+              <col style={{ width: 70 }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: 70 }} />
+              <col style={{ width: 90 }} />
+              <col style={{ width: 44 }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>Cód.</th><th>Producto</th><th>Tipo</th>
@@ -219,14 +226,16 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                 const fill   = status === "agotado" ? "var(--err)" : status === "bajo" ? "var(--warn)" : "var(--ok)"
                 return (
                   <tr key={p._id}>
-                    <td className="tnum" style={{ fontSize: 11 }}>
-                      <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{p.codigoBarras || p.sku}</div>
+                    <td className="tnum" style={{ fontSize: 11, overflow: "hidden" }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.codigoBarras || p.sku}</div>
                       {p.codigoBarras && p.codigoBarras !== p.sku && (
                         <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{p.sku}</div>
                       )}
                     </td>
-                    <td><strong>{p.name}</strong></td>
-                    <td className="muted">{p.tipo}</td>
+                    <td style={{ overflow: "hidden" }} title={p.name}>
+                      <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</strong>
+                    </td>
+                    <td className="muted" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.tipo}</td>
                     <td className="num"><strong>{v}</strong></td>
                     <td className="num muted">{p.min}</td>
                     <td>
