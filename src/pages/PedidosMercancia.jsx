@@ -320,7 +320,7 @@ function ConfirmModal({ titulo, descripcion, usuarios, onConfirm, onCancel }) {
 }
 
 // ── PEDIDO CARD ───────────────────────────────────────
-function PedidoCard({ pedido, esBodega, usuarios, onRefresh, addToast }) {
+function PedidoCard({ pedido, esBodega, usuarios, user, onRefresh, addToast }) {
   const meta   = parseMeta(pedido.Meta_JSON)
   const items  = parseItems(pedido.Items_JSON)
   const estado = pedido.Estado ?? "solicitado"
@@ -332,6 +332,12 @@ function PedidoCard({ pedido, esBodega, usuarios, onRefresh, addToast }) {
   const [saving,  setSaving]  = useState(false)
   const [confirm, setConfirm] = useState(null) // { accion }
   const listo = checklistCompleto(chk)
+
+  // Si es bodega: ocultar al usuario logueado (él envió, no puede autoconfirmar)
+  // Si es sucursal: mostrar todos incluyendo al propio (él recibe)
+  const usuariosConfirmar = esBodega && user?.nombre
+    ? usuarios.filter(u => u.nombre !== user.nombre)
+    : usuarios
   const [open,    setOpen]    = useState(!["finalizado", "recibido"].includes(estado))
   const saveRef = useRef(null)
 
@@ -495,7 +501,7 @@ function PedidoCard({ pedido, esBodega, usuarios, onRefresh, addToast }) {
           descripcion={confirm.accion === "confirmar_entrega"
             ? `Confirma que la mercancía llegó a ${destLabel}. El stock se actualizará automáticamente.`
             : "Confirma que el repartidor regresó a bodega."}
-          usuarios={usuarios}
+          usuarios={usuariosConfirmar}
           onConfirm={handleConfirm}
           onCancel={() => setConfirm(null)}
         />
@@ -535,7 +541,7 @@ function BodegaView({ user, usuarios, pedidos, onRefresh, addToast }) {
       ) : (
         <div className="pm-list">
           {active.map(p => (
-            <PedidoCard key={p.Id} pedido={p} esBodega usuarios={usuarios} onRefresh={onRefresh} addToast={addToast} />
+            <PedidoCard key={p.Id} pedido={p} esBodega usuarios={usuarios} user={user} onRefresh={onRefresh} addToast={addToast} />
           ))}
         </div>
       )}
@@ -545,7 +551,7 @@ function BodegaView({ user, usuarios, pedidos, onRefresh, addToast }) {
           <summary>Historial — {history.length} finalizados</summary>
           <div className="pm-list" style={{ marginTop: 10 }}>
             {history.slice(0, 30).map(p => (
-              <PedidoCard key={p.Id} pedido={p} esBodega usuarios={usuarios} onRefresh={onRefresh} addToast={addToast} />
+              <PedidoCard key={p.Id} pedido={p} esBodega usuarios={usuarios} user={user} onRefresh={onRefresh} addToast={addToast} />
             ))}
           </div>
         </details>
@@ -745,7 +751,7 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
       ) : (
         <div className="pm-list">
           {active.map(p => (
-            <PedidoCard key={p.Id} pedido={p} esBodega={false} usuarios={usuarios} onRefresh={onRefresh} addToast={addToast} />
+            <PedidoCard key={p.Id} pedido={p} esBodega={false} usuarios={usuarios} user={user} onRefresh={onRefresh} addToast={addToast} />
           ))}
         </div>
       )}
@@ -755,7 +761,7 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
           <summary>Historial — {history.length} finalizados</summary>
           <div className="pm-list" style={{ marginTop: 10 }}>
             {history.slice(0, 20).map(p => (
-              <PedidoCard key={p.Id} pedido={p} esBodega={false} usuarios={usuarios} onRefresh={onRefresh} addToast={addToast} />
+              <PedidoCard key={p.Id} pedido={p} esBodega={false} usuarios={usuarios} user={user} onRefresh={onRefresh} addToast={addToast} />
             ))}
           </div>
         </details>
