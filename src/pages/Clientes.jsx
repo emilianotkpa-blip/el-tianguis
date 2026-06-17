@@ -61,7 +61,8 @@ export default function ClientesPage({ addToast }) {
   }
 
   const filtered = clientes.filter((c) => {
-    if (tipoF !== "todos" && (c.Tipo ?? "General") !== tipoF) return false
+    if (tipoF === "porCobrar" && !(c.Saldo > 0)) return false
+    if (tipoF !== "todos" && tipoF !== "porCobrar" && (c.Tipo ?? "General") !== tipoF) return false
     if (search && !(c.Nombre ?? "").toLowerCase().includes(search.toLowerCase()) && !(c.RFC ?? "").includes(search)) return false
     return true
   })
@@ -90,10 +91,23 @@ export default function ClientesPage({ addToast }) {
       </div>
 
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-        <div className="kpi"><div className="kpi-accent"></div><div className="kpi-label">Total clientes</div><div className="kpi-value">{stats.total}</div></div>
-        <div className="kpi"><div className="kpi-accent" style={{ background: "var(--wine-700)" }}></div><div className="kpi-label">Mayoristas</div><div className="kpi-value">{stats.mayoristas}</div></div>
-        <div className="kpi"><div className="kpi-accent" style={{ background: "var(--ok)" }}></div><div className="kpi-label">Frecuentes</div><div className="kpi-value">{stats.frecuentes}</div></div>
-        <div className="kpi"><div className="kpi-accent" style={{ background: "var(--warn)" }}></div><div className="kpi-label">Por cobrar</div><div className="kpi-value">{fmtMoney(stats.porCobrar)}</div></div>
+        {[
+          { key: "todos",      accent: "",                    label: "Total clientes", value: stats.total },
+          { key: "Mayorista",  accent: "var(--wine-700)",     label: "Mayoristas",     value: stats.mayoristas },
+          { key: "Frecuente",  accent: "var(--ok)",           label: "Frecuentes",     value: stats.frecuentes },
+          { key: "porCobrar",  accent: "var(--warn)",         label: "Por cobrar",     value: fmtMoney(stats.porCobrar) },
+        ].map(({ key, accent, label, value }) => (
+          <div
+            key={key}
+            className="kpi"
+            onClick={() => setTipoF(key)}
+            style={{ cursor: "pointer", outline: tipoF === key ? "2px solid var(--wine-500)" : "none", outlineOffset: 2 }}
+          >
+            <div className="kpi-accent" style={accent ? { background: accent } : {}}></div>
+            <div className="kpi-label">{label}</div>
+            <div className="kpi-value">{value}</div>
+          </div>
+        ))}
       </div>
 
       <div className="card">
