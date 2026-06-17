@@ -65,11 +65,33 @@ function Timer({ startTs, endTs }) {
 }
 
 // ── TRUCK ROUTE ───────────────────────────────────────
-function TruckRoute({ estado, destinoLabel }) {
+const TRIP_MS = 25 * 60 * 1000   // 25 minutos en ms
+
+function TruckRoute({ estado, destinoLabel, timers = {} }) {
   const est = normEst(estado)
-  const going     = est === "en_curso"
+
+  const calcPos = () => {
+    if (est === "entregado") return 1
+    if (est === "en_curso" && timers.inicio_curso)
+      return Math.min(1, (Date.now() - timers.inicio_curso) / TRIP_MS)
+    if (est === "regresando" && timers.inicio_regreso)
+      return Math.min(1, (Date.now() - timers.inicio_regreso) / TRIP_MS)
+    return 0
+  }
+
+  const [pos, setPos] = useState(calcPos)
+
+  useEffect(() => {
+    setPos(calcPos())
+    if (est !== "en_curso" && est !== "regresando") return
+    const id = setInterval(() => setPos(calcPos()), 1000)
+    return () => clearInterval(id)
+  }, [est, timers.inicio_curso, timers.inicio_regreso])
+
+  const going    = est === "en_curso"
   const returning = est === "regresando"
-  const atSuc     = est === "entregado"
+  // going: 0→1 izq→der  |  returning: 1→0 der→izq
+  const xPct = going ? pos : returning ? 1 - pos : est === "entregado" ? 1 : 0
 
   return (
     <div className="tr-route">
@@ -82,8 +104,11 @@ function TruckRoute({ estado, destinoLabel }) {
         <div className="tr-road">
           <div className="tr-road-line" />
           <div
-            className={`tr-truck-wrap ${going ? "tr-going" : returning ? "tr-returning" : ""}`}
-            style={atSuc ? { left: "calc(100% - 28px)" } : {}}
+            className="tr-truck-wrap"
+            style={{
+              left: `calc(${xPct} * (100% - 32px) + 4px)`,
+              transform: returning ? "translateY(-50%) scaleX(-1)" : "translateY(-50%)",
+            }}
           >
             <svg width="28" height="16" viewBox="0 0 28 16" fill="none">
               <rect x="0" y="3" width="16" height="9" rx="1.5" fill="var(--wine-600)" />
@@ -374,7 +399,7 @@ function PedidoCard({ pedido, esBodega, usuarios, onRefresh, addToast }) {
               <span>{pedido.Observaciones}</span>
             </div>
           )}
-          <TruckRoute estado={norm} destinoLabel={destLabel} />
+          <TruckRoute estado={norm} destinoLabel={destLabel} timers={timers} />
           <StepBar estado={norm} />
 
           {/* Timers */}
