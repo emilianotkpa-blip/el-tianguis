@@ -3,10 +3,10 @@ import Icon from "../components/Icon"
 import Modal from "../components/Modal"
 import Confirm from "../components/Confirm"
 import { getClientes, postCliente, patchCliente, deleteCliente } from "../api"
-import { fmtMoney, exportCSV } from "../utils"
+import { exportCSV } from "../utils"
 
 const TIPOS = ["Mayorista", "Frecuente", "Público", "General"]
-const emptyForm = { nombre: "", rfc: "", tipo: "General", telefono: "", email: "", direccion: "", limiteCredito: "", saldo: "", notas: "" }
+const emptyForm = { nombre: "", rfc: "", tipo: "General", telefono: "", email: "", direccion: "", notas: "" }
 
 export default function ClientesPage({ addToast }) {
   const [clientes, setClientes]   = useState([])
@@ -31,7 +31,7 @@ export default function ClientesPage({ addToast }) {
 
   const openEdit = (c) => {
     setEditing(c)
-    setForm({ nombre: c.Nombre ?? "", rfc: c.RFC ?? "", tipo: c.Tipo ?? "General", telefono: c.Telefono ?? "", email: c.Email ?? "", direccion: c.Direccion ?? "", limiteCredito: c.LimiteCredito ?? "", saldo: c.Saldo ?? "", notas: c.Notas ?? "" })
+    setForm({ nombre: c.Nombre ?? "", rfc: c.RFC ?? "", tipo: c.Tipo ?? "General", telefono: c.Telefono ?? "", email: c.Email ?? "", direccion: c.Direccion ?? "", notas: c.Notas ?? "" })
   }
   const openNew    = () => { setShowNew(true); setForm(emptyForm) }
   const closeModal = () => { setEditing(null); setShowNew(false) }
@@ -41,7 +41,7 @@ export default function ClientesPage({ addToast }) {
     setSaving(true)
     try {
       if (editing) {
-        await patchCliente(editing.Id, { Nombre: form.nombre, RFC: form.rfc, Tipo: form.tipo, Telefono: form.telefono, Email: form.email, Direccion: form.direccion, LimiteCredito: Number(form.limiteCredito) || 0, Saldo: Number(form.saldo) || 0, Notas: form.notas })
+        await patchCliente(editing.Id, { Nombre: form.nombre, RFC: form.rfc, Tipo: form.tipo, Telefono: form.telefono, Email: form.email, Direccion: form.direccion, Notas: form.notas })
       } else {
         await postCliente({ nombre: form.nombre, rfc: form.rfc, tipo: form.tipo, telefono: form.telefono, email: form.email, direccion: form.direccion, limiteCredito: form.limiteCredito, saldo: form.saldo, notas: form.notas })
       }
@@ -61,8 +61,7 @@ export default function ClientesPage({ addToast }) {
   }
 
   const filtered = clientes.filter((c) => {
-    if (tipoF === "porCobrar" && !(c.Saldo > 0)) return false
-    if (tipoF !== "todos" && tipoF !== "porCobrar" && (c.Tipo ?? "General") !== tipoF) return false
+    if (tipoF !== "todos" && (c.Tipo ?? "General") !== tipoF) return false
     if (search && !(c.Nombre ?? "").toLowerCase().includes(search.toLowerCase()) && !(c.RFC ?? "").includes(search)) return false
     return true
   })
@@ -71,7 +70,6 @@ export default function ClientesPage({ addToast }) {
     total:      clientes.length,
     mayoristas: clientes.filter((c) => c.Tipo === "Mayorista").length,
     frecuentes: clientes.filter((c) => c.Tipo === "Frecuente").length,
-    porCobrar:  clientes.reduce((s, c) => s + (c.Saldo ?? 0), 0),
   }
 
   return (
@@ -83,19 +81,18 @@ export default function ClientesPage({ addToast }) {
         </div>
         <div className="page-actions">
           <button className="btn btn-default btn-sm" onClick={cargar}><Icon name="refresh" size={13} /> Actualizar</button>
-          <button className="btn btn-default btn-sm" onClick={() => exportCSV(clientes.map((c) => ({ Nombre: c.Nombre, RFC: c.RFC, Tipo: c.Tipo, Telefono: c.Telefono, Email: c.Email, LimiteCredito: c.LimiteCredito, Saldo: c.Saldo })), "clientes.csv")}>
+          <button className="btn btn-default btn-sm" onClick={() => exportCSV(clientes.map((c) => ({ Nombre: c.Nombre, RFC: c.RFC, Tipo: c.Tipo, Telefono: c.Telefono, Email: c.Email, Direccion: c.Direccion })), "clientes.csv")}>
             <Icon name="download" size={13} /> Exportar CSV
           </button>
           <button className="btn btn-wine btn-sm" onClick={openNew}><Icon name="plus" size={13} /> Nuevo cliente</button>
         </div>
       </div>
 
-      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
         {[
-          { key: "todos",      accent: "",                    label: "Total clientes", value: stats.total },
-          { key: "Mayorista",  accent: "var(--wine-700)",     label: "Mayoristas",     value: stats.mayoristas },
-          { key: "Frecuente",  accent: "var(--ok)",           label: "Frecuentes",     value: stats.frecuentes },
-          { key: "porCobrar",  accent: "var(--warn)",         label: "Por cobrar",     value: fmtMoney(stats.porCobrar) },
+          { key: "todos",     accent: "",                label: "Total clientes", value: stats.total },
+          { key: "Mayorista", accent: "var(--wine-700)", label: "Mayoristas",     value: stats.mayoristas },
+          { key: "Frecuente", accent: "var(--ok)",       label: "Frecuentes",     value: stats.frecuentes },
         ].map(({ key, accent, label, value }) => (
           <div
             key={key}
@@ -129,7 +126,7 @@ export default function ClientesPage({ addToast }) {
             ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando clientes…</div>
             : <table className="table">
                 <thead>
-                  <tr><th>Nombre</th><th>RFC</th><th>Tipo</th><th>Teléfono</th><th>Email</th><th className="num">Límite crédito</th><th className="num">Saldo</th><th></th></tr>
+                  <tr><th>Nombre</th><th>RFC</th><th>Tipo</th><th>Teléfono</th><th>Email</th><th></th></tr>
                 </thead>
                 <tbody>
                   {filtered.map((c) => (
@@ -139,8 +136,6 @@ export default function ClientesPage({ addToast }) {
                       <td><span className="badge badge-neutral">{c.Tipo || "General"}</span></td>
                       <td className="muted">{c.Telefono || "—"}</td>
                       <td className="muted">{c.Email || "—"}</td>
-                      <td className="num">{c.LimiteCredito > 0 ? fmtMoney(c.LimiteCredito) : <span className="muted">—</span>}</td>
-                      <td className="num">{c.Saldo > 0 ? <span style={{ color: "var(--warn)" }}>{fmtMoney(c.Saldo)}</span> : <span className="muted">$0</span>}</td>
                       <td className="actions-cell">
                         <button className="btn btn-ghost btn-sm" title="Editar" onClick={() => openEdit(c)}><Icon name="edit" size={12} /></button>
                         <button className="btn btn-ghost btn-sm" title="Eliminar" onClick={() => setConfirmDel(c)} style={{ color: "var(--err)" }}><Icon name="trash" size={12} /></button>
@@ -148,7 +143,7 @@ export default function ClientesPage({ addToast }) {
                     </tr>
                   ))}
                   {filtered.length === 0 && !loading && (
-                    <tr><td colSpan={8} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Sin clientes registrados</td></tr>
+                    <tr><td colSpan={6} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Sin clientes registrados</td></tr>
                   )}
                 </tbody>
               </table>
@@ -189,8 +184,6 @@ export default function ClientesPage({ addToast }) {
           </div>
           <div className="form-row"><label>Teléfono</label><input value={form.telefono} onChange={setF("telefono")} /></div>
           <div className="form-row"><label>Email</label><input type="email" value={form.email} onChange={setF("email")} /></div>
-          <div className="form-row"><label>Límite de crédito</label><input type="number" step="0.01" value={form.limiteCredito} onChange={setF("limiteCredito")} placeholder="0.00" /></div>
-          <div className="form-row"><label>Saldo pendiente</label><input type="number" step="0.01" value={form.saldo} onChange={setF("saldo")} placeholder="0.00" /></div>
           <div className="form-row" style={{ gridColumn: "1/-1" }}><label>Dirección</label><input value={form.direccion} onChange={setF("direccion")} /></div>
           <div className="form-row" style={{ gridColumn: "1/-1" }}><label>Notas</label><textarea rows="2" value={form.notas} onChange={setF("notas")} /></div>
         </div>
