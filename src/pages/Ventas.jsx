@@ -16,7 +16,10 @@ function FolioBarcode({ value }) {
 
 // ── Modal de selección de presentación ─────────────────
 function PresModal({ producto, suc, onSelect, onClose, cart }) {
-  const pres    = (producto.presentaciones || []).filter(p => p.id !== "kilo")
+  const isBolsa = producto.tipo === "bolsas"
+  const pres    = (producto.presentaciones || []).filter(p =>
+    isBolsa ? p.id !== "detalle" : p.id !== "kilo"
+  )
   const niveles = producto.stockNiveles?.[suc] ?? {}
   const baseStock = producto.stock?.[suc] ?? 0
   const paqDisp   = niveles.paq   ?? 0
@@ -357,6 +360,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   // Consumir items enviados desde Báscula
   useEffect(() => {
     if (!sharedCart?.length) return
+    const hasDraft = Boolean(sessionStorage.getItem(`elt_draft_${user?.email ?? "guest"}`))
     setCart(c => {
       const next = [...c]
       for (const item of sharedCart) {
@@ -366,6 +370,14 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       return next
     })
     clearSharedCart?.()
+    // Si no hay borrador existente, crear uno para que aparezca el folio
+    if (!hasDraft && !creatingRef.current) {
+      creatingRef.current = true
+      crearBorrador({ sucursal: suc, vendedor: user?.name ?? "" })
+        .then(r => { setBorradorId(r.id); setFolio(r.folio) })
+        .catch(() => addToast({ kind: "warn", msg: "Sin conexión — folio se generará al enviar" }))
+        .finally(() => { creatingRef.current = false })
+    }
   }, []) // solo en el montaje — sharedCart es el snapshot de cuando Báscula navegó
 
   // Cuando el buscador pierde el foco y no fue hacia un input/modal,

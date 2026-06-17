@@ -11,20 +11,19 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
   const [gramosManual, setGramosManual] = useState("")
   const [conectada, setConectada] = useState(false)
   const [suc, setSuc]             = useState(sucursalActiva || "centro")
-  const esRef = useRef(null)
+  const [busqueda, setBusqueda]   = useState("")
+  const esRef  = useRef(null)
+  const busRef = useRef(null)
 
-  // Cargar bolsas del catálogo
   useEffect(() => {
     getCatalogo()
       .then(cat => setBolsas(cat.filter(p => p.tipo === "bolsas")))
       .catch(() => {})
   }, [])
 
-  // Conectar SSE con la báscula
   useEffect(() => {
     const es = new EventSource("/api/balanza/stream")
     esRef.current = es
-
     es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data)
@@ -35,28 +34,51 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
         }
       } catch {}
     }
-
     es.onerror = () => setConectada(false)
-
     return () => es.close()
   }, [])
 
-  // Precio calculado
-  const pesoActivo = conectada ? gramos : (parseFloat(gramosManual) || 0)
-
+  // Precio por gramo: usa presentación "detalle" (precio al detalle por kg), fallback a "kilo"
   const precioGramo = (bolsa) => {
     if (!bolsa) return 0
+    const pDetalle = bolsa.presentaciones?.find(p => p.id === "detalle")
+    if (pDetalle?.precio > 0) return pDetalle.precio / 1000
     const pKilo = bolsa.presentaciones?.find(p => p.id === "kilo")
     if (pKilo?.precio > 0) return pKilo.precio / 1000
-    // Fallback: buscar cualquier presentación con factor y precio
     const conFactor = bolsa.presentaciones?.find(p => p.factor > 0 && p.precio > 0)
     return conFactor ? conFactor.precio / conFactor.factor : 0
   }
 
-  const pgCentavo  = precioGramo(bolsaSel)
-  const precioTotal = pgCentavo * pesoActivo
+  // Precio de referencia para mostrar en la lista (al detalle o kilo)
+  const precioRefBolsa = (bolsa) => {
+    const pDet = bolsa.presentaciones?.find(p => p.id === "detalle")
+    if (pDet?.precio > 0) return pDet.precio
+    const pKilo = bolsa.presentaciones?.find(p => p.id === "kilo")
+    return pKilo?.precio > 0 ? pKilo.precio : 0
+  }
 
-  const stockDisp = bolsaSel ? (bolsaSel.stock[suc] ?? 0) : 0
+  const pesoActivo  = conectada ? gramos : (parseFloat(gramosManual) || 0)
+  const pgCentavo   = precioGramo(bolsaSel)
+  const precioTotal = pgCentavo * pesoActivo
+  const stockDisp   = bolsaSel ? (bolsaSel.stock[suc] ?? 0) : 0
+
+  // Escáner / buscador: Enter con código exacto selecciona la bolsa automáticamente
+  const handleBusquedaKey = (e) => {
+    if (e.key !== "Enter") return
+    const codigo = busqueda.trim()
+    if (!codigo) return
+    const porCodigo = bolsas.find(b => b.codigoBarras === codigo)
+    if (porCodigo) {
+      setBolsaSel(porCodigo)
+      setBusqueda("")
+      addToast({ kind: "ok", msg: `Bolsa: ${porCodigo.name}` })
+    }
+    // Si no es código exacto, el filtro por nombre ya muestra resultados
+  }
+
+  const bolsasFiltradas = bolsas.filter(b =>
+    !busqueda || b.name.toLowerCase().includes(busqueda.toLowerCase())
+  )
 
   const agregar = () => {
     if (!bolsaSel) return addToast({ kind: "err", msg: "Selecciona una bolsa" })
@@ -78,7 +100,6 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
       qty:       1,
     }
     onAddToVentas(item)
-    // Limpiar peso manual para la siguiente pesada
     setGramosManual("")
   }
 
@@ -105,7 +126,6 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
             </select>
           </p>
         </div>
-        {/* Indicador de conexión */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
           <span style={{
             width: 10, height: 10, borderRadius: "50%",
@@ -121,46 +141,66 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 900, margin: "0 auto" }}>
 
         {/* Panel izquierdo: selector de bolsa */}
-        <div className="card">
+        <div className="card" style={{ display: "flex", flexDirection: "column" }}>
           <div className="card-header"><div style={{ fontWeight: 700 }}>Tipo de bolsa</div></div>
-          <div className="card-body">
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+            {/* Buscador / escáner */}
+            <input
+              ref={busRef}
+              type="text"
+              placeholder="Buscar o escanear código…"
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              onKeyDown={handleBusquedaKey}
+              style={{
+                width: "100%", padding: "7px 10px", borderRadius: 7,
+                border: "1px solid var(--border)", fontSize: 13,
+                background: "var(--bg-sunken)", color: "var(--text)",
+                boxSizing: "border-box",
+              }}
+            />
+
+            {/* Lista scrollable: altura fija, no se extiende con el contenido */}
             {bolsas.length === 0
               ? <div style={{ color: "var(--text-muted)", fontSize: 13 }}>No hay bolsas en catálogo. Agrega productos de tipo "Bolsas" primero.</div>
               : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {bolsas.map(b => {
-                    const pKilo = b.presentaciones?.find(p => p.id === "kilo")
-                    const pg    = precioGramo(b)
-                    const sel   = bolsaSel?.sku === b.sku
-                    return (
-                      <button
-                        key={b.sku}
-                        onClick={() => setBolsaSel(b)}
-                        style={{
-                          display: "flex", justifyContent: "space-between", alignItems: "center",
-                          padding: "10px 14px", borderRadius: 8, border: `1px solid ${sel ? "var(--wine-600)" : "var(--border)"}`,
-                          background: sel ? "rgba(114,24,42,.08)" : "var(--bg-sunken)",
-                          cursor: "pointer", textAlign: "left",
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: 14 }}>{b.name}</div>
-                          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                            Cód. {b.sku} · Stock: {b.stock[suc] ?? 0} g
-                          </div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          {pKilo?.precio > 0
-                            ? <>
-                                <div style={{ fontWeight: 700, color: "var(--wine-700)" }}>{fmtMoney(pKilo.precio)}/kg</div>
-                                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>${pg.toFixed(4)}/g</div>
-                              </>
-                            : <span style={{ fontSize: 11, color: "var(--err)" }}>Sin precio</span>
-                          }
-                        </div>
-                      </button>
-                    )
-                  })}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 420, overflowY: "auto", paddingRight: 2 }}>
+                  {bolsasFiltradas.length === 0
+                    ? <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "8px 0" }}>Sin resultados para "{busqueda}"</div>
+                    : bolsasFiltradas.map(b => {
+                        const precioRef = precioRefBolsa(b)
+                        const pg        = precioGramo(b)
+                        const sel       = bolsaSel?.sku === b.sku
+                        return (
+                          <button
+                            key={b.sku}
+                            onClick={() => { setBolsaSel(b); setBusqueda("") }}
+                            style={{
+                              display: "flex", justifyContent: "space-between", alignItems: "center",
+                              padding: "10px 14px", borderRadius: 8, border: `1px solid ${sel ? "var(--wine-600)" : "var(--border)"}`,
+                              background: sel ? "rgba(114,24,42,.08)" : "var(--bg-sunken)",
+                              cursor: "pointer", textAlign: "left", flexShrink: 0,
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: 14 }}>{b.name}</div>
+                              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                                Cód. {b.sku} · Stock: {b.stock[suc] ?? 0} g
+                              </div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              {precioRef > 0
+                                ? <>
+                                    <div style={{ fontWeight: 700, color: "var(--wine-700)" }}>{fmtMoney(precioRef)}/kg</div>
+                                    <div style={{ fontSize: 10, color: "var(--text-muted)" }}>al detalle · ${pg.toFixed(4)}/g</div>
+                                  </>
+                                : <span style={{ fontSize: 11, color: "var(--err)" }}>Sin precio</span>
+                              }
+                            </div>
+                          </button>
+                        )
+                      })
+                  }
                 </div>
               )
             }
@@ -229,7 +269,7 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
                 )
                 : (
                   <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "12px 0" }}>
-                    {!bolsaSel ? "Selecciona una bolsa" : pesoActivo <= 0 ? "Esperando peso…" : "Esta bolsa no tiene precio al kilo configurado"}
+                    {!bolsaSel ? "Selecciona una bolsa" : pesoActivo <= 0 ? "Esperando peso…" : "Esta bolsa no tiene precio al detalle configurado"}
                   </div>
                 )
               }
