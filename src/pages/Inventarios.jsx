@@ -315,11 +315,17 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                     : `${p.factor} pzs c/u`
                   return <option key={p.id} value="paq">{p.label} ({u})</option>
                 })}
-                {/* Cajas/Bultos: se registran en stockNiveles.caja (unidad de contenedor cerrada) */}
+                {/* Cajas/Bultos: se registran en stockNiveles.caja */}
                 {adjustingP.presentaciones?.filter(p => p.nivel === "caja" || p.nivel === "bulto").map(p => {
-                  const u = adjustingP.unidadBase === "gramo"
-                    ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
-                    : `${p.factor} pzs c/u`
+                  let u
+                  if (p.contieneN && p.contienePres) {
+                    const paqPres = adjustingP.presentaciones.find(x => x.id === p.contienePres)
+                    u = `${p.contieneN} ${paqPres ? paqPres.label : "paq"} c/u`
+                  } else {
+                    u = adjustingP.unidadBase === "gramo"
+                      ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
+                      : `${p.factor} pzs c/u`
+                  }
                   return <option key={p.id} value="caja">{p.label} ({u})</option>
                 })}
               </select>

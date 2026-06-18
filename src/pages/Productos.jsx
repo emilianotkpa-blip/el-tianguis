@@ -82,12 +82,13 @@ export default function ProductosPage({ addToast }) {
     const pres = p.presentaciones?.length
       ? p.presentaciones.map(x => ({
           ...x,
-          // Solo se guardan las activas; al cargarlas de vuelta se deben considerar activas
           activo:        x.activo !== false ? true : false,
           precio:        String(x.precio ?? ""),
           codigoBarras:  x.codigoBarras ?? "",
           mayoreo:       x.mayoreo ?? false,
           precioMayoreo: x.precioMayoreo ? String(x.precioMayoreo) : "",
+          contieneN:     x.contieneN || "",
+          contienePres:  x.contienePres || "",
         }))
       : buildPresFromTipo(p.tipo)
     setPresentaciones(pres)
@@ -184,6 +185,26 @@ export default function ProductosPage({ addToast }) {
     }))
   }
 
+  // ── Caja/bulto: definir en términos de paquetes ───────
+  const setPresContieneN = (idx, n) => {
+    setPresentaciones(prev => prev.map((p, i) => {
+      if (i !== idx) return p
+      const paqPres  = prev.find(x => x.id === p.contienePres)
+      const paqFac   = paqPres?.factor ?? 0
+      const newN     = parseInt(n) || 0
+      return { ...p, contieneN: newN || "", factor: newN > 0 && paqFac > 0 ? newN * paqFac : p.factor }
+    }))
+  }
+  const setPresContienePres = (idx, presId) => {
+    setPresentaciones(prev => prev.map((p, i) => {
+      if (i !== idx) return p
+      const paqPres = prev.find(x => x.id === presId)
+      const paqFac  = paqPres?.factor ?? 0
+      const n       = parseInt(p.contieneN) || 0
+      return { ...p, contienePres: presId, factor: n > 0 && paqFac > 0 ? n * paqFac : p.factor }
+    }))
+  }
+
   const addPresType = (nivel) => {
     const DEFAULTS = {
       pieza:   { id: "pza",  label: "Pieza",   factor: 1  },
@@ -230,6 +251,9 @@ export default function ProductosPage({ addToast }) {
         codigoBarras: p.codigoBarras?.trim() || "",
         mayoreo: p.mayoreo || false,
         precioMayoreo: p.mayoreo ? (parseFloat(p.precioMayoreo) || 0) : 0,
+        ...(p.contieneN && p.contienePres
+          ? { contieneN: parseInt(p.contieneN), contienePres: p.contienePres }
+          : {}),
       }))
       const payload = {
         nombre: form.name, tipo: form.tipo, marca: form.marca,
@@ -268,6 +292,10 @@ export default function ProductosPage({ addToast }) {
   )
 
   const cfg = TIPOS_CONFIG[form.tipo]
+  // Presentaciones que pueden ser referenciadas por caja/bulto como "contiene N × paq"
+  const availablePaqs = presentaciones.filter(p =>
+    p.nivel === "paquete" || (p.nivel === "gramo" && p.factor >= 1000)
+  )
 
   return (
     <div className="page">
@@ -470,20 +498,32 @@ export default function ProductosPage({ addToast }) {
                           placeholder="Nombre"
                         />
 
-                        {/* Factor — siempre número libre */}
+                        {/* Factor: libre para pieza/paquete, derivado para caja/bulto con paqs */}
                         <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                          {pres.factor === null
-                            ? <span style={{ fontSize: 11, fontStyle: "italic", color: "var(--text-muted)" }}>libre</span>
-                            : <input
-                                type="number" min="1"
-                                value={pres.factor}
-                                onChange={e => setPresFactor(idx, e.target.value)}
-                                style={{ width: 54, fontSize: 12, textAlign: "right" }}
-                              />
+                          {(pres.nivel === "caja" || pres.nivel === "bulto") && availablePaqs.length > 0
+                            ? (
+                              <span style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: pres.factor ? "normal" : "italic" }}>
+                                {pres.factor > 0
+                                  ? (cfg?.unidadBase === "gramo"
+                                      ? (pres.factor >= 1000 ? `${pres.factor / 1000} kg` : `${pres.factor} g`)
+                                      : `${pres.factor} pzs`)
+                                  : "define abajo"}
+                              </span>
+                            )
+                            : pres.factor === null
+                              ? <span style={{ fontSize: 11, fontStyle: "italic", color: "var(--text-muted)" }}>libre</span>
+                              : <input
+                                  type="number" min="1"
+                                  value={pres.factor}
+                                  onChange={e => setPresFactor(idx, e.target.value)}
+                                  style={{ width: 54, fontSize: 12, textAlign: "right" }}
+                                />
                           }
-                          <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
-                            {cfg?.unidadBase === "gramo" ? "g" : "pzs"}
-                          </span>
+                          {!((pres.nivel === "caja" || pres.nivel === "bulto") && availablePaqs.length > 0) && (
+                            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                              {cfg?.unidadBase === "gramo" ? "g" : "pzs"}
+                            </span>
+                          )}
                         </div>
 
                         {/* Precio */}
@@ -506,6 +546,38 @@ export default function ProductosPage({ addToast }) {
                           <Icon name="x" size={11} />
                         </button>
                       </div>
+
+                      {/* Fila "Contiene" — solo para caja/bulto cuando hay paquetes definidos */}
+                      {pres.activo && (pres.nivel === "caja" || pres.nivel === "bulto") && availablePaqs.length > 0 && (
+                        <div style={{ paddingLeft: 34, marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Contiene:</span>
+                          <input
+                            type="number" min="1"
+                            value={pres.contieneN || ""}
+                            onChange={e => setPresContieneN(idx, e.target.value)}
+                            placeholder="0"
+                            style={{ width: 52, fontSize: 12, textAlign: "right", padding: "2px 6px" }}
+                          />
+                          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>×</span>
+                          <select
+                            value={pres.contienePres || ""}
+                            onChange={e => setPresContienePres(idx, e.target.value)}
+                            style={{ fontSize: 12, padding: "2px 6px", minWidth: 100 }}
+                          >
+                            <option value="">— tipo de paq —</option>
+                            {availablePaqs.map(pq => (
+                              <option key={pq.id} value={pq.id}>{pq.label}</option>
+                            ))}
+                          </select>
+                          {pres.contieneN && pres.contienePres && pres.factor > 0 && (
+                            <span style={{ fontSize: 10, color: "var(--ok)", fontWeight: 600 }}>
+                              = {cfg?.unidadBase === "gramo"
+                                ? (pres.factor >= 1000 ? `${pres.factor / 1000} kg total` : `${pres.factor} g total`)
+                                : `${pres.factor} pzs total`}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Fila código de barras + mayoreo */}
                       {pres.activo && (
