@@ -105,13 +105,19 @@ export default function ProductosPage({ addToast }) {
   }
   const closeModal = () => { setEditing(null); setShowNew(false) }
 
-  const handleDelete = async (p) => {
-    if (!window.confirm(`¿Eliminar "${p.name}"?\nEsta acción no se puede deshacer.`)) return
+  const [confirmDel, setConfirmDel] = useState(null)
+  const [deleting, setDeleting]     = useState(false)
+
+  const handleDelete = async () => {
+    if (!confirmDel) return
+    setDeleting(true)
     try {
-      await deleteProducto(p._id)
-      addToast({ kind: "ok", msg: `"${p.name}" eliminado` })
-      setProductos(prev => prev.filter(x => x._id !== p._id))
+      await deleteProducto(confirmDel._id)
+      addToast({ kind: "ok", msg: `"${confirmDel.name}" eliminado` })
+      setProductos(prev => prev.filter(x => x._id !== confirmDel._id))
+      setConfirmDel(null)
     } catch (err) { addToast({ kind: "err", msg: err.message }) }
+    finally { setDeleting(false) }
   }
 
   // ── Cargar ────────────────────────────────────────────
@@ -382,7 +388,7 @@ export default function ProductosPage({ addToast }) {
                     </td>
                     <td className="actions-cell">
                       <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)} title="Editar"><Icon name="edit" size={12} /></button>
-                      <button className="btn btn-ghost btn-sm" style={{ color: "var(--err)" }} onClick={() => handleDelete(p)} title="Eliminar producto"><Icon name="trash" size={12} /></button>
+                      <button className="btn btn-ghost btn-sm" style={{ color: "var(--err)" }} onClick={() => setConfirmDel(p)} title="Eliminar producto"><Icon name="trash" size={12} /></button>
                     </td>
                   </tr>
                 )
@@ -391,6 +397,30 @@ export default function ProductosPage({ addToast }) {
           </table>
         </div>
       </div>
+
+      {/* ── Modal confirmación eliminar ──────────────────── */}
+      <Modal
+        open={!!confirmDel}
+        onClose={() => !deleting && setConfirmDel(null)}
+        title="Eliminar producto"
+        footer={
+          <>
+            <button className="btn btn-default" onClick={() => setConfirmDel(null)} disabled={deleting}>Cancelar</button>
+            <button className="btn btn-err" onClick={handleDelete} disabled={deleting} style={{ background: "var(--err)", color: "#fff", border: "none" }}>
+              <Icon name="trash" size={13} /> {deleting ? "Eliminando…" : "Sí, eliminar"}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: "4px 0 8px", fontSize: 14 }}>
+          <p style={{ marginBottom: 8 }}>
+            ¿Estás seguro de eliminar <strong>"{confirmDel?.name}"</strong>?
+          </p>
+          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            Esta acción no se puede deshacer. El producto se eliminará del catálogo permanentemente.
+          </p>
+        </div>
+      </Modal>
 
       {/* ── Modal ────────────────────────────────────────── */}
       <Modal
