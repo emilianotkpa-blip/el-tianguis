@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
-import { getCatalogo, patchProducto, postProducto, getNextCodigo } from "../api"
+import { getCatalogo, patchProducto, postProducto, getNextCodigo, deleteProducto } from "../api"
 import { fmtMoney, fmtNum, exportCSV } from "../utils"
 import { TIPOS_CONFIG, TIPOS_LISTA } from "../data"
 
@@ -104,6 +104,15 @@ export default function ProductosPage({ addToast }) {
     } catch {}
   }
   const closeModal = () => { setEditing(null); setShowNew(false) }
+
+  const handleDelete = async (p) => {
+    if (!window.confirm(`¿Eliminar "${p.name}"?\nEsta acción no se puede deshacer.`)) return
+    try {
+      await deleteProducto(p._id)
+      addToast({ kind: "ok", msg: `"${p.name}" eliminado` })
+      setProductos(prev => prev.filter(x => x._id !== p._id))
+    } catch (err) { addToast({ kind: "err", msg: err.message }) }
+  }
 
   // ── Cargar ────────────────────────────────────────────
   const cargar = async () => {
@@ -372,7 +381,8 @@ export default function ProductosPage({ addToast }) {
                       {status === "ok"  && <span className="badge badge-ok">● Normal</span>}
                     </td>
                     <td className="actions-cell">
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}><Icon name="edit" size={12} /></button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)} title="Editar"><Icon name="edit" size={12} /></button>
+                      <button className="btn btn-ghost btn-sm" style={{ color: "var(--err)" }} onClick={() => handleDelete(p)} title="Eliminar producto"><Icon name="trash" size={12} /></button>
                     </td>
                   </tr>
                 )
@@ -478,7 +488,7 @@ export default function ProductosPage({ addToast }) {
                       {/* Fila principal */}
                       <div style={{
                         display: "grid",
-                        gridTemplateColumns: "28px 1fr 80px 90px auto",
+                        gridTemplateColumns: "28px 1fr 80px 90px 52px auto",
                         alignItems: "center",
                         gap: 6,
                       }}>
@@ -535,6 +545,25 @@ export default function ProductosPage({ addToast }) {
                           style={{ width: "100%", textAlign: "right", fontSize: 13 }}
                           disabled={!pres.activo}
                         />
+
+                        {/* Margen sobre costo */}
+                        {(() => {
+                          const costo  = parseFloat(form.costo)
+                          const precio = parseFloat(pres.precio)
+                          const fac    = pres.factor
+                          if (!costo || !precio || !fac || fac <= 0) return <span />
+                          const precioUnit = precio / fac
+                          const m = ((precioUnit - costo) / costo) * 100
+                          return (
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, textAlign: "center",
+                              whiteSpace: "nowrap",
+                              color: m >= 0 ? "var(--ok)" : "var(--err)",
+                            }}>
+                              {m >= 0 ? "+" : ""}{m.toFixed(0)}%
+                            </span>
+                          )
+                        })()}
 
                         {/* Quitar — siempre disponible */}
                         <button

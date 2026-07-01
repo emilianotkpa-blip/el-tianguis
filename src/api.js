@@ -25,6 +25,7 @@ export const getCatalogo        = ()       => apiFetch("/api/catalogo")
 export const getNextCodigo      = ()       => apiFetch("/api/catalogo/next-codigo")
 export const patchProducto      = (id, b)  => apiFetch(`/api/catalogo/${id}`, patch(b))
 export const postProducto       = (b)      => apiFetch("/api/catalogo", json(b))
+export const deleteProducto     = (id)     => apiFetch(`/api/catalogo/${id}`, { method: "DELETE" })
 
 export const getVentas          = ()       => apiFetch("/api/ventas")
 export const postVenta          = (b)      => apiFetch("/api/ventas", json(b))

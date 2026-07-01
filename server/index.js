@@ -527,6 +527,18 @@ app.post("/api/catalogo", async (req, res) => {
   }
 })
 
+app.delete("/api/catalogo/:id", async (req, res) => {
+  try {
+    const res2 = await fetch(`${NOCO_URL}/api/v2/tables/${T.productos}/records`, {
+      method: "DELETE",
+      headers: { "xc-token": NOCO_TOKEN, "Content-Type": "application/json" },
+      body: JSON.stringify({ Id: parseInt(req.params.id) }),
+    })
+    if (!res2.ok) throw new Error(`NocoDB error ${res2.status}`)
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
 // ── Ventas ─────────────────────────────────────────────
 app.get("/api/ventas", async (req, res) => {
   try {
