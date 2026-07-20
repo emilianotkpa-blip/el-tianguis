@@ -60,7 +60,9 @@ function PresModal({ producto, suc, onSelect, onClose, cart }) {
             const factor = p.factor ?? 1
             let dispReal = 0
             let necesitaAbrirCaja = false
-            if (p.nivel === "paquete") {
+            const esPaqNivel = p.nivel === "paquete" ||
+              (p.nivel === "gramo" && p.factor >= 1000 && p.id !== "detalle")
+            if (esPaqNivel) {
               dispReal = baseStock > 0
                 ? Math.floor(baseStock / factor) - enCarrito
                 : (paqDisp + Math.floor(piezaDisp / factor)) - enCarrito
@@ -130,27 +132,29 @@ function PresModal({ producto, suc, onSelect, onClose, cart }) {
                     onClick={() => onSelect({ ...p, precio: p.precioMayoreo, presLabel: p.label + " (Mayoreo)", esMayoreo: true })}
                     style={{
                       display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: "8px 14px", width: "100%", cursor: "pointer", textAlign: "left",
-                      background: "rgba(240,191,46,.08)", border: 0,
-                      borderTop: "1px dashed var(--border)",
+                      padding: "10px 14px", width: "100%", cursor: "pointer", textAlign: "left",
+                      background: "rgba(240,191,46,.13)", border: 0,
+                      borderTop: "2px solid var(--gold-500)",
                     }}
                     className="hover-row"
                   >
-                    <div style={{ fontSize: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{
                         background: "var(--gold-500)", color: "#000",
-                        borderRadius: 4, padding: "1px 6px", fontSize: 10, fontWeight: 700, marginRight: 6,
+                        borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 800,
                       }}>MAYOREO</span>
-                      {pctDesc > 0 && (
-                        <span style={{ color: "var(--ok)", fontWeight: 600 }}>−{pctDesc}%</span>
-                      )}
-                      {mayoreoPza && (
-                        <span style={{ color: "var(--text-muted)", marginLeft: 6 }}>
-                          ${mayoreoPza.toFixed(2)}/pza
-                        </span>
-                      )}
+                      <div>
+                        {pctDesc > 0 && (
+                          <span style={{ color: "var(--ok)", fontWeight: 700, fontSize: 12 }}>−{pctDesc}% descuento</span>
+                        )}
+                        {mayoreoPza && (
+                          <div style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                            ${mayoreoPza.toFixed(2)}/pza
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 15, color: "var(--gold-700)" }}>
+                    <div style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: 17, color: "var(--gold-700)" }}>
                       {fmtMoney(p.precioMayoreo)}
                     </div>
                   </button>
@@ -651,6 +655,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       return [...c, {
         key, sku: producto.sku, name: producto.name,
         presId, presLabel: label, precio, factor,
+        nivel: nuevaPres?.nivel ?? "pieza",
         facturable: producto.facturable !== false,
         esMayoreo, qty,
       }]
