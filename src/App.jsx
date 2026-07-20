@@ -15,7 +15,7 @@ import TianguisIAPage from "./pages/TianguisIA"
 import ClientesPage from "./pages/Clientes"
 import CajaPage from "./pages/Caja"
 import BásculaPage from "./pages/Balanza"
-import { getStats, getAlertas, getCatalogo, getClientes, getPrinters } from "./api"
+import { getStats, getAlertas, getCatalogo, getClientes, getPrinters, printFolio } from "./api"
 import logoUrl from "./assets/logo.jpeg"
 
 function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone }) {
@@ -546,6 +546,7 @@ function SettingsModal({ onClose, addToast }) {
   const [loading, setLoading]       = useState(true)
   const [selected, setSelected]     = useState(() => localStorage.getItem("elt_printer") ?? "")
   const [saving, setSaving]         = useState(false)
+  const [testing, setTesting]       = useState(false)
 
   useEffect(() => {
     getPrinters()
@@ -633,8 +634,25 @@ function SettingsModal({ onClose, addToast }) {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          {selected && (
+            <button
+              className="btn btn-default"
+              disabled={testing}
+              onClick={async () => {
+                setTesting(true)
+                try {
+                  await printFolio("TEST-CONEXION", selected)
+                  addToast({ kind: "ok", msg: "Impresora respondió correctamente" })
+                } catch (e) {
+                  addToast({ kind: "err", msg: `Sin respuesta: ${e.message}` })
+                } finally { setTesting(false) }
+              }}
+            >
+              <Icon name="print" size={13} /> {testing ? "Probando…" : "Prueba de impresión"}
+            </button>
+          )}
           <button
             className="btn btn-primary"
             onClick={save}

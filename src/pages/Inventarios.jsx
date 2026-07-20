@@ -1,9 +1,189 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
 import { SUCURSALES } from "../data"
 import { getCatalogo, postMovimiento } from "../api"
 import { exportCSV } from "../utils"
+
+// ── Modal Recepción masiva ─────────────────────────────
+function RecepcionModal({ productos, onClose, onDone, addToast }) {
+  const [tab, setTab]           = useState("manual")
+  const [skuInput, setSkuInput] = useState("")
+  const [qtyInput, setQtyInput] = useState("1")
+  const [items, setItems]       = useState([])
+  const [csvText, setCsvText]   = useState("")
+  const [csvItems, setCsvItems] = useState([])
+  const [csvError, setCsvError] = useState("")
+  const [saving, setSaving]     = useState(false)
+  const skuRef = useRef(null)
+
+  const resolveProducto = (raw) =>
+    productos.find(p => p.sku === raw || p.codigoBarras === raw)
+
+  const addItem = () => {
+    const raw = skuInput.trim()
+    const qty = parseInt(qtyInput, 10) || 0
+    if (!raw || qty <= 0) return
+    const prod = resolveProducto(raw)
+    if (!prod) { addToast({ kind: "err", msg: `No encontrado: ${raw}` }); return }
+    setItems(prev => {
+      const ex = prev.find(it => it.sku === prod.sku)
+      if (ex) return prev.map(it => it.sku === prod.sku ? { ...it, qty: it.qty + qty } : it)
+      return [...prev, { sku: prod.sku, name: prod.name, qty }]
+    })
+    setSkuInput("")
+    setQtyInput("1")
+    setTimeout(() => skuRef.current?.focus(), 0)
+  }
+
+  const parseCsv = (text) => {
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean)
+    if (!lines.length) { setCsvItems([]); setCsvError(""); return }
+    const firstParts = lines[0].split(",")
+    const hasHeader  = isNaN(Number(firstParts[1]?.trim()))
+    const data = hasHeader ? lines.slice(1) : lines
+    const result = []; const errs = []
+    data.forEach((line, i) => {
+      const [rawSku, rawQty] = line.split(",")
+      const sku = rawSku?.trim(); const qty = parseInt(rawQty?.trim(), 10)
+      if (!sku || isNaN(qty) || qty <= 0) { errs.push(`Línea ${i + (hasHeader ? 2 : 1)}: inválida`); return }
+      const prod = resolveProducto(sku)
+      result.push({ sku: prod?.sku ?? sku, name: prod?.name ?? `SKU ${sku}`, qty, found: !!prod })
+    })
+    setCsvItems(result); setCsvError(errs.join(" · "))
+  }
+
+  const confirm = async (list) => {
+    const valid = list.filter(it => it.found !== false)
+    if (!valid.length) return
+    setSaving(true)
+    try {
+      const r = await fetch("/api/inventarios/recepcion-masiva", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("elt_token")}` },
+        body: JSON.stringify({ items: valid }),
+      }).then(r => r.json())
+      const ok = (r.results ?? []).filter(x => x.ok).length
+      const err = (r.results ?? []).filter(x => !x.ok).length
+      addToast({ kind: "ok", msg: `${ok} producto(s) sumados a Bodega${err > 0 ? ` · ${err} no encontrados` : ""}` })
+      onDone()
+    } catch (e) { addToast({ kind: "err", msg: e.message }) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Recepción de mercancía → Bodega" large>
+      {/* Pestañas */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>
+        {[["manual","Escaneo / Manual"],["csv","Subir CSV / Factura"]].map(([t, lbl]) => (
+          <button key={t} onClick={() => setTab(t)}
+            className={"btn btn-sm " + (tab === t ? "btn-wine" : "btn-ghost")}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Pestaña Manual ── */}
+      {tab === "manual" && (
+        <>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <input ref={skuRef} value={skuInput} autoFocus
+              onChange={e => setSkuInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && addItem()}
+              placeholder="SKU o código de barras…" style={{ flex: 1 }} />
+            <input type="number" min="1" value={qtyInput}
+              onChange={e => setQtyInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && addItem()}
+              placeholder="Cant." style={{ width: 72, textAlign: "right" }} />
+            <button className="btn btn-wine btn-sm" onClick={addItem}>
+              <Icon name="plus" size={12} /> Agregar
+            </button>
+          </div>
+          {items.length === 0
+            ? <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "24px 0", fontSize: 13 }}>
+                Escanea o escribe el SKU de cada producto y su cantidad, luego Enter
+              </div>
+            : <div style={{ maxHeight: 280, overflowY: "auto", marginBottom: 4 }}>
+                <table className="table">
+                  <thead><tr><th>SKU</th><th>Producto</th><th className="num">Cant.</th><th></th></tr></thead>
+                  <tbody>{items.map(it => (
+                    <tr key={it.sku}>
+                      <td className="tnum" style={{ fontSize: 11 }}>{it.sku}</td>
+                      <td>{it.name}</td>
+                      <td className="num"><strong>{it.qty}</strong></td>
+                      <td><button className="btn btn-ghost btn-sm" style={{ color: "var(--err)" }}
+                        onClick={() => setItems(p => p.filter(x => x.sku !== it.sku))}>
+                        <Icon name="x" size={11} /></button></td>
+                    </tr>))}
+                  </tbody>
+                </table>
+              </div>
+          }
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--border)", paddingTop: 12, marginTop: 8 }}>
+            <button className="btn btn-default" onClick={onClose}>Cancelar</button>
+            <button className="btn btn-wine" disabled={!items.length || saving} onClick={() => confirm(items)}>
+              <Icon name="check" size={13} /> {saving ? "Aplicando…" : `Confirmar ${items.length} producto(s) a Bodega`}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ── Pestaña CSV ── */}
+      {tab === "csv" && (
+        <>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8, lineHeight: 1.6 }}>
+            Formato: <code style={{ background: "var(--bg-sunken)", padding: "1px 5px", borderRadius: 4 }}>SKU,CANTIDAD</code> — una línea por producto. La primera fila puede ser encabezado.
+          </div>
+          <textarea value={csvText}
+            onChange={e => { setCsvText(e.target.value); parseCsv(e.target.value) }}
+            placeholder={"SKU,CANTIDAD\n0001,50\n0002,100"}
+            style={{ width: "100%", minHeight: 100, fontFamily: "var(--font-mono)", fontSize: 12,
+              padding: 8, boxSizing: "border-box", borderRadius: 6,
+              border: "1px solid var(--border)", background: "var(--bg-sunken)", color: "var(--text)", resize: "vertical" }} />
+          <div style={{ marginTop: 6, marginBottom: 8 }}>
+            <label className="btn btn-default btn-sm" style={{ cursor: "pointer" }}>
+              Cargar archivo .csv
+              <input type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={e => {
+                const f = e.target.files?.[0]; if (!f) return
+                const reader = new FileReader()
+                reader.onload = ev => { const t = ev.target.result; setCsvText(t); parseCsv(t) }
+                reader.readAsText(f)
+              }} />
+            </label>
+          </div>
+          {csvError && <div style={{ fontSize: 11, color: "var(--err)", marginBottom: 6 }}>{csvError}</div>}
+          {csvItems.length > 0 && (
+            <div style={{ maxHeight: 200, overflowY: "auto", marginBottom: 4 }}>
+              <table className="table">
+                <thead><tr><th>SKU</th><th>Producto</th><th className="num">Cant.</th><th>Estado</th></tr></thead>
+                <tbody>{csvItems.map((it, i) => (
+                  <tr key={i}>
+                    <td className="tnum" style={{ fontSize: 11 }}>{it.sku}</td>
+                    <td>{it.name}</td>
+                    <td className="num"><strong>{it.qty}</strong></td>
+                    <td>{it.found
+                      ? <span className="badge badge-ok">OK</span>
+                      : <span className="badge badge-err">No encontrado</span>}
+                    </td>
+                  </tr>))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--border)", paddingTop: 12, marginTop: 8 }}>
+            <button className="btn btn-default" onClick={onClose}>Cancelar</button>
+            <button className="btn btn-wine"
+              disabled={!csvItems.filter(it => it.found).length || saving}
+              onClick={() => confirm(csvItems)}>
+              <Icon name="check" size={13} />
+              {saving ? "Aplicando…" : `Confirmar ${csvItems.filter(it => it.found).length} producto(s) a Bodega`}
+            </button>
+          </div>
+        </>
+      )}
+    </Modal>
+  )
+}
 
 export default function InventariosPage({ addToast, sucursalActiva }) {
   const initSuc = sucursalActiva ?? "centro"
@@ -25,6 +205,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
   const [movNivel, setMovNivel] = useState("pieza")
   const [movObs,   setMovObs]   = useState("")
   const [saving,   setSaving]   = useState(false)
+  const [recepcionOpen, setRecepcionOpen] = useState(false)
 
   const cargar = async () => {
     setLoading(true)
@@ -143,7 +324,9 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
           <button className="btn btn-default btn-sm" onClick={() => exportCSV(productos.map((p) => ({ CodigoBarras: p.codigoBarras || p.sku, SKU: p.sku, Nombre: p.name, Tipo: p.tipo, Centro: p.stock.centro, Repostero: p.stock.repostero, Bodega: p.stock.bodega, Total: (p.stock.centro + p.stock.repostero + p.stock.bodega), Minimo: p.min })), "inventario.csv")}>
             <Icon name="download" size={13} /> Exportar CSV
           </button>
-          <button className="btn btn-wine btn-sm"><Icon name="upload" size={13} /> Movimiento de stock</button>
+          <button className="btn btn-wine btn-sm" onClick={() => setRecepcionOpen(true)}>
+            <Icon name="upload" size={13} /> Recepción de mercancía
+          </button>
         </div>
       </div>
 
@@ -395,6 +578,15 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
           </div>
         )}
       </Modal>
+
+      {recepcionOpen && (
+        <RecepcionModal
+          productos={productos}
+          addToast={addToast}
+          onClose={() => setRecepcionOpen(false)}
+          onDone={() => { setRecepcionOpen(false); cargar() }}
+        />
+      )}
     </div>
   )
 }

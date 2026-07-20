@@ -839,14 +839,23 @@ app.post("/api/pedidos-mercancia/:id/avanzar", async (req, res) => {
         hora: new Date().toTimeString().slice(0, 5),
         fecha: new Date().toISOString().slice(0, 10),
       }
-      // Actualizar stock en la sucursal de destino
-      const destStr = (pedido.Destino ?? "").toLowerCase()
-      const campoStock = destStr.includes("repostero") ? "Repostero" : destStr.includes("bodega") ? "Bodega" : "Centro"
+      // Transferir stock bodega → sucursal destino
+      const destStr    = (pedido.Destino ?? "").toLowerCase()
+      const campoDest  = destStr.includes("repostero") ? "Repostero" : destStr.includes("bodega") ? "Bodega" : "Centro"
       for (const item of items) {
         const stockRows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
         if (!stockRows.length) continue
-        const row = stockRows[0]
-        await nocoPatch(T.stock, { Id: row.Id, [campoStock]: (row[campoStock] ?? 0) + item.qty, Total: (row.Total ?? 0) + item.qty })
+        const row       = stockRows[0]
+        const patch     = { Id: row.Id }
+        patch[campoDest] = (row[campoDest] ?? 0) + item.qty
+        if (campoDest !== "Bodega") {
+          patch.Bodega = Math.max(0, (row.Bodega ?? 0) - item.qty)
+        }
+        // Total = suma real de las 3 ubicaciones
+        patch.Total = (campoDest === "Centro"    ? patch[campoDest] : (row.Centro    ?? 0))
+                    + (campoDest === "Repostero" ? patch[campoDest] : (row.Repostero ?? 0))
+                    + (patch.Bodega              ?? (row.Bodega     ?? 0))
+        await nocoPatch(T.stock, patch)
       }
 
     } else if (accion === "iniciar_regreso") {
@@ -890,6 +899,27 @@ app.post("/api/pedidos-mercancia/:id/avanzar", async (req, res) => {
     })
     res.json({ ok: true, estado: nuevoEstado, meta })
   } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ── Recepción masiva de mercancía ─────────────────────
+// POST { items: [{sku, qty}] } → suma qty a Bodega de cada producto
+app.post("/api/inventarios/recepcion-masiva", async (req, res) => {
+  const { items } = req.body
+  if (!Array.isArray(items) || items.length === 0)
+    return res.status(400).json({ error: "items requerido" })
+  const results = []
+  for (const { sku, qty } of items) {
+    const n = parseInt(qty, 10)
+    if (!sku || n <= 0) { results.push({ sku, ok: false, error: "qty inválido" }); continue }
+    const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(sku, 10)})`)
+    if (!rows.length) { results.push({ sku, ok: false, error: "Producto no encontrado" }); continue }
+    const row       = rows[0]
+    const nuevaBodega = (row.Bodega ?? 0) + n
+    const total       = (row.Centro ?? 0) + (row.Repostero ?? 0) + nuevaBodega
+    await nocoPatch(T.stock, { Id: row.Id, Bodega: nuevaBodega, Total: total })
+    results.push({ sku, ok: true, nuevaBodega })
+  }
+  res.json({ ok: true, results })
 })
 
 // ── Clientes ───────────────────────────────────────────
