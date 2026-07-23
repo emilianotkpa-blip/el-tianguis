@@ -416,10 +416,10 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       if (search) {
         const q   = search.toLowerCase()
         const raw = search.trim()
-        const matchName        = p.name.toLowerCase().includes(q)
-        const matchSku         = p.sku.includes(raw)
+        const matchName        = (p.name ?? "").toLowerCase().includes(q)
+        const matchSku         = (p.sku ?? "").includes(raw)
         const matchBarcode     = p.codigoBarras && p.codigoBarras === raw
-        const matchPresBarcode = p.presentaciones?.some(pr => pr.codigoBarras && pr.codigoBarras === raw)
+        const matchPresBarcode = Array.isArray(p.presentaciones) && p.presentaciones.some(pr => pr.codigoBarras && pr.codigoBarras === raw)
         if (!matchName && !matchSku && !matchBarcode && !matchPresBarcode) return false
       }
       return true
@@ -432,7 +432,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
 
     // 1) Barcode exacto de presentación → agrega directo sin modal
     for (const p of productos) {
-      const presMatch = p.presentaciones?.find(pr => pr.codigoBarras && pr.codigoBarras === q)
+      const presMatch = Array.isArray(p.presentaciones) && p.presentaciones.find(pr => pr.codigoBarras && pr.codigoBarras === q)
       if (presMatch) {
         const stock = p.stock[suc] ?? 0
         if (stock <= 0) {

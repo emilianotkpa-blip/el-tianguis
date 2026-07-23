@@ -140,7 +140,14 @@ export default function ProductosPage({ addToast }) {
       if (tipoFiltro !== "all" && p.tipo !== tipoFiltro) return false
       if (factF === "si" && !p.facturable) return false
       if (factF === "no" && p.facturable) return false
-      if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.sku.includes(search)) return false
+      if (search) {
+        const q = search.toLowerCase()
+        const match = (p.name ?? "").toLowerCase().includes(q)
+          || (p.sku ?? "").toLowerCase().includes(q)
+          || (p.tipo ?? "").toLowerCase().includes(q)
+          || (p.codigoBarras ?? "").includes(search)
+        if (!match) return false
+      }
       return true
     }), [productos, search, tipoFiltro, factF])
 

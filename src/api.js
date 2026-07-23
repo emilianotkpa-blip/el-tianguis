@@ -21,7 +21,9 @@ export const postLogin   = (b) => apiFetch("/api/login", json(b))
 export const getStats    = ()  => apiFetch("/api/stats")
 export const getAlertas  = ()  => apiFetch("/api/alertas")
 
-export const getCatalogo        = ()       => apiFetch("/api/catalogo")
+export const getCatalogo        = ()       => apiFetch("/api/catalogo").then(prods =>
+  prods.map(p => ({ ...p, presentaciones: Array.isArray(p.presentaciones) ? p.presentaciones : [] }))
+)
 export const getNextCodigo      = ()       => apiFetch("/api/catalogo/next-codigo")
 export const patchProducto      = (id, b)  => apiFetch(`/api/catalogo/${id}`, patch(b))
 export const postProducto       = (b)      => apiFetch("/api/catalogo", json(b))
