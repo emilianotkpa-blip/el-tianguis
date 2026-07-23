@@ -203,6 +203,13 @@ export const TIPOS_CONFIG = {
       { id: "kilo",    label: "1 kg",       factor: 1000, nivel: "gramo", activo: true, opcional: false, descuento: false },
     ],
   },
+  rollos: {
+    label: "Rollos", prefijo: "Rollo", unidadBase: "pieza",
+    presentaciones: [
+      { id: "rollo", label: "Rollo",  factor: 1,   nivel: "pieza", activo: true,  opcional: false, descuento: false },
+      { id: "caja",  label: "Caja",   factor: 10,  nivel: "caja",  activo: false, opcional: true,  descuento: true,  factorEditable: true },
+    ],
+  },
   otro: {
     label: "Otro", prefijo: "", unidadBase: "pieza", libre: true,
     presentaciones: [

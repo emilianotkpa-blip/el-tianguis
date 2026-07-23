@@ -362,7 +362,7 @@ export default function ProductosPage({ addToast }) {
             <thead>
               <tr>
                 <th>Cód.</th><th>Producto</th><th>Tipo</th><th>Presentaciones activas</th>
-                <th className="num">Costo</th><th className="num">Stock</th><th>Factura</th><th>Estado</th><th></th>
+                <th className="num">Precio ref.</th><th className="num">Stock</th><th>Factura</th><th>Estado</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -372,13 +372,16 @@ export default function ProductosPage({ addToast }) {
                 const presLabels = p.presentaciones?.length
                   ? p.presentaciones.map(x => x.label).join(" · ")
                   : (p.unidad || "—")
+                const precioRef = p.presentaciones?.find(x => x.nivel === "pieza")?.precio
+                  ?? p.presentaciones?.find(x => x.activo !== false && x.precio > 0)?.precio
+                  ?? p.precio ?? 0
                 return (
-                  <tr key={p._id}>
+                  <tr key={p._id} onClick={() => openEdit(p)} style={{ cursor: "pointer" }}>
                     <td className="tnum" style={{ fontSize: 11.5 }}>{p.sku}</td>
                     <td><strong>{p.name}</strong></td>
                     <td><span className="badge badge-neutral">{p.tipo || "—"}</span></td>
                     <td style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{presLabels}</td>
-                    <td className="num">{inlineCell(p, "costo", fmtMoney)}</td>
+                    <td className="num">{precioRef > 0 ? fmtMoney(precioRef) : <span className="muted">—</span>}</td>
                     <td className="num">{fmtNum(total)}</td>
                     <td>{p.facturable ? <span className="badge badge-ok">Sí</span> : <span className="badge badge-neutral">No</span>}</td>
                     <td>
@@ -386,7 +389,7 @@ export default function ProductosPage({ addToast }) {
                       {status === "low" && <span className="badge badge-warn">● Bajo</span>}
                       {status === "ok"  && <span className="badge badge-ok">● Normal</span>}
                     </td>
-                    <td className="actions-cell">
+                    <td className="actions-cell" onClick={e => e.stopPropagation()}>
                       <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)} title="Editar"><Icon name="edit" size={12} /></button>
                       <button className="btn btn-ghost btn-sm" style={{ color: "var(--err)" }} onClick={() => setConfirmDel(p)} title="Eliminar producto"><Icon name="trash" size={12} /></button>
                     </td>
