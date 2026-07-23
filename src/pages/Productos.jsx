@@ -79,7 +79,7 @@ export default function ProductosPage({ addToast }) {
       proveedor: p.proveedor || "", invMaximo: p.invMaximo || "",
       codigoBarras: p.codigoBarras || "",
     })
-    const pres = p.presentaciones?.length
+    const pres = Array.isArray(p.presentaciones) && p.presentaciones.length
       ? p.presentaciones.map(x => ({
           ...x,
           activo:        x.activo !== false ? true : false,
@@ -376,11 +376,12 @@ export default function ProductosPage({ addToast }) {
               {paged.map((p) => {
                 const total  = (p.stock.centro ?? 0) + (p.stock.repostero ?? 0) + (p.stock.bodega ?? 0)
                 const status = total <= 0 ? "out" : total < p.min ? "low" : "ok"
-                const presLabels = p.presentaciones?.length
-                  ? p.presentaciones.map(x => x.label).join(" · ")
+                const presArr    = Array.isArray(p.presentaciones) ? p.presentaciones : []
+                const presLabels = presArr.length
+                  ? presArr.map(x => x.label).join(" · ")
                   : (p.unidad || "—")
-                const precioRef = p.presentaciones?.find(x => x.nivel === "pieza")?.precio
-                  ?? p.presentaciones?.find(x => x.activo !== false && x.precio > 0)?.precio
+                const precioRef  = presArr.find(x => x.nivel === "pieza")?.precio
+                  ?? presArr.find(x => x.activo !== false && x.precio > 0)?.precio
                   ?? p.precio ?? 0
                 return (
                   <tr key={p._id} onClick={() => openEdit(p)} style={{ cursor: "pointer" }}>
