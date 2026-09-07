@@ -210,6 +210,18 @@ export const TIPOS_CONFIG = {
       { id: "caja",  label: "Caja",   factor: 10,  nivel: "caja",  activo: false, opcional: true,  descuento: true,  factorEditable: true },
     ],
   },
+  rollos_ad: {
+    label: "Rollos alta densidad", prefijo: "Rollo AD", unidadBase: "gramo",
+    presentaciones: [
+      { id: "kilo", label: "1 kg", factor: 1000, nivel: "paquete", activo: true, opcional: false, descuento: false },
+    ],
+  },
+  rollos_bd: {
+    label: "Rollos baja densidad", prefijo: "Rollo BD", unidadBase: "gramo",
+    presentaciones: [
+      { id: "kilo", label: "1 kg", factor: 1000, nivel: "paquete", activo: true, opcional: false, descuento: false },
+    ],
+  },
   otro: {
     label: "Otro", prefijo: "", unidadBase: "pieza", libre: true,
     presentaciones: [
