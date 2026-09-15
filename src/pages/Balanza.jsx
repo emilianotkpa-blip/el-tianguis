@@ -18,7 +18,9 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
 
   useEffect(() => {
     getCatalogo()
-      .then(cat => setBolsas(cat.filter(p => p.tipo === "bolsas")))
+      // Todo lo que se lleva por peso, no solo las bolsas: los rollos de alta
+      // y baja densidad también se venden pesados
+      .then(cat => setBolsas(cat.filter(p => p.unidadBase === "gramo")))
       .catch(() => {})
   }, [])
 
@@ -72,7 +74,7 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
     if (porCodigo) {
       setBolsaSel(porCodigo)
       setBusqueda("")
-      addToast({ kind: "ok", msg: `Bolsa: ${porCodigo.name}` })
+      addToast({ kind: "ok", msg: porCodigo.name })
     }
     // Si no es código exacto, el filtro por nombre ya muestra resultados
   }
@@ -82,9 +84,9 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
   )
 
   const agregar = () => {
-    if (!bolsaSel) return addToast({ kind: "err", msg: "Selecciona una bolsa" })
+    if (!bolsaSel) return addToast({ kind: "err", msg: "Selecciona un producto" })
     if (pesoActivo <= 0) return addToast({ kind: "err", msg: "El peso debe ser mayor a 0" })
-    if (precioTotal <= 0) return addToast({ kind: "err", msg: "Esta bolsa no tiene precio al detalle configurado" })
+    if (precioTotal <= 0) return addToast({ kind: "err", msg: "Este producto no tiene precio por peso configurado" })
 
     const ts   = Date.now()
     const item = {
@@ -109,7 +111,7 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
       <div className="page-header">
         <div>
           <h1 className="page-title">
-            Báscula — Bolsas al detalle
+            Báscula — Venta por peso
             {sharedCartCount > 0 && (
               <span style={{
                 marginLeft: 12, fontSize: 12, fontWeight: 600,
@@ -147,7 +149,7 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
 
         {/* Panel izquierdo: selector de bolsa */}
         <div className="card" style={{ display: "flex", flexDirection: "column" }}>
-          <div className="card-header"><div style={{ fontWeight: 700 }}>Tipo de bolsa</div></div>
+          <div className="card-header"><div style={{ fontWeight: 700 }}>Producto</div></div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
             {/* Buscador / escáner */}
             <input
@@ -167,7 +169,7 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
 
             {/* Lista scrollable: altura fija, no se extiende con el contenido */}
             {bolsas.length === 0
-              ? <div style={{ color: "var(--text-muted)", fontSize: 13 }}>No hay bolsas en catálogo. Agrega productos de tipo "Bolsas" primero.</div>
+              ? <div style={{ color: "var(--text-muted)", fontSize: 13 }}>No hay productos que se vendan por peso. Da de alta bolsas o rollos primero.</div>
               : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 420, overflowY: "auto", paddingRight: 2 }}>
                   {bolsasFiltradas.length === 0
@@ -272,7 +274,7 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
                 )
                 : (
                   <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "12px 0" }}>
-                    {!bolsaSel ? "Selecciona una bolsa" : pesoActivo <= 0 ? "Esperando peso…" : "Esta bolsa no tiene precio al detalle configurado"}
+                    {!bolsaSel ? "Selecciona un producto" : pesoActivo <= 0 ? "Esperando peso…" : "Este producto no tiene precio por peso configurado"}
                   </div>
                 )
               }

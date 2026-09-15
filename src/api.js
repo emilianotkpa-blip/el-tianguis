@@ -1,3 +1,5 @@
+import { TIPOS_CONFIG } from "./data"
+
 async function apiFetch(path, options = {}) {
   const token = sessionStorage.getItem("elt_token")
   const headers = { ...(options.headers ?? {}) }
@@ -21,8 +23,16 @@ export const postLogin   = (b) => apiFetch("/api/login", json(b))
 export const getStats    = ()  => apiFetch("/api/stats")
 export const getAlertas  = ()  => apiFetch("/api/alertas")
 
+// unidadBase no viaja desde el servidor (vive en el catálogo de tipos, que es
+// del cliente). Se resuelve aquí, una sola vez, para que ninguna pantalla
+// tenga que adivinarla: sin esto, Inventarios trataba las bolsas y los rollos
+// como piezas y mostraba "12,400 pzs" donde van 12.4 kg.
 export const getCatalogo        = ()       => apiFetch("/api/catalogo").then(prods =>
-  prods.map(p => ({ ...p, presentaciones: Array.isArray(p.presentaciones) ? p.presentaciones : [] }))
+  prods.map(p => ({
+    ...p,
+    presentaciones: Array.isArray(p.presentaciones) ? p.presentaciones : [],
+    unidadBase: TIPOS_CONFIG[p.tipo]?.unidadBase ?? "pieza",
+  }))
 )
 export const getNextCodigo      = ()       => apiFetch("/api/catalogo/next-codigo")
 export const patchProducto      = (id, b)  => apiFetch(`/api/catalogo/${id}`, patch(b))
