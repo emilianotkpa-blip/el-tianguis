@@ -21,6 +21,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
   const [presProducto, setPres]   = useState(null)
   const [pagos, setPagos]         = useState([{ metodo: "Efectivo", monto: "" }])
   const [folioTerminal, setFolioTerminal] = useState("")
+  const [conIva, setConIva]       = useState(false)   // apagado por defecto
   const [cobrando, setCobrando]   = useState(false)
   const [cobrada, setCobrada]     = useState(null)   // { folio, pagos, totals, cambio, items }
   const searchRef = useRef(null)
@@ -39,7 +40,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
   const subtotalFact   = cart.filter(it => it.facturable).reduce((s, it) => s + it.precio * it.qty, 0)
   const subtotalNoFact = cart.filter(it => !it.facturable).reduce((s, it) => s + it.precio * it.qty, 0)
   const subtotal = subtotalFact + subtotalNoFact
-  const iva      = subtotalFact * 0.16
+  const iva      = conIva ? subtotalFact * 0.16 : 0
   const total    = subtotal + iva
   // El cobro se puede repartir entre varias formas de pago.
   // Las comparaciones van en centavos enteros: con decimales, 50 + 40.48
@@ -131,6 +132,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
         presId: it.presId, presLabel: it.presLabel,
         precio: it.precio, factor: it.factor, nivel: it.nivel,
         facturable: it.facturable, qty: it.qty,
+        iva: conIva && it.facturable !== false,
       }))
       // Sin montos capturados se cobra todo con la primera forma elegida;
       // con reparto, cada línea va como la capturó el cajero
@@ -171,7 +173,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
 
   const nuevaVenta = () => {
     setCobrada(null); setCart([]); setSearch("")
-    setPagos([{ metodo: "Efectivo", monto: "" }]); setFolioTerminal("")
+    setPagos([{ metodo: "Efectivo", monto: "" }]); setFolioTerminal(""); setConIva(false)
   }
 
   const imprimir = () => {
@@ -311,7 +313,11 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
 
             <div className="vr-resumen">
               <div className="vr-row"><span>Subtotal</span><span className="num">{fmtMoney(subtotal)}</span></div>
-              <div className="vr-row"><span>IVA (16%) fact.</span><span className="num">{fmtMoney(iva)}</span></div>
+              <label className="iva-toggle">
+                <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} />
+                <span>Agregar IVA (16%)</span>
+                <span className={"num" + (conIva ? " on" : "")}>{fmtMoney(iva)}</span>
+              </label>
               <div className="vr-row total"><span>Total</span><span key={total} className="num flash">{fmtMoney(total)}</span></div>
 
               {/* Formas de pago: se puede repartir entre varias */}

@@ -1886,6 +1886,27 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   .vr-productos { display: none; }   /* en pantalla chica manda el escáner */
 }
 
+/* Casilla de IVA en los totales. Va apagada por defecto: antes el 16% se
+   sumaba solo sobre precios que ya lo traían y la venta salía inflada. */
+.iva-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  margin: 4px -8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.iva-toggle:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.iva-toggle input { accent-color: var(--wine-700); width: 16px; height: 16px; cursor: pointer; }
+.iva-toggle span:nth-of-type(1) { flex: 1; }
+.iva-toggle .num { font-family: var(--font-mono); }
+.iva-toggle .num.on { color: var(--wine-700); font-weight: 700; }
+[data-theme="dark"] .iva-toggle .num.on { color: var(--gold-500); }
+
 /* Pista de atajo de teclado dentro de un botón */
 .kbd {
   font-family: var(--font-mono);

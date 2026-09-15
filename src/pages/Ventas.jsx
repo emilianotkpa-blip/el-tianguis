@@ -19,6 +19,8 @@ function FolioBarcode({ value }) {
 
 export default function VentasPage({ addToast, user, sucursalActiva, preloadedCatalogo, preloadedClientes, sharedCart, clearSharedCart, onIrACaja }) {
   const [step, setStep]           = useState(0)
+  // El IVA ya no se suma solo: se decide en cada venta y arranca apagado
+  const [conIva, setConIva]       = useState(false)
   const [folioImpreso, setFolioImpreso] = useState(false)
   const [borradorId, setBorradorId]     = useState(null)
   const creatingRef = useRef(false) // evita crear borrador duplicado
@@ -366,7 +368,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   const subtotalFact   = cart.filter(it => it.facturable).reduce((s, it) => s + it.precio * it.qty, 0)
   const subtotalNoFact = cart.filter(it => !it.facturable).reduce((s, it) => s + it.precio * it.qty, 0)
   const subtotal = subtotalFact + subtotalNoFact
-  const iva      = subtotalFact * 0.16
+  const iva      = conIva ? subtotalFact * 0.16 : 0
   const total    = subtotal + iva
 
   const handleCambiarPres = (nuevaPres) => {
@@ -404,6 +406,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
     setCart([]); setStep(0); setFolio(null); setNotaEnviada(null)
     setFolioImpreso(false)
     setCliente("Mostrador")
+    setConIva(false)
     setSearch(""); setCat("all")
     getCatalogo().then(setProductos).catch(() => {})
   }, [borradorId, user?.email])
@@ -414,6 +417,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
     precio: it.precio, factor: it.factor,
     nivel: it.nivel ?? "pieza",
     facturable: it.facturable, qty: it.qty,
+    iva: conIva && it.facturable !== false,
   }))
 
   const enviarACaja = async () => {
@@ -783,7 +787,11 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
               {subtotalNoFact > 0 && <div className="row"><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Sin factura</span><span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtMoney(subtotalNoFact)}</span></div>}
               {subtotalFact > 0   && <div className="row"><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Facturable</span><span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtMoney(subtotalFact)}</span></div>}
               <div className="row"><span>Subtotal</span><span className="num">{fmtMoney(subtotal)}</span></div>
-              <div className="row"><span>IVA (16%) fact.</span><span className="num">{fmtMoney(iva)}</span></div>
+              <label className="iva-toggle">
+                <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} />
+                <span>Agregar IVA (16%)</span>
+                <span className={"num" + (conIva ? " on" : "")}>{fmtMoney(iva)}</span>
+              </label>
               <div className="row total"><span>Total</span><span key={total} className="num flash">{fmtMoney(total)}</span></div>
             </div>
             {folio && (

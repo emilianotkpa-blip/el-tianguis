@@ -227,6 +227,9 @@ export default function UtilidadesPage() {
   // Facturado vs Sin factura
   const splits = ventasFiltradas.map(v => ventaSplit(v))
   const totalFact   = splits.reduce((s, x) => s + x.fact,   0)
+  // IVA realmente cobrado: desde que se decide al vender, no todas las
+  // ventas facturables lo llevan, así que suponer un 16% inventaría impuesto
+  const ivaCobrado  = ventasFiltradas.reduce((s, v) => s + (v.IVA ?? 0), 0)
   const totalNoFact = splits.reduce((s, x) => s + x.noFact, 0)
   const ticketsFact   = ventasFiltradas.filter((_, i) => splits[i].fact   > 0).length
   const ticketsNoFact = ventasFiltradas.filter((_, i) => splits[i].noFact > 0).length
@@ -246,8 +249,8 @@ export default function UtilidadesPage() {
             Codigo: it.sku, Producto: it.nombre ?? it.name,
             Cantidad: it.qty, PrecioUnitario: it.precio,
             Subtotal: subtItem,
-            IVA16: +(subtItem * 0.16).toFixed(2),
-            Total: +(subtItem * 1.16).toFixed(2),
+            IVA16: +(it.iva === false ? 0 : subtItem * 0.16).toFixed(2),
+            Total: +(it.iva === false ? subtItem : subtItem * 1.16).toFixed(2),
           })
         })
       } catch {}
@@ -342,13 +345,13 @@ export default function UtilidadesPage() {
               <div className="kpi" style={{ border: "none", borderRight: "1px solid var(--border)", borderRadius: 0 }}>
                 <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
                 <div className="kpi-label">IVA (16%)</div>
-                <div className="kpi-value" style={{ fontSize: 20 }}>{loading ? "…" : fmtMoney(totalFact * 0.16)}</div>
+                <div className="kpi-value" style={{ fontSize: 20 }}>{loading ? "…" : fmtMoney(ivaCobrado)}</div>
                 <div className="kpi-delta"><span className="label">Por trasladar</span></div>
               </div>
               <div className="kpi" style={{ border: "none", borderRadius: 0 }}>
                 <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
                 <div className="kpi-label">Total c/IVA</div>
-                <div className="kpi-value" style={{ fontSize: 20 }}>{loading ? "…" : fmtMoney(totalFact * 1.16)}</div>
+                <div className="kpi-value" style={{ fontSize: 20 }}>{loading ? "…" : fmtMoney(totalFact + ivaCobrado)}</div>
                 <div className="kpi-delta"><span className="label">{ticketsFact} tickets</span></div>
               </div>
             </div>

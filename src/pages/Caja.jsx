@@ -407,7 +407,14 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
     const subtotalFact   = items.filter(it => it.facturable !== false).reduce((s, it) => s + (it.precio ?? 0) * (it.qty ?? 1), 0)
     const subtotalNoFact = items.filter(it => it.facturable === false).reduce((s, it) => s + (it.precio ?? 0) * (it.qty ?? 1), 0)
     const subtotal = subtotalFact + subtotalNoFact
-    const iva      = subtotalFact * 0.16
+    // El IVA se decide AL VENDER y viaja marcado en cada línea. Recalcularlo
+    // aquí volvería a sumar el 16% a una nota que se cobró sin él.
+    // Las notas anteriores a este cambio no traen el campo: para esas se
+    // conserva el comportamiento con el que se calcularon.
+    const baseIva = items
+      .filter(it => it.facturable !== false && it.iva !== false)
+      .reduce((s, it) => s + (it.precio ?? 0) * (it.qty ?? 1), 0)
+    const iva = baseIva * 0.16
     return { subtotalFact, subtotalNoFact, subtotal, iva, total: subtotal + iva }
   }
 
