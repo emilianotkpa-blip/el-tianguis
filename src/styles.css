@@ -305,6 +305,7 @@ input:disabled, select:disabled, textarea:disabled {
   line-height: 1.6;
   max-width: 460px;
 }
+/* Las cifras del hero entran una tras otra al abrir la app */
 .login-hero-stats {
   z-index: 1;
   display: grid;
@@ -313,6 +314,11 @@ input:disabled, select:disabled, textarea:disabled {
   border-top: 1px solid rgba(255,255,255,.18);
   padding-top: 24px;
 }
+.login-hero-stats > div { animation: riseIn var(--dur-slow) var(--ease-out) backwards; }
+.login-hero-stats > div:nth-child(1) { animation-delay: 120ms; }
+.login-hero-stats > div:nth-child(2) { animation-delay: 200ms; }
+.login-hero-stats > div:nth-child(3) { animation-delay: 280ms; }
+.login-hero-content { animation: riseIn var(--dur-slow) var(--ease-out) 60ms backwards; }
 .login-hero-stats .stat-num {
   font-size: 26px;
   font-weight: 600;
@@ -327,12 +333,28 @@ input:disabled, select:disabled, textarea:disabled {
 }
 
 .login-panel {
+  position: relative;
   background: var(--bg-elev);
   padding: 56px 48px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   border-left: 1px solid var(--border);
+  box-shadow: -12px 0 40px rgba(20, 24, 32, .10);
+  animation: loginPanelIn var(--dur-slow) var(--ease-out);
+}
+/* Filo de luz vertical donde el panel se encuentra con el hero */
+.login-panel::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--glass-highlight) 25%, var(--glass-highlight) 75%, transparent);
+  pointer-events: none;
+}
+@keyframes loginPanelIn {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: none; }
 }
 .login-panel h2 {
   font-size: 22px;
@@ -1507,6 +1529,56 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 .cart-actions { padding: 10px 14px; display: flex; gap: 8px; }
 .cart-actions .btn { flex: 1; justify-content: center; }
 
+/* ============ MICRO-INTERACCIONES ============ */
+/* El icono de recargar gira mientras se presiona: confirma que el clic
+   entró aunque la respuesta tarde */
+.btn:active .icon[data-icon="refresh"],
+.btn:active svg { transition: transform var(--dur) var(--ease); }
+.btn:active .icon { transform: rotate(180deg); }
+.btn-default:active .icon { transform: rotate(180deg); }
+
+/* El badge del sidebar late cuando entra trabajo nuevo */
+.sidebar-item .badge { transition: transform var(--dur) var(--ease-out); }
+.sidebar-item .badge.alert {
+  animation: badgePulse 2.4s var(--ease) infinite;
+}
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(214, 58, 58, .5); }
+  50%      { box-shadow: 0 0 0 4px rgba(214, 58, 58, 0); }
+}
+
+/* Los estados de fila responden al cursor con un desplazamiento mínimo */
+.table tbody tr { transition: background var(--dur-fast) var(--ease); }
+
+/* ============ GRÁFICAS ============ */
+/* La línea se dibuja sola. pathLength="1" normaliza el largo del trazo,
+   así el dasharray funciona sin medir el path con JS. */
+.chart-line-anim {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: lineDraw 1.1s var(--ease-out) forwards;
+}
+@keyframes lineDraw { to { stroke-dashoffset: 0; } }
+.chart-area-anim { animation: fadeIn var(--dur-slow) var(--ease) .5s backwards; }
+
+/* Las barras crecen desde su base */
+.chart-bar-anim {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: barRise var(--dur-slow) var(--ease-out) backwards;
+}
+@keyframes barRise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+/* La dona entra barriendo desde arriba */
+.donut-svg {
+  transform-origin: center;
+  animation: donutIn .55s var(--ease-out);
+}
+@keyframes donutIn {
+  from { opacity: 0; transform: rotate(-80deg) scale(.92); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* ============ ESQUELETOS DE CARGA ============ */
 /* Latido de opacidad en vez de un degradado que viaja: cuesta mucho menos
    de pintar y en una tablet se nota la diferencia. */
@@ -2094,8 +2166,23 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   border-radius: 14px;
   font-size: 13.5px;
   line-height: 1.55;
-  white-space: pre-wrap;
   word-break: break-word;
+  box-shadow: var(--shadow-sm);
+  animation: riseIn var(--dur) var(--ease-out) backwards;
+}
+/* Formato del markdown ya interpretado */
+.ia-p { margin: 0; }
+.ia-p + .ia-p { margin-top: 5px; }
+.ia-gap { height: 7px; }
+.ia-list { margin: 5px 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.ia-list li { padding-left: 2px; }
+.ia-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  border: 1px solid var(--glass-edge);
+  border-radius: 4px;
+  padding: 1px 5px;
 }
 .ia-msg.assistant .ia-bubble {
   background: var(--bg-sunken);

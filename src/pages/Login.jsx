@@ -49,7 +49,7 @@ export default function Login({ onLogin }) {
         </div>
 
         <div className="login-hero-content">
-          <div className="eyebrow">Sistema Administrativo · v4.2</div>
+          <div className="eyebrow">Sistema Administrativo · v{__APP_VERSION__}</div>
           <h1>Tu negocio bajo control, en tiempo real.</h1>
           <p>Gestiona ventas, inventarios, pedidos y utilidades de tus tres sucursales desde un solo lugar. Diseñado para mayoristas de bolsas, vasos y desechables.</p>
         </div>

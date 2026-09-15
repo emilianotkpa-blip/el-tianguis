@@ -61,8 +61,8 @@ function LineChart({ data, height = 180, color = "var(--wine-700)" }) {
           <text x={padL - 6} y={t.y + 3} className="chart-axis-label" textAnchor="end">{fmtMoneyShort(t.v)}</text>
         </g>
       ))}
-      <path d={area} fill="url(#grad-area)" />
-      <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      <path d={area} fill="url(#grad-area)" className="chart-area-anim" />
+      <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" pathLength="1" className="chart-line-anim" />
       {hover !== null && points[hover] && (
         <g>
           <line x1={points[hover][0]} x2={points[hover][0]} y1={padT} y2={padT + innerH} stroke="var(--text-muted)" strokeDasharray="3 3" />
@@ -105,10 +105,10 @@ function GroupedBars({ data, height = 220 }) {
         const hC = (d.costos / max) * innerH
         return (
           <g key={i}>
-            <rect x={x} y={padT + innerH - hI} width={barW} height={hI} fill="var(--wine-700)" rx="2">
+            <rect x={x} y={padT + innerH - hI} width={barW} height={hI} fill="var(--wine-700)" rx="2" className="chart-bar-anim" style={{ animationDelay: `${i * 70}ms` }}>
               <title>{d.mes} · Ingresos {fmtMoney(d.ingresos)}</title>
             </rect>
-            <rect x={x + barW + 4} y={padT + innerH - hC} width={barW} height={hC} fill="var(--gray-400)" rx="2">
+            <rect x={x + barW + 4} y={padT + innerH - hC} width={barW} height={hC} fill="var(--gray-400)" rx="2" className="chart-bar-anim" style={{ animationDelay: `${i * 70 + 35}ms` }}>
               <title>{d.mes} · Costos {fmtMoney(d.costos)}</title>
             </rect>
             <text x={x + barW + 2} y={h - 12} className="chart-axis-label" textAnchor="middle">{d.mes}</text>

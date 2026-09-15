@@ -3,6 +3,50 @@ import Icon from "../components/Icon"
 
 const WELCOME = "¡Hola! Soy el asistente de **El Tianguis**. Puedo ayudarte con inventario, ventas, pedidos y cualquier duda sobre la operación del negocio. ¿En qué te puedo ayudar?"
 
+// El modelo responde en markdown. Se interpreta a JSX (nunca a HTML crudo:
+// el texto viene de fuera, así que no se inyecta al DOM sin pasar por React).
+function renderInline(texto, prefijo = "") {
+  const partes = []
+  const re = /(\*\*[^*]+\*\*|`[^`]+`)/g
+  let ultimo = 0, m, i = 0
+  while ((m = re.exec(texto)) !== null) {
+    if (m.index > ultimo) partes.push(texto.slice(ultimo, m.index))
+    const t = m[0]
+    partes.push(t.startsWith("**")
+      ? <strong key={prefijo + i}>{t.slice(2, -2)}</strong>
+      : <code key={prefijo + i} className="ia-code">{t.slice(1, -1)}</code>)
+    ultimo = m.index + t.length
+    i++
+  }
+  if (ultimo < texto.length) partes.push(texto.slice(ultimo))
+  return partes
+}
+
+function renderMarkdown(contenido) {
+  const bloques = []
+  let lista = null
+  contenido.split("\n").forEach((linea) => {
+    const item = linea.match(/^\s*(?:[-•*]|\d+\.)\s+(.*)$/)
+    if (item) {
+      if (!lista) { lista = []; bloques.push({ tipo: "ul", items: lista }) }
+      lista.push(item[1])
+      return
+    }
+    lista = null
+    if (linea.trim() === "") bloques.push({ tipo: "gap" })
+    else bloques.push({ tipo: "p", texto: linea })
+  })
+  return bloques.map((b, i) => {
+    if (b.tipo === "ul") return (
+      <ul key={i} className="ia-list">
+        {b.items.map((it, j) => <li key={j}>{renderInline(it, `${i}-${j}-`)}</li>)}
+      </ul>
+    )
+    if (b.tipo === "gap") return <div key={i} className="ia-gap" />
+    return <p key={i} className="ia-p">{renderInline(b.texto, `${i}-`)}</p>
+  })
+}
+
 function Message({ msg, isStreaming }) {
   return (
     <div className={`ia-msg ${msg.role}`}>
@@ -13,9 +57,7 @@ function Message({ msg, isStreaming }) {
       )}
       <div className="ia-bubble">
         {msg.content
-          ? msg.content.split("\n").map((line, i) => (
-              <span key={i}>{line}{i < msg.content.split("\n").length - 1 && <br />}</span>
-            ))
+          ? renderMarkdown(msg.content)
           : isStreaming
             ? <span className="ia-typing"><span /><span /><span /></span>
             : null}
