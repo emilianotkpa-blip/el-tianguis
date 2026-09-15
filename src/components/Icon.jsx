@@ -7,6 +7,7 @@ const PATHS = {
   users: <><circle cx="6" cy="6" r="2.5"/><path d="M2 14c0-2.5 2-4 4-4s4 1.5 4 4"/><circle cx="12.5" cy="7" r="2"/><path d="M11 14c0-2 1.5-3.5 3-3.5s2 1 2 2"/></>,
   warehouse: <><path d="M2 7l7-4 7 4v8H2V7z"/><path d="M5 15v-5h8v5"/><path d="M5 12h8"/></>,
   chart: <><path d="M2 14h14"/><rect x="3" y="9" width="2.5" height="5"/><rect x="7" y="6" width="2.5" height="8"/><rect x="11" y="3" width="2.5" height="11"/></>,
+  menu: <><path d="M3 5h12M3 9h12M3 13h12"/></>,
   barcode: <><path d="M3 4v10M6 4v10M9 4v10M12 4v7M15 4v10"/></>,
   search: <><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></>,
   bell: <><path d="M4 11V8c0-2.5 2-4.5 5-4.5s5 2 5 4.5v3l1.5 2H2.5L4 11z"/><path d="M7 14h4"/></>,

@@ -203,7 +203,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
   const [page, setPage]         = useState(() => sessionStorage.getItem("elt_page") || "ventas")
   const [sharedCart, setSharedCart] = useState([])
 
-  const navTo = (p) => { setPage(p); sessionStorage.setItem("elt_page", p) }
+  const navTo = (p) => { setPage(p); sessionStorage.setItem("elt_page", p); setMenuAbierto(false) }
 
   const addToSharedCart = useCallback((item) => {
     setSharedCart(c => {
@@ -220,6 +220,8 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
   const mainRef = useRef(null)
   const [indicator, setIndicator] = useState({ top: 0, height: 0, on: false })
   const [headerScrolled, setHeaderScrolled] = useState(false)
+  // En tablet y móvil la barra lateral se esconde y entra deslizando
+  const [menuAbierto, setMenuAbierto] = useState(false)
 
   useLayoutEffect(() => {
     const el = navRef.current?.querySelector(".sidebar-item.active")
@@ -313,7 +315,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
   }
 
   return (
-    <div className="app">
+    <div className={"app" + (menuAbierto ? " menu-abierto" : "")}>
       <aside className="app-sidebar">
         <div className="sidebar-brand">
           <img src={logoUrl} alt="El Tianguis" className="sidebar-logo-img" />
@@ -387,6 +389,14 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
       </aside>
 
       <header className={"app-header" + (headerScrolled ? " scrolled" : "")}>
+        <button
+          className="menu-btn"
+          onClick={() => setMenuAbierto(v => !v)}
+          aria-label="Menú"
+          aria-expanded={menuAbierto}
+        >
+          <Icon name={menuAbierto ? "x" : "menu"} size={18} />
+        </button>
         <div className="breadcrumb">
           <span>{PAGE_INFO[page]?.parent}</span>
           <span className="sep">›</span>
@@ -491,6 +501,8 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
           <Icon name="logout" size={16} />
         </button>
       </header>
+
+      {menuAbierto && <div className="menu-telon" onClick={() => setMenuAbierto(false)} />}
 
       <main className="app-main" ref={mainRef}>
         <ErrorBoundary key={page} title={PAGE_INFO[page]?.title}>

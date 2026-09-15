@@ -1467,6 +1467,7 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   align-items: center;
 }
 .cart-header h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.cart-total-movil { display: none; }   /* solo en pantalla chica */
 .cart-header .count {
   background: var(--wine-700);
   color: #fff;
@@ -1882,8 +1883,166 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 }
 
 @media (max-width: 900px) {
-  .vr-body { grid-template-columns: 1fr; }
-  .vr-productos { display: none; }   /* en pantalla chica manda el escáner */
+  /* Apilado: escanear arriba, cobrar abajo. Ojo: el buscador vive dentro de
+     .vr-productos, así que ocultar esa columna dejaba la pantalla sin forma
+     de agregar nada. */
+  .vr-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
+  .vr-productos { min-height: 0; }
+  .vr-grid { max-height: 34vh; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .vr-cobro { min-height: 260px; }
+  .vr-items { max-height: 30vh; }
+}
+@media (max-width: 560px) {
+  .vr-grid { max-height: 26vh; }
+  .vr-metodos, .vr-pago-fila { flex-wrap: wrap; }
+  .vr-pago-monto { width: 100%; }
+}
+
+
+/* ============ TABLET Y MÓVIL ============ */
+/* El sistema nació para escritorio. Aquí se adapta sin tocar ese layout:
+   todo vive dentro de media queries. */
+
+.menu-btn { display: none; }
+.menu-telon { display: none; }
+
+/* ── Hasta 1100px: el panel de la nota se estrecha ── */
+@media (max-width: 1100px) {
+  .sales-shell { grid-template-columns: 1fr 340px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-grid > .col-8, .dash-grid > .col-6, .dash-grid > .col-4, .dash-grid > .col-3 { grid-column: span 12; }
+}
+
+/* ── Hasta 900px: la barra lateral se esconde y entra deslizando ── */
+@media (max-width: 900px) {
+  /* minmax(0,1fr) y no 1fr: con `1fr` la columna nunca baja del ancho mínimo
+     de su contenido, así que un solo elemento rígido (el stepper) ensanchaba
+     la página entera a 474px en una pantalla de 390 */
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .app-main, .page { min-width: 0; }
+  .app-sidebar {
+    position: fixed;
+    top: 0; bottom: 0; left: 0;
+    width: 262px;
+    z-index: 120;
+    transform: translateX(-100%);
+    transition: transform var(--dur-slow) var(--ease-out);
+    box-shadow: 8px 0 32px rgba(0,0,0,.35);
+  }
+  .app.menu-abierto .app-sidebar { transform: none; }
+  .menu-telon {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    background: rgba(15, 19, 24, .45);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    animation: fadeIn var(--dur) var(--ease);
+  }
+  .menu-btn {
+    display: grid;
+    place-items: center;
+    width: 40px; height: 40px;
+    margin-left: -6px;
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius);
+    color: var(--text);
+    flex-shrink: 0;
+  }
+  .menu-btn:active { background: var(--bg-sunken); }
+
+  /* El buscador global estorba más de lo que ayuda en pantalla chica */
+  .header-search { display: none; }
+  .app-header { padding: 0 12px; gap: 10px; }
+  .header-user .who { display: none; }
+  .page { padding: 14px 14px 80px; }
+  .page-header { gap: 10px; }
+  .page-title { font-size: var(--fs-lg); }
+
+  /* Las tablas anchas se desplazan en su propio carril, no empujan la página */
+  .card-body.flush { overflow-x: auto; }
+  .table { min-width: 620px; }
+
+  .form-grid.cols-2, .form-grid.cols-3 { grid-template-columns: 1fr; }
+  .modal { max-width: none; width: 100%; }
+  .modal-body { padding: 18px; max-height: 66vh; }
+  .modal-header, .modal-footer { padding: 14px 18px; }
+}
+
+/* ── Punto de venta en vertical: la nota pasa a hoja inferior ── */
+@media (max-width: 900px) {
+  .sales-shell {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+  .sales-products { min-height: 0; }
+  .products-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+  .sales-cart {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 90;
+    max-height: 72vh;
+    transform: translateY(calc(100% - 132px));   /* asoma el total y los botones */
+    transition: transform var(--dur-slow) var(--ease-out);
+  }
+  .sales-cart.abierta { transform: none; }
+  .cart-card {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    box-shadow: 0 -8px 32px rgba(20, 24, 32, .18);
+    max-height: 72vh;
+  }
+  .cart-header {
+    cursor: pointer;                              /* toda la cabecera abre y cierra */
+    padding: 14px;
+    gap: 10px;
+  }
+  .cart-total-movil {
+    display: block;
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: var(--fs-md);
+    font-weight: 800;
+    color: var(--wine-700);
+  }
+  [data-theme="dark"] .cart-total-movil { color: var(--gold-500); }
+  .cart-items { max-height: 42vh; }
+  /* Espacio para que la hoja no tape el último producto */
+  .sales-products { padding-bottom: 140px; }
+}
+
+/* ── Móvil ── */
+@media (max-width: 560px) {
+  /* El stepper con sus tres etiquetas medía 450px en una pantalla de 390 y
+     empujaba la página entera: solo el paso actual conserva su nombre */
+  .stepper { padding: 10px 12px; margin-bottom: 14px; }
+  .stepper-item.pending .stepper-label,
+  .stepper-item.done .stepper-label { display: none; }
+  .stepper-label { margin-left: 6px; font-size: var(--fs-xs); }
+  .stepper-circle { width: 24px; height: 24px; font-size: 11px; }
+  .products-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px; }
+  .kpi-grid { grid-template-columns: 1fr; gap: 10px; }
+  .page { padding: 12px 12px 80px; }
+  .page-header { flex-direction: column; align-items: stretch; }
+  .page-actions { flex-wrap: wrap; }
+  .page-actions .btn { flex: 1; justify-content: center; }
+  .filter-bar { flex-wrap: wrap; }
+  .filter-bar .search-input { width: 100%; max-width: none; }
+  .sucursal-tabs { width: 100%; }
+  .sucursal-tab { flex: 1; justify-content: center; padding: 10px 8px; }
+  .modal-body { padding: 16px; }
+  /* En 390px el encabezado no da para todo: el rastro de navegación se va
+     (el título de la página lo dice igual) y los ajustes de impresora, que
+     no se tocan desde el teléfono */
+  .breadcrumb { display: none; }
+  .header-actions .header-icon-btn:nth-last-child(1) { display: none; }
+  .header-user { padding: 2px; }
+  .vr-header { padding: 0 12px; }
+  .vr-body { padding: 12px; }
+  .toast-wrap { left: 12px; right: 12px; bottom: 12px; }
+  .toast { width: 100%; }
 }
 
 /* ============ REGLAS DE PRECIO ============ */

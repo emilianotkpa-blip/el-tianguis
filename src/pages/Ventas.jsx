@@ -23,6 +23,8 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   // El IVA ya no se suma solo: se decide en cada venta y arranca apagado
   const [conIva, setConIva]       = useState(false)
   const [promos, setPromos]       = useState([])
+  // En pantalla chica la nota vive abajo como hoja: esto la despliega
+  const [notaAbierta, setNotaAbierta] = useState(false)
   const [folioImpreso, setFolioImpreso] = useState(false)
   const [borradorId, setBorradorId]     = useState(null)
   const creatingRef = useRef(false) // evita crear borrador duplicado
@@ -219,6 +221,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       }]
     })
     pulseCart()
+    setNotaAbierta(true)
 
     // Crear borrador al agregar el primer producto
     if (!borradorId && !creatingRef.current) {
@@ -743,10 +746,13 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
           </div>
         </div>
 
-        <div className="sales-cart">
+        <div className={"sales-cart" + (notaAbierta ? " abierta" : "")}>
           <div className={"cart-card" + (cartPulse ? " pulse" : "")}>
-            <div className="cart-header">
+            <div className="cart-header" onClick={() => setNotaAbierta(v => !v)}>
               <h3>Nota actual</h3>
+              {/* En pantalla chica la hoja va colapsada: el total tiene que
+                  verse sin abrirla, que es lo único que el cajero necesita */}
+              <span className="cart-total-movil">{fmtMoney(total)}</span>
               <span className={"count" + (cartPulse ? " bump" : "")}>{cart.reduce((s, it) => s + it.qty, 0)} arts.</span>
             </div>
             <div className="cart-items">
