@@ -265,7 +265,7 @@ function CobrarWizard({ nota, getItems, calcTotals, onExito, onCancelar, addToas
             <div style={{ textAlign: "center" }}>
               <div className="card">
                 <div className="card-body" style={{ padding: 48 }}>
-                  <div style={{ fontSize: 56, marginBottom: 10 }}>✓</div>
+                  <div className="cobro-check"><span>✓</span></div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: "var(--ok)", marginBottom: 12 }}>¡Cobrado!</div>
                   <div style={{ fontSize: 28, fontFamily: "var(--font-mono)", fontWeight: 800, marginBottom: 4 }}>{nota.Folio}</div>
                   <div style={{ fontSize: 24, fontFamily: "var(--font-mono)", color: "var(--wine-700)", fontWeight: 700, marginBottom: 24 }}>{fmtMoney(totals.total)}</div>

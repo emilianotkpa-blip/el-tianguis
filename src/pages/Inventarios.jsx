@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
-import { SUCURSALES } from "../data"
+import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postMovimiento } from "../api"
-import { exportCSV } from "../utils"
+import { exportCSV, tipoLabel } from "../utils"
 
 // ── Modal Recepción masiva ─────────────────────────────
 function RecepcionModal({ productos, onClose, onDone, addToast }) {
@@ -424,7 +424,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                     <td style={{ overflow: "hidden" }} title={p.name}>
                       <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</strong>
                     </td>
-                    <td className="muted" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.tipo}</td>
+                    <td className="muted" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tipoLabel(p.tipo, TIPOS_CONFIG)}</td>
                     <td className="num"><strong>{v}</strong></td>
                     <td className="num muted">{p.min}</td>
                     <td>

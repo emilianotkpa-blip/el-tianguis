@@ -215,12 +215,10 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
             <div className="card-body" style={{ textAlign: "center" }}>
               {conectada
                 ? (
-                  <div>
-                    <div style={{ fontSize: 72, fontWeight: 900, fontFamily: "var(--font-mono)", color: "var(--wine-700)", lineHeight: 1 }}>
-                      {gramos}
-                    </div>
+                  <div className="peso-display">
+                    <div className="peso-num">{gramos}</div>
                     <div style={{ fontSize: 18, color: "var(--text-muted)", marginBottom: 8 }}>gramos</div>
-                    <div style={{ fontSize: 12, color: "var(--ok)" }}>Leyendo báscula en tiempo real</div>
+                    <div className="peso-live"><span className="peso-live-dot" />Leyendo báscula en tiempo real</div>
                   </div>
                 )
                 : (

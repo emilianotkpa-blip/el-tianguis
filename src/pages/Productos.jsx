@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
 import { getCatalogo, patchProducto, postProducto, getNextCodigo, deleteProducto } from "../api"
-import { fmtMoney, fmtNum, exportCSV } from "../utils"
+import { fmtMoney, fmtNum, exportCSV, tipoLabel } from "../utils"
 import { TIPOS_CONFIG, TIPOS_LISTA } from "../data"
 
 const emptyForm = {
@@ -132,7 +132,9 @@ export default function ProductosPage({ addToast }) {
   // ── Filtros ───────────────────────────────────────────
   const tipos = useMemo(() => {
     const set = new Set(productos.map((p) => p.tipo).filter(Boolean))
-    return [{ id: "all", name: "Todos" }, ...[...set].sort().map((t) => ({ id: t, name: t }))]
+    return [{ id: "all", name: "Todos" }, ...[...set]
+      .map((t) => ({ id: t, name: tipoLabel(t, TIPOS_CONFIG) }))
+      .sort((a, b) => a.name.localeCompare(b.name, "es"))]
   }, [productos])
 
   const filtered = useMemo(() =>
@@ -387,7 +389,7 @@ export default function ProductosPage({ addToast }) {
                   <tr key={p._id} onClick={() => openEdit(p)} style={{ cursor: "pointer" }}>
                     <td className="tnum" style={{ fontSize: 11.5 }}>{p.sku}</td>
                     <td><strong>{p.name}</strong></td>
-                    <td><span className="badge badge-neutral">{p.tipo || "—"}</span></td>
+                    <td><span className="badge badge-neutral">{tipoLabel(p.tipo, TIPOS_CONFIG)}</span></td>
                     <td style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{presLabels}</td>
                     <td className="num">{precioRef > 0 ? fmtMoney(precioRef) : <span className="muted">—</span>}</td>
                     <td className="num">{fmtNum(total)}</td>

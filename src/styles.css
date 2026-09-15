@@ -127,7 +127,11 @@ body {
   -webkit-font-smoothing: antialiased;
   line-height: 1.45;
 }
-button { font-family: inherit; cursor: pointer; }
+/* `color: inherit` es obligatorio: un <button> sin color propio usa el color
+   del SISTEMA, así que con Windows en modo oscuro los botones con estilos
+   propios (el selector de presentación del POS, entre otros) salían en gris
+   claro e ilegibles. Mismo caso que los inputs de abajo. */
+button { font-family: inherit; cursor: pointer; color: inherit; }
 input, select, textarea { font-family: inherit; }
 
 /* Los controles nativos siguen el tema de la app, no el del sistema operativo.
@@ -1224,24 +1228,57 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   overflow-y: auto;
   padding: 4px;
   flex: 1;
+  /* Cada tarjeta a su altura real: antes la fila entera se estiraba a la
+     más alta y dejaba huecos enormes de espacio muerto */
+  align-content: start;
+  align-items: start;
 }
 .product-tile {
+  position: relative;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 14px 14px 12px;
+  padding: 12px 13px 11px;
   cursor: pointer;
-  transition: border-color .12s, transform .12s;
+  transition: border-color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   text-align: left;
+  overflow: hidden;
+}
+.product-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-highlight) 20%, var(--glass-highlight) 80%, transparent);
+  opacity: .7;
+  pointer-events: none;
 }
 .product-tile:hover {
   border-color: var(--wine-700);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow);
 }
+.product-tile:active { transform: translateY(0); box-shadow: var(--shadow-sm); }
+/* Nombre a dos líneas máximo, para que la cuadrícula quede pareja */
+.product-tile .name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Las presentaciones en una sola línea */
+.product-tile .meta > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.product-tile .meta > span:last-child { flex-shrink: 0; padding-left: 6px; }
 .product-tile .sku {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -1287,14 +1324,40 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 }
 .product-tile.disabled { opacity: .55; pointer-events: none; }
 
+/* La nota es la pieza que siempre está presente mientras se vende:
+   vidrio con filo de luz, y destella al recibir un producto. */
 .cart-card {
+  position: relative;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  transition: box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.cart-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: linear-gradient(90deg, transparent, var(--glass-highlight) 20%, var(--glass-highlight) 80%, transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+/* Confirmación de que el producto entró, sin robar el foco de la pantalla */
+.cart-card.pulse {
+  border-color: var(--wine-700);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wine-700) 16%, transparent), var(--glass-shadow);
+}
+.cart-header .count.bump { animation: countBump var(--dur-slow) var(--ease-out); }
+@keyframes countBump {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.28); }
+  100% { transform: scale(1); }
 }
 .cart-header {
   padding: 12px 14px;
@@ -1346,7 +1409,7 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 }
 .cart-item .name { font-size: 13px; font-weight: 500; color: var(--text); }
 .cart-item .sku { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .8px; }
-.cart-item .line2 { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+.cart-item .line2 { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; gap: 10px; }
 .cart-item .price-line { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
 .cart-item .line-total { font-size: 13px; font-weight: 600; font-family: var(--font-mono); color: var(--text); }
 .qty-stepper {
@@ -1391,7 +1454,21 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 .cart-summary {
   border-top: 1px solid var(--border);
   padding: 12px 14px;
-  background: var(--bg-sunken);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--bg-sunken) 86%, transparent),
+    var(--bg-sunken));
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+/* El total cambia con un destello corto: lo que más se mira al cobrar */
+.cart-summary .row.total .num.flash { animation: totalFlash var(--dur-slow) var(--ease-out); }
+@keyframes totalFlash {
+  0%   { color: var(--wine-700); transform: scale(1.06); }
+  100% { color: inherit; transform: scale(1); }
+}
+[data-theme="dark"] .cart-summary .row.total .num.flash { animation-name: totalFlashDark; }
+@keyframes totalFlashDark {
+  0%   { color: var(--gold-500); transform: scale(1.06); }
+  100% { color: inherit; transform: scale(1); }
 }
 .cart-summary .row {
   display: flex;
@@ -1412,6 +1489,116 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 .cart-actions { padding: 10px 14px; display: flex; gap: 8px; }
 .cart-actions .btn { flex: 1; justify-content: center; }
 
+/* Cobro confirmado: el cajero necesita ver "listo" desde lejos y de un vistazo */
+.cobro-check {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  border: 2px solid var(--ok);
+  box-shadow: 0 0 0 10px color-mix(in srgb, var(--ok) 7%, transparent);
+  animation: checkPop var(--dur-slow) var(--ease-out) backwards;
+}
+.cobro-check span {
+  font-size: 46px;
+  line-height: 1;
+  color: var(--ok);
+  animation: checkDraw var(--dur) var(--ease-out) .14s backwards;
+}
+@keyframes checkPop {
+  0%   { transform: scale(.4); opacity: 0; }
+  62%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes checkDraw {
+  from { opacity: 0; transform: scale(.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Báscula: el peso es lo único que se mira mientras se pesa */
+.peso-display { padding: 6px 0 2px; }
+.peso-num {
+  font-size: 72px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  color: var(--wine-700);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;   /* no "baila" al cambiar de cifra */
+  text-shadow: 0 2px 14px color-mix(in srgb, var(--wine-700) 22%, transparent);
+}
+[data-theme="dark"] .peso-num {
+  color: var(--gold-500);
+  text-shadow: 0 2px 18px rgba(240, 191, 46, .25);
+}
+.peso-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ok);
+}
+.peso-live-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  animation: livePulse 1.6s var(--ease) infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1;  box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 45%, transparent); }
+  50%      { opacity: .6; box-shadow: 0 0 0 5px transparent; }
+}
+
+/* Las filas entran en cascada al cargar la tabla */
+.table tbody tr { animation: riseIn var(--dur) var(--ease-out) backwards; }
+.table tbody tr:nth-child(1)  { animation-delay: 0ms; }
+.table tbody tr:nth-child(2)  { animation-delay: 20ms; }
+.table tbody tr:nth-child(3)  { animation-delay: 40ms; }
+.table tbody tr:nth-child(4)  { animation-delay: 60ms; }
+.table tbody tr:nth-child(5)  { animation-delay: 80ms; }
+.table tbody tr:nth-child(6)  { animation-delay: 100ms; }
+.table tbody tr:nth-child(7)  { animation-delay: 120ms; }
+.table tbody tr:nth-child(8)  { animation-delay: 140ms; }
+.table tbody tr:nth-child(n+9) { animation-delay: 160ms; }
+
+/* Selector de presentación: lo que más se toca en el día.
+   Opciones de 52px de alto para que se acierte con el dedo en tablet. */
+.pres-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 19, 24, .45);
+  backdrop-filter: blur(8px) saturate(1.15);
+  -webkit-backdrop-filter: blur(8px) saturate(1.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn var(--dur) var(--ease);
+}
+.pres-sheet {
+  position: relative;
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-edge);
+  border-radius: 12px;
+  padding: 22px;
+  min-width: 320px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: var(--glass-shadow-lg);
+  animation: modalIn var(--dur-slow) var(--ease-out);
+}
+.pres-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-highlight) 18%, var(--glass-highlight) 82%, transparent);
+  pointer-events: none;
+}
+
 .cart-cat-tabs {
   display: flex;
   gap: 4px;
@@ -1419,19 +1606,27 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   padding: 0 2px;
 }
 .cat-pill {
-  padding: 5px 11px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border-strong);
+  position: relative;
+  padding: 6px 12px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-edge);
   border-radius: 14px;
   font-size: 12px;
   color: var(--text-muted);
   font-weight: 500;
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  transition: background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
 }
-.cat-pill:hover { background: var(--bg-sunken); }
+.cat-pill:hover { background: var(--bg-elev); color: var(--text); }
+.cat-pill:active { transform: translateY(1px); }
 .cat-pill.active {
   background: var(--wine-700);
   color: #fff;
   border-color: var(--wine-800);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 3px 10px rgba(114,24,42,.25);
 }
 
 /* ============ INVENTORY (sucursales) ============ */

@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
 import Icon from "../components/Icon"
 import Stepper from "../components/Stepper"
-import { SUCURSALES } from "../data"
+import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio } from "../api"
-import { fmtMoney, todayISO } from "../utils"
+import { fmtMoney, todayISO, tipoLabel } from "../utils"
 
 const STEPS = ["Llenar carrito", "Verificar pedido", "Enviar a caja"]
 
@@ -32,16 +32,9 @@ function PresModal({ producto, suc, onSelect, onClose, cart }) {
     .reduce((s, it) => s + it.qty, 0)
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,.6)",
-      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000
-    }} onClick={onClose}>
-      <div style={{
-        background: "var(--bg-elev)", borderRadius: 12, padding: 24, minWidth: 320, maxWidth: 440,
-        boxShadow: "0 12px 40px rgba(0,0,0,.45), 0 0 0 1px var(--border)",
-        backdropFilter: "blur(12px)",
-      }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{producto.name}</div>
+    <div className="pres-backdrop" onClick={onClose}>
+      <div className="pres-sheet" onClick={e => e.stopPropagation()}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2, color: "var(--text)" }}>{producto.name}</div>
         <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
           {paqDisp > 0 && <span>Paq sueltos: <strong>{paqDisp}</strong> · </span>}
           {piezaDisp > 0 && <span>Piezas: <strong>{piezaDisp}</strong> · </span>}
@@ -99,14 +92,15 @@ function PresModal({ producto, suc, onSelect, onClose, cart }) {
                   onClick={() => !insuficiente && onSelect(p)}
                   style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "10px 14px", width: "100%",
+                    padding: "12px 14px", width: "100%", minHeight: 52,
                     cursor: insuficiente ? "not-allowed" : "pointer",
                     background: "transparent", border: 0, textAlign: "left",
+                    color: "var(--text)",
                   }}
                   className={insuficiente ? "" : "hover-row"}
                 >
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{p.label}</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>{p.label}</div>
                     <div style={{ fontSize: 11, color: insuficiente ? "var(--err)" : necesitaAbrirCaja ? "var(--gold-700)" : "var(--text-muted)", marginTop: 1 }}>
                       {p.factor
                         ? insuficiente
@@ -405,7 +399,13 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
 
   const tipos = useMemo(() => {
     const set = new Set(productos.map(p => p.tipo).filter(Boolean))
-    return [{ id: "all", name: "Todos" }, ...[...set].sort().map(t => ({ id: t, name: t }))]
+    return [
+      { id: "all", name: "Todos" },
+      // Nombre legible del tipo ("Rollos alta densidad"), no el id interno
+      ...[...set]
+        .map(t => ({ id: t, name: tipoLabel(t, TIPOS_CONFIG) }))
+        .sort((a, b) => a.name.localeCompare(b.name, "es")),
+    ]
   }, [productos])
 
   const sucObj = SUCURSALES.find(s => s.id === suc)
@@ -459,6 +459,15 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   }
 
   // ── Agregar al carrito ──────────────────────────────────
+  // Señal visual de que el producto entró a la nota (el cajero mira el
+  // producto, no el panel: el destello es lo que le confirma el registro)
+  const [cartPulse, setCartPulse] = useState(false)
+  const pulseCart = () => {
+    setCartPulse(false)
+    requestAnimationFrame(() => setCartPulse(true))
+    setTimeout(() => setCartPulse(false), 450)
+  }
+
   const addToCartWithPres = (p, pres) => {
     const esMayoreo = pres?.esMayoreo ?? false
     const precio    = pres ? pres.precio : p.precio
@@ -479,6 +488,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
         qty: 1,
       }]
     })
+    pulseCart()
 
     // Crear borrador al agregar el primer producto
     if (!borradorId && !creatingRef.current) {
@@ -937,10 +947,10 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
         </div>
 
         <div className="sales-cart">
-          <div className="cart-card">
+          <div className={"cart-card" + (cartPulse ? " pulse" : "")}>
             <div className="cart-header">
               <h3>Nota actual</h3>
-              <span className="count">{cart.reduce((s, it) => s + it.qty, 0)} arts.</span>
+              <span className={"count" + (cartPulse ? " bump" : "")}>{cart.reduce((s, it) => s + it.qty, 0)} arts.</span>
             </div>
             <div className="cart-items">
               {cart.length === 0
@@ -997,7 +1007,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
               {subtotalFact > 0   && <div className="row"><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Facturable</span><span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtMoney(subtotalFact)}</span></div>}
               <div className="row"><span>Subtotal</span><span className="num">{fmtMoney(subtotal)}</span></div>
               <div className="row"><span>IVA (16%) fact.</span><span className="num">{fmtMoney(iva)}</span></div>
-              <div className="row total"><span>Total</span><span className="num">{fmtMoney(total)}</span></div>
+              <div className="row total"><span>Total</span><span key={total} className="num flash">{fmtMoney(total)}</span></div>
             </div>
             {folio && (
               <div style={{ padding: "8px 12px", background: "var(--bg-sunken)", borderRadius: 6, margin: "0 0 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

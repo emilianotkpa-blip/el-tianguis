@@ -9,6 +9,17 @@ export const fmtMoneyShort = (n) => {
 
 export const fmtNum = (n) => Number(n).toLocaleString("es-MX")
 
+// Nombre legible de un tipo de producto: "rollos_ad" → "Rollos alta densidad".
+// Si el tipo no está en el catálogo (productos viejos), al menos se limpia
+// el id en vez de mostrarlo crudo.
+export function tipoLabel(tipoId, TIPOS_CONFIG) {
+  if (!tipoId) return "—"
+  const cfg = TIPOS_CONFIG?.[tipoId]
+  if (cfg?.label) return cfg.label
+  const limpio = String(tipoId).replace(/_/g, " ")
+  return limpio.charAt(0).toUpperCase() + limpio.slice(1)
+}
+
 export const todayISO = () => new Date().toISOString().slice(0, 10)
 
 export const fmtDateTime = (ts) => {
