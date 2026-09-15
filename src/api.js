@@ -73,6 +73,12 @@ export const getFacturas          = ()       => apiFetch("/api/facturas")
 export const solicitarFactura     = (id, b)  => apiFetch(`/api/facturas/${id}/solicitar`, patch(b))
 export const cancelarFactura      = (id)     => apiFetch(`/api/facturas/${id}/cancelar`, patch({}))
 
+// Reglas de precio (combos y proporciones)
+export const getPromos      = ()      => apiFetch("/api/promos")
+export const postPromo      = (b)     => apiFetch("/api/promos", json(b))
+export const patchPromo     = (id, b) => apiFetch(`/api/promos/${id}`, patch(b))
+export const deletePromo    = (id)    => apiFetch(`/api/promos/${id}`, { method: "DELETE" })
+
 export const getClientes    = ()      => apiFetch("/api/clientes")
 export const postCliente    = (b)     => apiFetch("/api/clientes", json(b))
 export const patchCliente   = (id, b) => apiFetch(`/api/clientes/${id}`, patch(b))

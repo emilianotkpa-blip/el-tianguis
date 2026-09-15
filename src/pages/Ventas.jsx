@@ -6,8 +6,9 @@ import PresPicker from "../components/PresPicker"
 import { TilesSkeleton } from "../components/Skeleton"
 import Select from "../components/Select"
 import { SUCURSALES, TIPOS_CONFIG } from "../data"
-import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio } from "../api"
+import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio, getPromos } from "../api"
 import { fmtMoney, todayISO, tipoLabel } from "../utils"
+import { evaluarPromos } from "../promos"
 
 const STEPS = ["Llenar carrito", "Verificar pedido", "Enviar a caja"]
 
@@ -21,6 +22,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   const [step, setStep]           = useState(0)
   // El IVA ya no se suma solo: se decide en cada venta y arranca apagado
   const [conIva, setConIva]       = useState(false)
+  const [promos, setPromos]       = useState([])
   const [folioImpreso, setFolioImpreso] = useState(false)
   const [borradorId, setBorradorId]     = useState(null)
   const creatingRef = useRef(false) // evita crear borrador duplicado
@@ -46,6 +48,8 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   const [preciosModal, setPreciosModal] = useState(null) // { item, producto }
 
   const searchRef = useRef(null)
+
+  useEffect(() => { getPromos().then(setPromos).catch(() => setPromos([])) }, [])
 
   useEffect(() => {
     if (preloadedCatalogo) setLoading(false)
@@ -367,9 +371,14 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
 
   const subtotalFact   = cart.filter(it => it.facturable).reduce((s, it) => s + it.precio * it.qty, 0)
   const subtotalNoFact = cart.filter(it => !it.facturable).reduce((s, it) => s + it.precio * it.qty, 0)
-  const subtotal = subtotalFact + subtotalNoFact
-  const iva      = conIva ? subtotalFact * 0.16 : 0
-  const total    = subtotal + iva
+  const subtotalBruto  = subtotalFact + subtotalNoFact
+  // Reglas de precio: el ahorro se muestra aparte, no se toca el precio de
+  // cada línea, y el IVA se calcula ya con el descuento aplicado
+  const promo     = useMemo(() => evaluarPromos(cart, promos), [cart, promos])
+  const subtotal  = subtotalBruto - promo.total
+  const baseIva   = Math.max(0, subtotalFact - promo.totalFacturable)
+  const iva       = conIva ? baseIva * 0.16 : 0
+  const total     = subtotal + iva
 
   const handleCambiarPres = (nuevaPres) => {
     if (!preciosModal) return
@@ -411,6 +420,13 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
     getCatalogo().then(setProductos).catch(() => {})
   }, [borradorId, user?.email])
 
+  // Los descuentos viajan como líneas propias de la nota: Caja no los
+  // recalcula, los cobra tal como se acordaron con el cliente
+  const promosPayload = () => promo.descuentos.map(d => ({
+    tipo: "descuento", reglaId: d.reglaId, nombre: d.nombre,
+    veces: d.veces, monto: d.monto, facturable: d.facturable,
+  }))
+
   const itemsPayload = () => cart.map(it => ({
     sku: it.sku, name: it.name, nombre: it.name,
     presId: it.presId, presLabel: it.presLabel,
@@ -427,7 +443,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       if (borradorId) {
         await confirmarNota(borradorId, {
           cliente, vendedor: user?.name ?? "Vendedor",
-          items: itemsPayload(), pagos: [], subtotal, iva, total,
+          items: [...itemsPayload(), ...promosPayload()], pagos: [], subtotal, iva, total,
         })
         resultFolio = folio
         resultId    = borradorId
@@ -435,7 +451,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
         const r = await postNota({
           fecha: todayISO(), cliente,
           vendedor: user?.name ?? "Vendedor", sucursal: suc,
-          items: itemsPayload(), pagos: [], subtotal, iva, total,
+          items: [...itemsPayload(), ...promosPayload()], pagos: [], subtotal, iva, total,
         })
         resultFolio = r.folio
         resultId    = r.id
@@ -786,6 +802,12 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
             <div className="cart-summary">
               {subtotalNoFact > 0 && <div className="row"><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Sin factura</span><span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtMoney(subtotalNoFact)}</span></div>}
               {subtotalFact > 0   && <div className="row"><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Facturable</span><span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtMoney(subtotalFact)}</span></div>}
+              {promo.descuentos.map(d => (
+                <div className="row promo-row" key={d.reglaId}>
+                  <span><Icon name="sparkle" size={11} /> {d.nombre}{d.veces > 1 ? ` ×${d.veces}` : ""}</span>
+                  <span className="num">−{fmtMoney(d.monto)}</span>
+                </div>
+              ))}
               <div className="row"><span>Subtotal</span><span className="num">{fmtMoney(subtotal)}</span></div>
               <label className="iva-toggle">
                 <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} />

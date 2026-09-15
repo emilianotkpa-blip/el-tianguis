@@ -1,0 +1,197 @@
+// Motor de reglas de precio: combos y proporciones.
+//
+// Dos casos del negocio:
+//   combo      → vaso + tapa juntos cuestan menos que por separado
+//   proporcion → 1 tapa por cada N vasos lleva descuento
+//
+// Reglas de la casa:
+//   · El precio de cada línea NO se toca. El ahorro sale como línea aparte,
+//     para que el cliente vea de dónde viene y el ticket cuadre.
+//   · Cada unidad se descuenta una sola vez: una regla consume las unidades
+//     que usa, así dos reglas sobre el mismo vaso no se suman dos veces.
+//   · Se evalúan por prioridad (menor número, primero).
+
+const clave = (sku, presId) => `${sku}__${presId ?? "*"}`
+
+// Cuántas unidades del carrito coinciden con un requisito.
+// presId nulo o "*" = cualquier presentación de ese producto.
+function lineasQueCoinciden(disponibles, req) {
+  return disponibles.filter(l =>
+    String(l.sku) === String(req.sku) &&
+    (!req.presId || req.presId === "*" || l.presId === req.presId)
+  )
+}
+
+const totalDisponible = (lineas) => lineas.reduce((s, l) => s + l.libres, 0)
+
+// Consume `cantidad` unidades de las líneas dadas, de la más cara a la más
+// barata: si el combo se puede armar con distintas presentaciones, conviene
+// al cliente que se gaste primero la de mayor precio.
+function consumir(lineas, cantidad) {
+  let resta = cantidad
+  const usadas = []
+  for (const l of [...lineas].sort((a, b) => b.precio - a.precio)) {
+    if (resta <= 0) break
+    const toma = Math.min(l.libres, resta)
+    if (toma > 0) {
+      l.libres -= toma
+      resta -= toma
+      usadas.push({ linea: l, cantidad: toma })
+    }
+  }
+  return usadas
+}
+
+function montoDelEfecto(efecto, precioNormal) {
+  if (!efecto) return 0
+  if (efecto.tipo === "precio_paquete") return Math.max(0, precioNormal - (Number(efecto.valor) || 0))
+  if (efecto.tipo === "descuento_monto") return Math.min(precioNormal, Number(efecto.valor) || 0)
+  if (efecto.tipo === "descuento_pct") return precioNormal * (Math.min(100, Number(efecto.valor) || 0) / 100)
+  return 0
+}
+
+function evaluarCombo(regla, disponibles) {
+  const items = regla.config?.items ?? []
+  if (items.length < 2) return null
+
+  // Cuántas veces se puede armar el combo completo
+  let veces = Infinity
+  for (const req of items) {
+    const lineas = lineasQueCoinciden(disponibles, req)
+    veces = Math.min(veces, Math.floor(totalDisponible(lineas) / (req.cant || 1)))
+    if (veces <= 0) return null
+  }
+  if (!veces || veces === Infinity) return null
+
+  // Precio normal de un combo, tomando las unidades que realmente se usarían
+  let precioNormalUno = 0
+  let todoFacturable = true
+  const aConsumir = []
+  for (const req of items) {
+    const lineas = lineasQueCoinciden(disponibles, req)
+    const usadas = consumir(lineas, (req.cant || 1) * veces)
+    for (const u of usadas) {
+      precioNormalUno += u.linea.precio * u.cantidad
+      if (u.linea.facturable === false) todoFacturable = false
+    }
+    aConsumir.push(...usadas)
+  }
+  precioNormalUno = precioNormalUno / veces
+
+  const ahorroUno = montoDelEfecto(regla.config?.efecto, precioNormalUno)
+  if (ahorroUno <= 0) return null
+
+  return {
+    reglaId: regla.id,
+    nombre: regla.nombre,
+    veces,
+    monto: +(ahorroUno * veces).toFixed(2),
+    facturable: todoFacturable,
+  }
+}
+
+function evaluarProporcion(regla, disponibles) {
+  const { porCada, aplicaA, efecto } = regla.config ?? {}
+  if (!porCada || !aplicaA) return null
+
+  const lineasBase = lineasQueCoinciden(disponibles, porCada)
+  const lineasDesc = lineasQueCoinciden(disponibles, aplicaA)
+  const cantBase = porCada.cant || 1
+  const cantDesc = aplicaA.cant || 1
+
+  const veces = Math.min(
+    Math.floor(totalDisponible(lineasBase) / cantBase),
+    Math.floor(totalDisponible(lineasDesc) / cantDesc),
+  )
+  if (veces <= 0) return null
+
+  // La base solo habilita el descuento; se consume para que no la reutilice
+  // otra regla, pero el ahorro se calcula sobre el producto beneficiado.
+  consumir(lineasBase, cantBase * veces)
+  const usadasDesc = consumir(lineasDesc, cantDesc * veces)
+
+  let precioDesc = 0
+  let facturable = true
+  for (const u of usadasDesc) {
+    precioDesc += u.linea.precio * u.cantidad
+    if (u.linea.facturable === false) facturable = false
+  }
+
+  const ahorro = montoDelEfecto(efecto, precioDesc)
+  if (ahorro <= 0) return null
+
+  return {
+    reglaId: regla.id,
+    nombre: regla.nombre,
+    veces,
+    monto: +ahorro.toFixed(2),
+    facturable,
+  }
+}
+
+// cart: [{ key, sku, presId, precio, qty, facturable }]
+// reglas: [{ id, nombre, tipo, activo, prioridad, config }]
+// → { descuentos: [{ reglaId, nombre, veces, monto, facturable }], total, totalFacturable }
+export function evaluarPromos(cart = [], reglas = []) {
+  const activas = (reglas || [])
+    .filter(r => r && r.activo !== false)
+    .sort((a, b) => (a.prioridad ?? 100) - (b.prioridad ?? 100))
+
+  // Copia de trabajo: cada línea lleva las unidades que aún nadie usó
+  const disponibles = cart.map(l => ({
+    key: l.key ?? clave(l.sku, l.presId),
+    sku: l.sku,
+    presId: l.presId,
+    precio: Number(l.precio) || 0,
+    facturable: l.facturable,
+    libres: Number(l.qty) || 0,
+  }))
+
+  const descuentos = []
+  for (const regla of activas) {
+    const r = regla.tipo === "proporcion"
+      ? evaluarProporcion(regla, disponibles)
+      : evaluarCombo(regla, disponibles)
+    if (r && r.monto > 0) descuentos.push(r)
+  }
+
+  const total = +descuentos.reduce((s, d) => s + d.monto, 0).toFixed(2)
+  const totalFacturable = +descuentos
+    .filter(d => d.facturable)
+    .reduce((s, d) => s + d.monto, 0)
+    .toFixed(2)
+
+  return { descuentos, total, totalFacturable }
+}
+
+// Texto corto para mostrar la regla en pantalla
+export function describirRegla(regla, catalogo = []) {
+  const nombreDe = (sku) => catalogo.find(p => String(p.sku) === String(sku))?.name ?? sku
+  const c = regla.config ?? {}
+  if (regla.tipo === "proporcion") {
+    if (!c.porCada || !c.aplicaA) return "Regla incompleta"
+    return `Por cada ${c.porCada.cant || 1} × ${nombreDe(c.porCada.sku)} → ${describirEfecto(c.efecto)} en ${nombreDe(c.aplicaA.sku)}`
+  }
+  const items = c.items ?? []
+  if (items.length < 2) return "Regla incompleta"
+  return `${items.map(i => `${i.cant || 1} × ${nombreDe(i.sku)}`).join(" + ")} → ${describirEfecto(c.efecto)}`
+}
+
+export function describirEfecto(efecto) {
+  if (!efecto) return "sin efecto"
+  const v = Number(efecto.valor) || 0
+  if (efecto.tipo === "precio_paquete")  return `precio de paquete $${v.toFixed(2)}`
+  if (efecto.tipo === "descuento_monto") return `descuento de $${v.toFixed(2)}`
+  if (efecto.tipo === "descuento_pct")   return `${v}% de descuento`
+  return "sin efecto"
+}
+
+// Los descuentos viajan dentro de Items_JSON como líneas marcadas, para no
+// depender de una columna nueva en la base. Todo lo que recorra los items de
+// una nota debe separar unas de otras con estos dos helpers.
+export const soloProductos  = (items) => (items || []).filter(i => i && i.tipo !== "descuento")
+export const soloDescuentos = (items) => (items || []).filter(i => i && i.tipo === "descuento")
+export const sumaDescuentos = (items, soloFacturables = false) =>
+  soloDescuentos(items)
+    .filter(d => !soloFacturables || d.facturable)
+    .reduce((s, d) => s + (Number(d.monto) || 0), 0)

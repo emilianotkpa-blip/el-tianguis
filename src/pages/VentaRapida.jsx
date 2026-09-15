@@ -4,8 +4,9 @@ import Icon from "../components/Icon"
 import PresPicker from "../components/PresPicker"
 import NotaImpresa from "../components/NotaImpresa"
 import Select from "../components/Select"
-import { getCatalogo, postNota, cobrarNota } from "../api"
+import { getCatalogo, postNota, cobrarNota, getPromos } from "../api"
 import { fmtMoney, todayISO } from "../utils"
+import { evaluarPromos } from "../promos"
 
 const METODOS = ["Efectivo", "Tarjeta", "Transferencia"]
 
@@ -22,6 +23,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
   const [pagos, setPagos]         = useState([{ metodo: "Efectivo", monto: "" }])
   const [folioTerminal, setFolioTerminal] = useState("")
   const [conIva, setConIva]       = useState(false)   // apagado por defecto
+  const [promos, setPromos]       = useState([])
   const [cobrando, setCobrando]   = useState(false)
   const [cobrada, setCobrada]     = useState(null)   // { folio, pagos, totals, cambio, items }
   const searchRef = useRef(null)
@@ -34,13 +36,17 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
       .catch(err => { addToast({ kind: "err", msg: err.message }); setCargando(false) })
   }, [addToast])
 
+  useEffect(() => { getPromos().then(setPromos).catch(() => setPromos([])) }, [])
   useEffect(() => { searchRef.current?.focus() }, [cobrada])
 
   // ── Totales (misma regla que el punto de venta) ──────
   const subtotalFact   = cart.filter(it => it.facturable).reduce((s, it) => s + it.precio * it.qty, 0)
   const subtotalNoFact = cart.filter(it => !it.facturable).reduce((s, it) => s + it.precio * it.qty, 0)
-  const subtotal = subtotalFact + subtotalNoFact
-  const iva      = conIva ? subtotalFact * 0.16 : 0
+  const subtotalBruto = subtotalFact + subtotalNoFact
+  const promo    = useMemo(() => evaluarPromos(cart, promos), [cart, promos])
+  const subtotal = subtotalBruto - promo.total
+  const baseIva  = Math.max(0, subtotalFact - promo.totalFacturable)
+  const iva      = conIva ? baseIva * 0.16 : 0
   const total    = subtotal + iva
   // El cobro se puede repartir entre varias formas de pago.
   // Las comparaciones van en centavos enteros: con decimales, 50 + 40.48
@@ -134,6 +140,10 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
         facturable: it.facturable, qty: it.qty,
         iva: conIva && it.facturable !== false,
       }))
+      const descuentosPayload = promo.descuentos.map(d => ({
+        tipo: "descuento", reglaId: d.reglaId, nombre: d.nombre,
+        veces: d.veces, monto: d.monto, facturable: d.facturable,
+      }))
       // Sin montos capturados se cobra todo con la primera forma elegida;
       // con reparto, cada línea va como la capturó el cajero
       const pagosPayload = sinCapturar
@@ -146,7 +156,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
       const nota = await postNota({
         fecha: todayISO(), cliente: "Mostrador",
         vendedor: user?.name ?? "Caja", sucursal: suc,
-        items, pagos: pagosPayload, subtotal, iva, total,
+        items: [...items, ...descuentosPayload], pagos: pagosPayload, subtotal, iva, total,
         observaciones: "Venta rápida",
       })
       await cobrarNota(nota.id, {
@@ -158,7 +168,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
       setCobrada({
         folio: nota.folio,
         pagos: pagosPayload,
-        totals: { subtotal, iva, total, subtotalFact, subtotalNoFact },
+        totals: { subtotal, iva, total, subtotalFact, subtotalNoFact, descuentos: promo.descuentos },
         cambio,
         items,
       })
@@ -312,6 +322,12 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
             </div>
 
             <div className="vr-resumen">
+              {promo.descuentos.map(d => (
+                <div className="vr-row promo-row" key={d.reglaId}>
+                  <span>{d.nombre}{d.veces > 1 ? ` ×${d.veces}` : ""}</span>
+                  <span className="num">−{fmtMoney(d.monto)}</span>
+                </div>
+              ))}
               <div className="vr-row"><span>Subtotal</span><span className="num">{fmtMoney(subtotal)}</span></div>
               <label className="iva-toggle">
                 <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} />

@@ -8,6 +8,7 @@ import Stepper from "../components/Stepper"
 import NotaImpresa from "../components/NotaImpresa"
 import { getCaja, getCajaPorFolio, editarNotaCaja, cobrarNota, cancelarNota, getCatalogo, getHistorialCaja } from "../api"
 import { fmtMoney, todayISO } from "../utils"
+import { soloProductos, soloDescuentos, sumaDescuentos } from "../promos"
 
 const RANGOS = [
   { id: "1h",  label: "Última hora" },
@@ -28,7 +29,7 @@ function RelativeTime({ fecha }) {
 }
 
 // ── Wizard de cobro (overlay pantalla completa) ─────────
-function CobrarWizard({ nota, getItems, calcTotals, onExito, onCancelar, addToast }) {
+function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCancelar, addToast }) {
   const [step, setStep] = useState(0)
   const [pagos, setPagos] = useState(() => {
     try {
@@ -42,7 +43,8 @@ function CobrarWizard({ nota, getItems, calcTotals, onExito, onCancelar, addToas
   const [notaImpresa, setNotaImpresa] = useState(false)
 
   const items  = getItems(nota)
-  const totals = calcTotals(items)
+  const descuentosNota = getDescuentos(nota)
+  const totals = calcTotals(items, descuentosNota)
   const totalPagado = pagos.reduce((s, p) => s + (parseFloat(p.monto) || 0), 0)
   const cambio      = Math.max(0, totalPagado - totals.total)
   const pendiente   = Math.max(0, totals.total - totalPagado)
@@ -399,11 +401,19 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
     } catch { addToast({ kind: "err", msg: `Folio ${folio} no encontrado` }) }
   }
 
+  // Los items de una nota traen productos y, al final, las líneas de
+  // descuento que generaron las reglas de precio al vender.
   const getItems = (nota) => {
-    try { return JSON.parse(nota?.Items_JSON || "[]") } catch { return [] }
+    try { return soloProductos(JSON.parse(nota?.Items_JSON || "[]")) } catch { return [] }
+  }
+  const getDescuentos = (nota) => {
+    try { return soloDescuentos(JSON.parse(nota?.Items_JSON || "[]")) } catch { return [] }
   }
 
-  const calcTotals = (items) => {
+  // Los descuentos se cobran tal como se acordaron al vender; aquí no se
+  // vuelven a evaluar las reglas (el carrito ya no existe y el cliente ya
+  // vio su precio).
+  const calcTotals = (items, descuentos = []) => {
     const subtotalFact   = items.filter(it => it.facturable !== false).reduce((s, it) => s + (it.precio ?? 0) * (it.qty ?? 1), 0)
     const subtotalNoFact = items.filter(it => it.facturable === false).reduce((s, it) => s + (it.precio ?? 0) * (it.qty ?? 1), 0)
     const subtotal = subtotalFact + subtotalNoFact
@@ -411,11 +421,18 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
     // aquí volvería a sumar el 16% a una nota que se cobró sin él.
     // Las notas anteriores a este cambio no traen el campo: para esas se
     // conserva el comportamiento con el que se calcularon.
-    const baseIva = items
+    const descTotal = sumaDescuentos(descuentos)
+    const descFact   = sumaDescuentos(descuentos, true)
+    const baseIva = Math.max(0, items
       .filter(it => it.facturable !== false && it.iva !== false)
-      .reduce((s, it) => s + (it.precio ?? 0) * (it.qty ?? 1), 0)
+      .reduce((s, it) => s + (it.precio ?? 0) * (it.qty ?? 1), 0) - descFact)
     const iva = baseIva * 0.16
-    return { subtotalFact, subtotalNoFact, subtotal, iva, total: subtotal + iva }
+    const subtotalNeto = subtotal - descTotal
+    return {
+      subtotalFact, subtotalNoFact,
+      subtotal: subtotalNeto, descuentos, descTotal,
+      iva, total: subtotalNeto + iva,
+    }
   }
 
   // ── Edición de items ────────────────────────────────────
@@ -483,7 +500,7 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
   }
 
   const guardarEdicion = async () => {
-    const totals = calcTotals(editItems)
+    const totals = calcTotals(editItems, selected ? getDescuentos(selected) : [])
     setSaving(true)
     try {
       await editarNotaCaja(selected.Id, {
@@ -512,7 +529,7 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
   }
 
   const items  = selected ? getItems(selected) : []
-  const totals = calcTotals(items)
+  const totals = calcTotals(items, selected ? getDescuentos(selected) : [])
 
   const filteredCatalogo = catalogo.filter(p =>
     addSearch && (p.name.toLowerCase().includes(addSearch.toLowerCase()) || p.sku.includes(addSearch))
@@ -523,7 +540,7 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
       {/* Modal de previsualización de nota (al escanear/buscar folio) */}
       {previewNota && (() => {
         const pvItems  = getItems(previewNota)
-        const pvTotals = calcTotals(pvItems)
+        const pvTotals = calcTotals(pvItems, getDescuentos(previewNota))
         return (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 150 }}
             onClick={() => setPreviewNota(null)}>
@@ -562,6 +579,7 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
         <CobrarWizard
           nota={wizardNota}
           getItems={getItems}
+          getDescuentos={getDescuentos}
           calcTotals={calcTotals}
           addToast={addToast}
           onExito={() => {

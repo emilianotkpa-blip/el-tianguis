@@ -1886,6 +1886,56 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   .vr-productos { display: none; }   /* en pantalla chica manda el escáner */
 }
 
+/* ============ REGLAS DE PRECIO ============ */
+.regla-aviso {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 14px 16px; margin-bottom: 14px;
+  background: var(--warn-bg); color: var(--warn);
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm); line-height: 1.5;
+}
+.regla-aviso code {
+  font-family: var(--font-mono); font-size: var(--fs-xs);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  padding: 1px 5px; border-radius: 4px;
+}
+.regla-off td { opacity: .5; }
+.regla-switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: var(--fs-sm); }
+.regla-switch input { accent-color: var(--wine-700); width: 16px; height: 16px; cursor: pointer; }
+
+.regla-seccion {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.regla-fila { display: flex; align-items: flex-end; gap: 6px; margin-bottom: 8px; }
+.regla-selector { flex: 1; min-width: 0; }
+.regla-selector-label { display: block; font-size: var(--fs-xs); color: var(--text-muted); margin-bottom: 4px; }
+.regla-selector-campos { display: flex; align-items: center; gap: 8px; }
+.regla-cant {
+  width: 62px; min-height: 40px; padding: 9px 10px; text-align: right;
+  font-family: var(--font-mono); font-weight: 700;
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--bg-elev); color: var(--text);
+}
+.regla-por { color: var(--text-muted); font-size: var(--fs-sm); }
+.regla-preview {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; border-radius: var(--radius-md);
+  background: var(--ok-bg); color: var(--ok);
+  font-size: var(--fs-sm); font-weight: 600;
+}
+
+/* Línea de ahorro por regla de precio */
+.promo-row span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ok);
+  font-weight: 600;
+}
+.promo-row .num { color: var(--ok); font-weight: 700; }
+
 /* Casilla de IVA en los totales. Va apagada por defecto: antes el 16% se
    sumaba solo sobre precios que ya lo traían y la venta salía inflada. */
 .iva-toggle {

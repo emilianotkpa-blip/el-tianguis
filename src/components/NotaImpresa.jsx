@@ -68,6 +68,12 @@ export default function NotaImpresa({ folio, fecha, cliente, vendedor, sucursal,
         {totals?.subtotalFact > 0 && (
           <div className="nt-row"><span>Facturable</span><span>{fmtMoney(totals.subtotalFact)}</span></div>
         )}
+        {(totals?.descuentos ?? []).map((d, i) => (
+          <div className="nt-row" key={i}>
+            <span>{d.nombre}{d.veces > 1 ? ` x${d.veces}` : ""}</span>
+            <span>-{fmtMoney(d.monto)}</span>
+          </div>
+        ))}
         <div className="nt-row"><span>Subtotal</span><span>{fmtMoney(totals?.subtotal ?? 0)}</span></div>
         {totals?.iva > 0 && (
           <div className="nt-row"><span>IVA 16%</span><span>{fmtMoney(totals.iva)}</span></div>

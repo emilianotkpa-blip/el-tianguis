@@ -51,6 +51,7 @@ const T = {
   pedidosMercancia: process.env.NOCO_TABLE_PEDIDOS_MERCANCIA,
   clientes:         process.env.NOCO_TABLE_CLIENTES,
   equipo:           process.env.NOCO_TABLE_EQUIPO,
+  promos:           process.env.NOCO_TABLE_PROMOS,
 }
 
 async function nocoGet(tableId, params = "") {
@@ -417,6 +418,73 @@ app.get("/api/alertas", async (req, res) => {
       if (p.Estado === "recibido") alertas.push({ type: "ok", title: `Orden ${p.Folio} recibida en ${p.Destino}`, time: p.Fecha ?? "" })
     })
     res.json(alertas.slice(0, 20))
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ── Reglas de precio (combos y proporciones) ───────────
+// La tabla es opcional: mientras no exista NOCO_TABLE_PROMOS el sistema
+// funciona igual, solo que sin reglas. Así se puede desplegar antes de
+// crearla en NocoDB.
+const promosListas = () => Boolean(T.promos)
+
+app.get("/api/promos", async (req, res) => {
+  if (!promosListas()) return res.json([])
+  try {
+    const filas = await nocoGet(T.promos)
+    res.json(filas.map(f => {
+      let config = {}
+      try { config = f.Config_JSON ? JSON.parse(f.Config_JSON) : {} } catch {}
+      return {
+        id: f.Id,
+        nombre: f.Nombre ?? "",
+        tipo: f.Tipo ?? "combo",
+        activo: f.Activo !== false && f.Activo !== 0,
+        prioridad: f.Prioridad ?? 100,
+        config,
+      }
+    }))
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.post("/api/promos", async (req, res) => {
+  if (!promosListas()) return res.status(503).json({ error: "Falta configurar la tabla de reglas (NOCO_TABLE_PROMOS)" })
+  const { nombre, tipo, activo, prioridad, config } = req.body
+  try {
+    const fila = await nocoPost(T.promos, {
+      Nombre: nombre ?? "Regla sin nombre",
+      Tipo: tipo ?? "combo",
+      Activo: activo !== false,
+      Prioridad: Number(prioridad) || 100,
+      Config_JSON: JSON.stringify(config ?? {}),
+    })
+    res.json({ ok: true, id: fila.Id ?? fila.id })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.patch("/api/promos/:id", async (req, res) => {
+  if (!promosListas()) return res.status(503).json({ error: "Falta configurar la tabla de reglas (NOCO_TABLE_PROMOS)" })
+  const { nombre, tipo, activo, prioridad, config } = req.body
+  try {
+    const update = { Id: parseInt(req.params.id) }
+    if (nombre    !== undefined) update.Nombre      = nombre
+    if (tipo      !== undefined) update.Tipo        = tipo
+    if (activo    !== undefined) update.Activo      = activo !== false
+    if (prioridad !== undefined) update.Prioridad   = Number(prioridad) || 100
+    if (config    !== undefined) update.Config_JSON = JSON.stringify(config)
+    await nocoPatch(T.promos, update)
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.delete("/api/promos/:id", async (req, res) => {
+  if (!promosListas()) return res.status(503).json({ error: "Falta configurar la tabla de reglas (NOCO_TABLE_PROMOS)" })
+  try {
+    await fetch(`${NOCO_URL}/api/v2/tables/${T.promos}/records`, {
+      method: "DELETE",
+      headers: { "xc-token": NOCO_TOKEN, "Content-Type": "application/json" },
+      body: JSON.stringify({ Id: parseInt(req.params.id) }),
+    })
+    res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
@@ -1106,8 +1174,9 @@ app.patch("/api/caja/:id/cobrar", async (req, res) => {
     const suc   = (sucursal ?? nota.Sucursal ?? "centro").toLowerCase()
     const campo = suc.includes("repostero") ? "Repostero" : suc.includes("bodega") ? "Bodega" : "Centro"
 
-    // Decrement stock por nivel
-    for (const item of items) {
+    // Decrement stock por nivel.
+    // Las líneas de descuento viajan en el mismo array pero no son productos.
+    for (const item of items.filter(i => i && i.tipo !== "descuento")) {
       await descontarNiveles(item, campo)
     }
 

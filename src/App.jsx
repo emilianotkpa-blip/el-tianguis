@@ -13,6 +13,7 @@ import InventariosPage from "./pages/Inventarios"
 import UtilidadesPage from "./pages/Utilidades"
 import TianguisIAPage from "./pages/TianguisIA"
 import ClientesPage from "./pages/Clientes"
+import ReglasPage from "./pages/Reglas"
 import CajaPage from "./pages/Caja"
 import BásculaPage from "./pages/Balanza"
 import { getStats, getAlertas, getCatalogo, getClientes, getPrinters, printFolio } from "./api"
@@ -171,6 +172,7 @@ const NAV = [
   { id: "caja",              label: "Caja",             icon: "receipt",  rolMin: "cajero" },
   { id: "productos",         label: "Productos",        icon: "box" },
   { id: "facturas",          label: "Facturas",         icon: "receipt" },
+  { id: "reglas",            label: "Reglas de precio", icon: "sparkle",  rolMin: "gerente" },
   { section: "Logística" },
   { id: "pedidos-mercancia", label: "Pedidos Mercancía",icon: "truck" },
   { id: "pedidos-clientes",  label: "Pedidos Clientes", icon: "users" },
@@ -187,6 +189,7 @@ const PAGE_INFO = {
   balanza:           { title: "Báscula",          parent: "Operación" },
   productos:         { title: "Productos",        parent: "Operación" },
   facturas:          { title: "Facturas",         parent: "Operación" },
+  reglas:            { title: "Reglas de precio", parent: "Operación" },
   "pedidos-mercancia": { title: "Pedidos Mercancía", parent: "Logística" },
   "pedidos-clientes":  { title: "Pedidos Clientes",  parent: "Logística" },
   clientes:          { title: "Clientes",          parent: "Logística" },
@@ -298,6 +301,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
       case "facturas":           return <FacturasPage addToast={addToast} />
       case "pedidos-mercancia":  return <PedidosMercanciaPage addToast={addToast} user={user} />
       case "pedidos-clientes":   return <PedidosClientesPage addToast={addToast} />
+      case "reglas":             return <ReglasPage addToast={addToast} />
       case "clientes":           return <ClientesPage addToast={addToast} />
       case "inventarios":        return <InventariosPage addToast={addToast} sucursalActiva={user.sucursal} />
       case "caja":               return <CajaPage addToast={addToast} sucursalActiva={user.sucursal} user={user} />
