@@ -164,9 +164,13 @@ input, select, textarea { font-family: inherit; }
 :root            { color-scheme: light; }
 [data-theme="dark"] { color-scheme: dark; }
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
-select,
-textarea {
+/* :where() aporta especificidad CERO. Sin él, los cinco :not() sumaban más
+   que `.filter-bar .search-input input` y esta regla le robaba el
+   padding-left que deja sitio a la lupa: el texto se encimaba con el icono
+   en los tres buscadores de la app. */
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])),
+:where(select),
+:where(textarea) {
   color: var(--text);
   background: var(--bg-elev);
   border: 1px solid var(--border-strong);
