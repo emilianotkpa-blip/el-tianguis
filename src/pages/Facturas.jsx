@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import Icon from "../components/Icon"
 import { TableSkeleton } from "../components/Skeleton"
+import Select from "../components/Select"
 import CountUp from "../components/CountUp"
 import { getFacturas, solicitarFactura, cancelarFactura } from "../api"
 import { fmtMoney } from "../utils"
@@ -180,13 +181,19 @@ export default function FacturasPage({ addToast }) {
                   <Icon name="search" size={14} className="icon" />
                   <input placeholder="Buscar folio o cliente…" value={search} onChange={e => setSearch(e.target.value)} />
                 </div>
-                <select value={filtroEstado} onChange={e => setFiltro(e.target.value)}>
-                  <option value="todas">Todas</option>
-                  <option value="sin_factura">Sin factura</option>
-                  <option value="solicitada">Solicitadas</option>
-                  <option value="timbrada">Timbradas</option>
-                  <option value="enviada">Enviadas</option>
-                </select>
+                <Select
+                  value={filtroEstado}
+                  onChange={e => setFiltro(e.target.value)}
+                  className="select-filtro"
+                  ariaLabel="Filtrar facturas"
+                  options={[
+                    { value: "todas",       label: "Todas" },
+                    { value: "sin_factura", label: "Sin factura" },
+                    { value: "solicitada",  label: "Solicitadas" },
+                    { value: "timbrada",    label: "Timbradas" },
+                    { value: "enviada",     label: "Enviadas" },
+                  ]}
+                />
               </div>
             </div>
             <div className="card-body flush">
@@ -283,16 +290,22 @@ export default function FacturasPage({ addToast }) {
 
                 <div>
                   <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 3 }}>Uso CFDI</label>
-                  <select value={form.usoCfdi} onChange={e => f("usoCfdi", e.target.value)} style={{ width: "100%" }}>
-                    {USOS_CFDI.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
-                  </select>
+                  <Select
+                    value={form.usoCfdi}
+                    onChange={e => f("usoCfdi", e.target.value)}
+                    ariaLabel="Uso de CFDI"
+                    options={USOS_CFDI.map(u => ({ value: u.id, label: u.label }))}
+                  />
                 </div>
 
                 <div>
                   <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 3 }}>Régimen fiscal receptor</label>
-                  <select value={form.regimenReceptor} onChange={e => f("regimenReceptor", e.target.value)} style={{ width: "100%" }}>
-                    {REGIMENES.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
-                  </select>
+                  <Select
+                    value={form.regimenReceptor}
+                    onChange={e => f("regimenReceptor", e.target.value)}
+                    ariaLabel="Régimen fiscal del receptor"
+                    options={REGIMENES.map(r => ({ value: r.id, label: r.label }))}
+                  />
                 </div>
 
                 <div>

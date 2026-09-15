@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import Icon from "../components/Icon"
 import { TableSkeleton } from "../components/Skeleton"
+import Select from "../components/Select"
 import Modal from "../components/Modal"
 import Confirm from "../components/Confirm"
 import { getClientes, postCliente, patchCliente, deleteCliente } from "../api"
@@ -115,10 +116,13 @@ export default function ClientesPage({ addToast }) {
               <Icon name="search" size={14} className="icon" />
               <input placeholder="Buscar por nombre o RFC…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <select value={tipoF} onChange={(e) => setTipoF(e.target.value)}>
-              <option value="todos">Todos los tipos</option>
-              {TIPOS.map((t) => <option key={t}>{t}</option>)}
-            </select>
+            <Select
+              value={tipoF}
+              onChange={(e) => setTipoF(e.target.value)}
+              className="select-filtro"
+              ariaLabel="Filtrar por tipo de cliente"
+              options={[{ value: "todos", label: "Todos los tipos" }, ...TIPOS.map((t) => ({ value: t, label: t }))]}
+            />
             <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{filtered.length} resultados</span>
           </div>
         </div>
@@ -179,9 +183,12 @@ export default function ClientesPage({ addToast }) {
           <div className="form-row" style={{ gridColumn: "1/-1" }}><label>Nombre *</label><input value={form.nombre} onChange={setF("nombre")} /></div>
           <div className="form-row"><label>RFC</label><input value={form.rfc} onChange={setF("rfc")} placeholder="XAXX010101000" /></div>
           <div className="form-row"><label>Tipo</label>
-            <select value={form.tipo} onChange={setF("tipo")}>
-              {TIPOS.map((t) => <option key={t}>{t}</option>)}
-            </select>
+            <Select
+              value={form.tipo}
+              onChange={setF("tipo")}
+              ariaLabel="Tipo de cliente"
+              options={TIPOS.map((t) => ({ value: t, label: t }))}
+            />
           </div>
           <div className="form-row"><label>Teléfono</label><input value={form.telefono} onChange={setF("telefono")} /></div>
           <div className="form-row"><label>Email</label><input type="email" value={form.email} onChange={setF("email")} /></div>

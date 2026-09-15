@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import Icon from "../components/Icon"
+import Select from "../components/Select"
 import { getCatalogo } from "../api"
 import { fmtMoney } from "../utils"
 import { SUCURSALES } from "../data"
@@ -121,9 +122,13 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
           </h1>
           <p className="page-subtitle">
             Sucursal:&nbsp;
-            <select value={suc} onChange={e => setSuc(e.target.value)} style={{ fontSize: 12, border: "none", background: "transparent", color: "var(--text-muted)", cursor: "pointer" }}>
-              {SUCURSALES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <Select
+              value={suc}
+              onChange={e => setSuc(e.target.value)}
+              className="select-plano"
+              ariaLabel="Sucursal"
+              options={SUCURSALES.map(x => ({ value: x.id, label: x.name }))}
+            />
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>

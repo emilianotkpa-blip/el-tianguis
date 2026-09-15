@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import Icon from "../components/Icon"
 import Stepper from "../components/Stepper"
 import { TilesSkeleton } from "../components/Skeleton"
+import Select from "../components/Select"
 import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio } from "../api"
 import { fmtMoney, todayISO, tipoLabel } from "../utils"
@@ -813,10 +814,16 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
             <div className="card-body" style={{ padding: "12px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <label style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>Cliente</label>
-                <select value={cliente} onChange={e => setCliente(e.target.value)} style={{ flex: 1 }}>
-                  <option value="Mostrador">Mostrador</option>
-                  {clientes.map(c => <option key={c.Id} value={c.Nombre}>{c.Nombre}</option>)}
-                </select>
+                <Select
+                  value={cliente}
+                  onChange={e => setCliente(e.target.value)}
+                  style={{ flex: 1 }}
+                  ariaLabel="Cliente de la nota"
+                  options={[
+                    { value: "Mostrador", label: "Mostrador" },
+                    ...clientes.map(c => ({ value: c.Nombre, label: c.Nombre })),
+                  ]}
+                />
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
@@ -874,9 +881,13 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
           <h1 className="page-title">Ventas · Punto de venta</h1>
           <p className="page-subtitle">
             Sucursal:&nbsp;
-            <select value={suc} onChange={e => setSuc(e.target.value)} style={{ fontSize: 12, border: "none", background: "transparent", color: "var(--text-muted)", cursor: "pointer" }}>
-              {SUCURSALES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <Select
+              value={suc}
+              onChange={e => setSuc(e.target.value)}
+              className="select-plano"
+              ariaLabel="Sucursal"
+              options={SUCURSALES.map(x => ({ value: x.id, label: x.name }))}
+            />
           </p>
         </div>
         <div className="page-actions">

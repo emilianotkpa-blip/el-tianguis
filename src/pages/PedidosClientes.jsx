@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import Icon from "../components/Icon"
 import { TableSkeleton } from "../components/Skeleton"
+import Select from "../components/Select"
 import Modal from "../components/Modal"
 import Confirm from "../components/Confirm"
 import { getPedidosClientes, postPedidoCliente, patchPedidoCliente, getCatalogo, getClientes, postCliente } from "../api"
@@ -234,10 +235,16 @@ export default function PedidosClientesPage({ addToast }) {
                   <div className="form-row">
                     <label>Cliente</label>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} style={{ flex: 1 }}>
-                        <option value="">Mostrador</option>
-                        {clientes.map((c) => <option key={c.Id} value={String(c.Id)}>{c.Nombre}</option>)}
-                      </select>
+                      <Select
+                        value={clienteId}
+                        onChange={(e) => setClienteId(e.target.value)}
+                        style={{ flex: 1 }}
+                        ariaLabel="Cliente del pedido"
+                        options={[
+                          { value: "", label: "Mostrador" },
+                          ...clientes.map((c) => ({ value: String(c.Id), label: c.Nombre })),
+                        ]}
+                      />
                       <button className="btn btn-default btn-sm" title="Nuevo cliente" onClick={() => setShowNuevoCliente(true)}>
                         <Icon name="plus" size={12} />
                       </button>
@@ -245,9 +252,12 @@ export default function PedidosClientesPage({ addToast }) {
                   </div>
                   <div className="form-row">
                     <label>Sucursal</label>
-                    <select value={sucursal} onChange={(e) => setSucursal(e.target.value)}>
-                      {SUCURSALES.map((s) => <option key={s}>{s}</option>)}
-                    </select>
+                    <Select
+                      value={sucursal}
+                      onChange={(e) => setSucursal(e.target.value)}
+                      ariaLabel="Sucursal del pedido"
+                      options={SUCURSALES.map((x) => ({ value: x, label: x }))}
+                    />
                   </div>
                   <div className="form-row">
                     <label>Fecha de entrega</label>
@@ -284,9 +294,12 @@ export default function PedidosClientesPage({ addToast }) {
             <div className="form-row" style={{ gridColumn: "1/-1" }}><label>Nombre *</label><input value={ncForm.nombre} onChange={setNcF("nombre")} /></div>
             <div className="form-row"><label>RFC</label><input value={ncForm.rfc} onChange={setNcF("rfc")} placeholder="XAXX010101000" /></div>
             <div className="form-row"><label>Tipo</label>
-              <select value={ncForm.tipo} onChange={setNcF("tipo")}>
-                {TIPOS_CLIENTE.map((t) => <option key={t}>{t}</option>)}
-              </select>
+              <Select
+                value={ncForm.tipo}
+                onChange={setNcF("tipo")}
+                ariaLabel="Tipo de cliente"
+                options={TIPOS_CLIENTE.map((t) => ({ value: t, label: t }))}
+              />
             </div>
             <div className="form-row" style={{ gridColumn: "1/-1" }}><label>Teléfono</label><input value={ncForm.telefono} onChange={setNcF("telefono")} /></div>
           </div>
@@ -316,14 +329,20 @@ export default function PedidosClientesPage({ addToast }) {
               <Icon name="search" size={14} className="icon" />
               <input placeholder="Buscar por folio o cliente…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <select value={estado} onChange={(e) => setEstado(e.target.value)}>
-              <option value="todos">Todos los estados</option>
-              <option value="preparando">Preparando</option>
-              <option value="listo">Listos</option>
-              <option value="en_camino">En camino</option>
-              <option value="entregado">Entregados</option>
-              <option value="cancelado">Cancelados</option>
-            </select>
+            <Select
+              value={estado}
+              onChange={(e) => setEstado(e.target.value)}
+              className="select-filtro"
+              ariaLabel="Filtrar por estado del pedido"
+              options={[
+                { value: "todos",      label: "Todos los estados" },
+                { value: "preparando", label: "Preparando" },
+                { value: "listo",      label: "Listos" },
+                { value: "en_camino",  label: "En camino" },
+                { value: "entregado",  label: "Entregados" },
+                { value: "cancelado",  label: "Cancelados" },
+              ]}
+            />
             <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{filtered.length} resultados</span>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import { createPortal } from "react-dom"
 import Icon from "../components/Icon"
 import { TableSkeleton } from "../components/Skeleton"
+import Select from "../components/Select"
 import Stepper from "../components/Stepper"
 import NotaImpresa from "../components/NotaImpresa"
 import { getCaja, getCajaPorFolio, editarNotaCaja, cobrarNota, cancelarNota, getCatalogo, getHistorialCaja } from "../api"
@@ -158,9 +159,13 @@ function CobrarWizard({ nota, getItems, calcTotals, onExito, onCancelar, addToas
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {pagos.map((p, i) => (
                       <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <select value={p.metodo} onChange={e => setPagoField(i, "metodo", e.target.value)} style={{ flex: 1 }}>
-                          {METODOS.map(m => <option key={m}>{m}</option>)}
-                        </select>
+                        <Select
+                          value={p.metodo}
+                          onChange={e => setPagoField(i, "metodo", e.target.value)}
+                          style={{ flex: 1 }}
+                          ariaLabel="Forma de pago"
+                          options={METODOS.map(m => ({ value: m, label: m }))}
+                        />
                         <input type="number" step="0.01" value={p.monto}
                           onChange={e => setPagoField(i, "monto", e.target.value)}
                           style={{ width: 130, textAlign: "right" }} />

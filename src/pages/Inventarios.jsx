@@ -5,6 +5,7 @@ import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postMovimiento } from "../api"
 import { exportCSV, tipoLabel } from "../utils"
 import { TableSkeleton } from "../components/Skeleton"
+import Select from "../components/Select"
 import CountUp from "../components/CountUp"
 
 // ── Modal Recepción masiva ─────────────────────────────
@@ -368,12 +369,18 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
               <Icon name="search" size={14} className="icon" />
               <input placeholder="Buscar por nombre, SKU o código de barras…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <select value={statusFilter} onChange={(e) => setStatus(e.target.value)}>
-              <option value="todos">Todos los estados</option>
-              <option value="normal">Normal</option>
-              <option value="bajo">Stock bajo</option>
-              <option value="agotado">Agotado</option>
-            </select>
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatus(e.target.value)}
+              className="select-filtro"
+              ariaLabel="Filtrar por estado de stock"
+              options={[
+                { value: "todos",   label: "Todos los estados" },
+                { value: "normal",  label: "Normal" },
+                { value: "bajo",    label: "Stock bajo" },
+                { value: "agotado", label: "Agotado" },
+              ]}
+            />
             <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{filtered.length} productos</span>
             {totalPages > 1 && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
@@ -470,48 +477,63 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
           <div className="form-grid cols-2">
             <div className="form-row" style={{ gridColumn: "1/-1" }}>
               <label>Tipo de movimiento</label>
-              <select value={movTipo} onChange={(e) => setMovTipo(e.target.value)}>
-                <option value="Entrada">Entrada por compra</option>
-                <option value="Salida">Salida por venta</option>
-                <option value="Traspaso">Traspaso entre sucursales</option>
-                <option value="Ajuste">Ajuste por inventario físico</option>
-                <option value="Merma">Merma / daño</option>
-              </select>
+              <Select
+                value={movTipo}
+                onChange={(e) => setMovTipo(e.target.value)}
+                options={[
+                  { value: "Entrada",  label: "Entrada por compra" },
+                  { value: "Salida",   label: "Salida por venta" },
+                  { value: "Traspaso", label: "Traspaso entre sucursales" },
+                  { value: "Ajuste",   label: "Ajuste por inventario físico" },
+                  { value: "Merma",    label: "Merma / daño" },
+                ]}
+              />
             </div>
             <div className="form-row">
               <label>Sucursal</label>
-              <select value={movSuc} onChange={(e) => setMovSuc(e.target.value)}>
-                {SUCURSALES.map((s) => <option key={s.id} value={s.short}>{s.name}</option>)}
-              </select>
+              <Select
+                value={movSuc}
+                onChange={(e) => setMovSuc(e.target.value)}
+                options={SUCURSALES.map((s) => ({ value: s.short, label: s.name, hint: s.desc }))}
+              />
             </div>
             <div className="form-row">
               <label>Unidad de entrada</label>
-              <select value={movNivel} onChange={e => setMovNivel(e.target.value)}>
-                <option value="pieza">{adjustingP.unidadBase === "gramo" ? "Gramo / unidad suelta" : "Pieza / unidad suelta"}</option>
-                {/* Paquetes: nivel "paquete" o gramo con factor ≥ 1000 (bolsas 1kg sin migrar) */}
-                {adjustingP.presentaciones?.filter(p =>
-                  p.nivel === "paquete" ||
-                  (p.nivel === "gramo" && p.factor >= 1000 && p.id !== "detalle")
-                ).map(p => {
-                  const u = adjustingP.unidadBase === "gramo"
-                    ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
-                    : `${p.factor} pzs c/u`
-                  return <option key={p.id} value="paq">{p.label} ({u})</option>
-                })}
-                {/* Cajas/Bultos: se registran en stockNiveles.caja */}
-                {adjustingP.presentaciones?.filter(p => p.nivel === "caja" || p.nivel === "bulto").map(p => {
-                  let u
-                  if (p.contieneN && p.contienePres) {
-                    const paqPres = adjustingP.presentaciones.find(x => x.id === p.contienePres)
-                    u = `${p.contieneN} ${paqPres ? paqPres.label : "paq"} c/u`
-                  } else {
-                    u = adjustingP.unidadBase === "gramo"
+              <Select
+                value={movNivel}
+                onChange={e => setMovNivel(e.target.value)}
+                options={(() => {
+                  const esGramo = adjustingP.unidadBase === "gramo"
+                  const ops = [{
+                    value: "pieza",
+                    label: esGramo ? "Gramo / unidad suelta" : "Pieza / unidad suelta",
+                  }]
+                  // Paquetes: nivel "paquete" o gramo con factor ≥ 1000 (bolsas 1kg sin migrar)
+                  adjustingP.presentaciones?.filter(p =>
+                    p.nivel === "paquete" ||
+                    (p.nivel === "gramo" && p.factor >= 1000 && p.id !== "detalle")
+                  ).forEach(p => {
+                    const u = esGramo
                       ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
                       : `${p.factor} pzs c/u`
-                  }
-                  return <option key={p.id} value="caja">{p.label} ({u})</option>
-                })}
-              </select>
+                    ops.push({ value: "paq", label: p.label, hint: u })
+                  })
+                  // Cajas/Bultos: se registran en stockNiveles.caja
+                  adjustingP.presentaciones?.filter(p => p.nivel === "caja" || p.nivel === "bulto").forEach(p => {
+                    let u
+                    if (p.contieneN && p.contienePres) {
+                      const paqPres = adjustingP.presentaciones.find(x => x.id === p.contienePres)
+                      u = `${p.contieneN} ${paqPres ? paqPres.label : "paq"} c/u`
+                    } else {
+                      u = esGramo
+                        ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
+                        : `${p.factor} pzs c/u`
+                    }
+                    ops.push({ value: "caja", label: p.label, hint: u })
+                  })
+                  return ops
+                })()}
+              />
             </div>
             <div className="form-row">
               <label>Cantidad{movNivel !== "pieza" ? ` (en ${movNivel === "caja" ? "cajas" : "paquetes"})` : ""}</label>
@@ -522,8 +544,8 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
               <textarea rows="2" value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Opcional…" />
             </div>
             {/* Mostrar stock con equivalencias (base stock como fuente de verdad) */}
-            <div style={{ gridColumn: "1/-1", padding: 12, background: "var(--bg-sunken)", borderRadius: 6, fontSize: 12 }}>
-              <strong>Stock actual ({movSuc.toLowerCase()}):</strong>
+            <div className="stock-panel" style={{ gridColumn: "1/-1" }}>
+              <div className="stock-panel-title">Stock actual · {movSuc}</div>
               {(() => {
                 const sucId    = movSuc.toLowerCase()
                 const n        = adjustingP.stockNiveles?.[sucId] ?? {}
@@ -551,26 +573,25 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                 const cajEquiv = cajFac > 0 ? Math.floor(baseStock / cajFac) : 0
 
                 return (
-                  <div style={{ marginTop: 6, display: "flex", gap: 20, flexWrap: "wrap" }}>
+                  <div className="stock-chips">
                     {cajFac > 0 && (
-                      <span>
-                        {cajP.label}: <strong>{cajasN}</strong>
-                        {paqFac > 0 && (
-                          <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>(equiv. {cajEquiv})</span>
-                        )}
-                      </span>
+                      <div className="stock-chip">
+                        <span className="sc-label">{cajP.label}</span>
+                        <span className="sc-value">{cajasN}</span>
+                        {paqFac > 0 && <span className="sc-hint">equiv. {cajEquiv}</span>}
+                      </div>
                     )}
                     {paqFac > 0 && (
-                      <span>
-                        {paqP.label}: <strong>{paqEquiv}</strong>
-                        {paqSueltos > 0 && (
-                          <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>({paqSueltos} sueltos)</span>
-                        )}
-                      </span>
+                      <div className="stock-chip">
+                        <span className="sc-label">{paqP.label}</span>
+                        <span className="sc-value">{paqEquiv}</span>
+                        {paqSueltos > 0 && <span className="sc-hint">{paqSueltos} sueltos</span>}
+                      </div>
                     )}
-                    <span>
-                      {esGramo ? "Total:" : "Piezas:"} <strong>{fmtBase(baseStock)}</strong>
-                    </span>
+                    <div className="stock-chip destacado">
+                      <span className="sc-label">{esGramo ? "Total" : "Piezas"}</span>
+                      <span className="sc-value">{fmtBase(baseStock)}</span>
+                    </div>
                   </div>
                 )
               })()}

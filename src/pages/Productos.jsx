@@ -5,6 +5,7 @@ import { getCatalogo, patchProducto, postProducto, getNextCodigo, deleteProducto
 import { fmtMoney, fmtNum, exportCSV, tipoLabel } from "../utils"
 import { TIPOS_CONFIG, TIPOS_LISTA } from "../data"
 import { TableSkeleton } from "../components/Skeleton"
+import Select from "../components/Select"
 
 const emptyForm = {
   sku: "", tipo: "", name: "", marca: "", min: 5,
@@ -349,14 +350,24 @@ export default function ProductosPage({ addToast }) {
               <Icon name="search" size={14} className="icon" />
               <input placeholder="Buscar por código o nombre…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <select value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)}>
-              {tipos.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-            <select value={factF} onChange={(e) => setFactF(e.target.value)}>
-              <option value="todos">Todos</option>
-              <option value="si">Facturables</option>
-              <option value="no">Sin factura</option>
-            </select>
+            <Select
+              value={tipoFiltro}
+              onChange={(e) => setTipoFiltro(e.target.value)}
+              className="select-filtro"
+              ariaLabel="Filtrar por tipo"
+              options={tipos.map((t) => ({ value: t.id, label: t.name }))}
+            />
+            <Select
+              value={factF}
+              onChange={(e) => setFactF(e.target.value)}
+              className="select-filtro"
+              ariaLabel="Filtrar por facturación"
+              options={[
+                { value: "todos", label: "Todos" },
+                { value: "si",    label: "Facturables" },
+                { value: "no",    label: "Sin factura" },
+              ]}
+            />
             <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{filtered.length} resultados</span>
             {totalPages > 1 && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
@@ -471,10 +482,13 @@ export default function ProductosPage({ addToast }) {
             </div>
             <div className="form-row">
               <label>Tipo *</label>
-              <select value={form.tipo} onChange={e => handleTipoChange(e.target.value)} disabled={!!editing}>
-                <option value="">— Selecciona tipo —</option>
-                {TIPOS_LISTA.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-              </select>
+              <Select
+                value={form.tipo}
+                onChange={e => handleTipoChange(e.target.value)}
+                disabled={!!editing}
+                placeholder="— Selecciona tipo —"
+                options={TIPOS_LISTA.map(t => ({ value: t.id, label: t.label }))}
+              />
             </div>
             <div className="form-row" style={{ gridColumn: "1/-1" }}>
               <label>Nombre del producto *</label>
@@ -530,9 +544,9 @@ export default function ProductosPage({ addToast }) {
                       padding: "6px 8px",
                     }}>
                       {/* Fila principal */}
-                      <div style={{
+                      <div className="pres-row" style={{
                         display: "grid",
-                        gridTemplateColumns: "28px 1fr 80px 90px 52px auto",
+                        gridTemplateColumns: "28px 1fr 96px 100px 52px auto",
                         alignItems: "center",
                         gap: 6,
                       }}>
@@ -570,7 +584,7 @@ export default function ProductosPage({ addToast }) {
                                   type="number" min="1"
                                   value={pres.factor}
                                   onChange={e => setPresFactor(idx, e.target.value)}
-                                  style={{ width: 54, fontSize: 12, textAlign: "right" }}
+                                  style={{ width: 70, fontSize: 12, textAlign: "right" }}
                                 />
                           }
                           {!((pres.nivel === "caja" || pres.nivel === "bulto") && availablePaqs.length > 0) && (
@@ -629,19 +643,18 @@ export default function ProductosPage({ addToast }) {
                             value={pres.contieneN || ""}
                             onChange={e => setPresContieneN(idx, e.target.value)}
                             placeholder="0"
-                            style={{ width: 52, fontSize: 12, textAlign: "right", padding: "2px 6px" }}
+                            style={{ width: 64, fontSize: 12, textAlign: "right" }}
                           />
                           <span style={{ fontSize: 12, color: "var(--text-muted)" }}>×</span>
-                          <select
+                          <Select
                             value={pres.contienePres || ""}
                             onChange={e => setPresContienePres(idx, e.target.value)}
-                            style={{ fontSize: 12, padding: "2px 6px", minWidth: 100 }}
-                          >
-                            <option value="">— tipo de paq —</option>
-                            {availablePaqs.map(pq => (
-                              <option key={pq.id} value={pq.id}>{pq.label}</option>
-                            ))}
-                          </select>
+                            className="select-compacto"
+                            style={{ minWidth: 130 }}
+                            placeholder="— tipo de paq —"
+                            ariaLabel="Tipo de paquete que contiene"
+                            options={availablePaqs.map(pq => ({ value: pq.id, label: pq.label }))}
+                          />
                           {pres.contieneN && pres.contienePres && pres.factor > 0 && (
                             <span style={{ fontSize: 10, color: "var(--ok)", fontWeight: 600 }}>
                               = {cfg?.unidadBase === "gramo"
