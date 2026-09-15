@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react"
 import { SUCURSALES } from "./data"
 import Icon from "./components/Icon"
 import Toast from "./components/Toast"
@@ -211,6 +211,28 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
   }, [])
   const [notifOpen, setNotifOpen] = useState(false)
   const [toasts, setToasts]     = useState([])
+
+  // ── Pastilla deslizante del sidebar ───────────────────
+  const navRef = useRef(null)
+  const mainRef = useRef(null)
+  const [indicator, setIndicator] = useState({ top: 0, height: 0, on: false })
+  const [headerScrolled, setHeaderScrolled] = useState(false)
+
+  useLayoutEffect(() => {
+    const el = navRef.current?.querySelector(".sidebar-item.active")
+    if (!el) return setIndicator(i => ({ ...i, on: false }))
+    setIndicator({ top: el.offsetTop, height: el.offsetHeight, on: true })
+  }, [page, user?.rol])
+
+  // El header solo proyecta sombra cuando hay contenido corrido debajo
+  useEffect(() => {
+    const el = mainRef.current
+    if (!el) return
+    const onScroll = () => setHeaderScrolled(el.scrollTop > 4)
+    el.addEventListener("scroll", onScroll, { passive: true })
+    onScroll()
+    return () => el.removeEventListener("scroll", onScroll)
+  }, [])
   const [stats, setStats]       = useState(() => preloadedData?.stats ?? { alertasStock: 0, pedidosPendientes: 0 })
   const [alertas, setAlertas]   = useState(() => preloadedData?.alertas ?? [])
   const [notasCaja, setNotasCaja] = useState(0)
@@ -315,7 +337,12 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
           </button>
         )}
 
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" ref={navRef}>
+          <span
+            className={"sidebar-indicator" + (indicator.on ? " on" : "")}
+            style={{ transform: `translateY(${indicator.top}px)`, height: indicator.height }}
+            aria-hidden="true"
+          />
           {NAV.map((item, i) => {
             if (item.section) return <div key={i} className="sidebar-section">{item.section}</div>
             // Ocultar items que requieren rol mínimo
@@ -355,7 +382,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
         </div>
       </aside>
 
-      <header className="app-header">
+      <header className={"app-header" + (headerScrolled ? " scrolled" : "")}>
         <div className="breadcrumb">
           <span>{PAGE_INFO[page]?.parent}</span>
           <span className="sep">›</span>
@@ -461,7 +488,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
         </button>
       </header>
 
-      <main className="app-main">
+      <main className="app-main" ref={mainRef}>
         <ErrorBoundary key={page} title={PAGE_INFO[page]?.title}>
           {renderPage()}
         </ErrorBoundary>
