@@ -472,7 +472,7 @@ export default function ProductosPage({ addToast }) {
               />
             </div>
             <div className="form-row">
-              <label>⌖ Código de barras *</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 5 }}><Icon name="barcode" size={13} /> Código de barras *</label>
               <input
                 value={form.codigoBarras}
                 onChange={setF("codigoBarras")}
@@ -670,7 +670,7 @@ export default function ProductosPage({ addToast }) {
                         <div style={{ paddingLeft: 34, marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
                           {/* Barcode */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>⌖ Cód. barra:</span>
+                            <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="barcode" size={12} /> Cód. barra:</span>
                             <input
                               value={pres.codigoBarras || ""}
                               onChange={e => setPresCodigoBarras(idx, e.target.value)}

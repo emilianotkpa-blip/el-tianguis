@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import { createPortal } from "react-dom"
 import Icon from "../components/Icon"
 import { TableSkeleton } from "../components/Skeleton"
+import VentaRapida from "./VentaRapida"
 import Select from "../components/Select"
 import Stepper from "../components/Stepper"
 import NotaImpresa from "../components/NotaImpresa"
@@ -305,7 +306,7 @@ function CobrarWizard({ nota, getItems, calcTotals, onExito, onCancelar, addToas
   )
 }
 
-export default function CajaPage({ addToast, sucursalActiva }) {
+export default function CajaPage({ addToast, sucursalActiva, user }) {
   const [notas, setNotas]         = useState([])
   const [loading, setLoading]     = useState(true)
   const [selected, setSelected]   = useState(null)
@@ -317,6 +318,8 @@ export default function CajaPage({ addToast, sucursalActiva }) {
   const [confirmCancelar, setConfirmCancelar] = useState(false)
   const [wizardNota, setWizardNota]     = useState(null)
   const [previewNota, setPreviewNota]   = useState(null)
+  const [ventaRapida, setVentaRapida] = useState(false)
+
   // Historial
   const [vista, setVista]         = useState("cola")
   const [rango, setRango]         = useState("1d")
@@ -563,6 +566,16 @@ export default function CajaPage({ addToast, sucursalActiva }) {
         />
       )}
 
+      {ventaRapida && (
+        <VentaRapida
+          sucursal={sucursalActiva}
+          user={user}
+          addToast={addToast}
+          onClose={() => setVentaRapida(false)}
+          onCobrada={cargarCola}
+        />
+      )}
+
       <div className="page">
         <div className="page-header">
           <div>
@@ -574,6 +587,10 @@ export default function CajaPage({ addToast, sucursalActiva }) {
             </p>
           </div>
           <div className="page-actions">
+            {/* El cajero puede vender sin pasar por el flujo de tres pasos */}
+            <button className="btn btn-wine" onClick={() => setVentaRapida(true)}>
+              <Icon name="cart" size={14} /> Venta rápida
+            </button>
             <div className="range-toggle">
               <button className={vista === "cola"      ? "active" : ""} onClick={() => { setVista("cola"); setSelected(null) }}>Cola</button>
               <button className={vista === "historial" ? "active" : ""} onClick={() => setVista("historial")}>Historial</button>
