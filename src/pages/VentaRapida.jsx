@@ -19,8 +19,8 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
   const [cart, setCart]           = useState([])
   const [search, setSearch]       = useState("")
   const [presProducto, setPres]   = useState(null)
-  const [metodo, setMetodo]       = useState("Efectivo")
-  const [recibido, setRecibido]   = useState("")
+  const [pagos, setPagos]         = useState([{ metodo: "Efectivo", monto: "" }])
+  const [folioTerminal, setFolioTerminal] = useState("")
   const [cobrando, setCobrando]   = useState(false)
   const [cobrada, setCobrada]     = useState(null)   // { folio, pagos, totals, cambio, items }
   const searchRef = useRef(null)
@@ -41,9 +41,27 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
   const subtotal = subtotalFact + subtotalNoFact
   const iva      = subtotalFact * 0.16
   const total    = subtotal + iva
-  const pagado   = parseFloat(recibido) || 0
-  const cambio   = metodo === "Efectivo" ? Math.max(0, pagado - total) : 0
-  const falta    = metodo === "Efectivo" && pagado > 0 ? Math.max(0, total - pagado) : 0
+  // El cobro se puede repartir entre varias formas de pago.
+  // Las comparaciones van en centavos enteros: con decimales, 50 + 40.48
+  // contra un total de 90.48 dejaba una diferencia de 0.0000000000001 que
+  // mostraba "Faltan $0.00" y bloqueaba el cobro.
+  const cent      = (n) => Math.round((Number(n) || 0) * 100)
+  const pagado    = pagos.reduce((s2, p) => s2 + (parseFloat(p.monto) || 0), 0)
+  const cambio    = Math.max(0, cent(pagado) - cent(total)) / 100
+  const falta     = Math.max(0, cent(total) - cent(pagado)) / 100
+  const tieneTarjeta = pagos.some(p => p.metodo === "Tarjeta" && (parseFloat(p.monto) || 0) > 0)
+  // Si nadie puso monto, se cobra el total con la primera forma elegida
+  const sinCapturar = pagado === 0
+  const puedeCobrar = cart.length > 0 && !cobrando
+    && (sinCapturar || falta === 0)
+    && (!tieneTarjeta || folioTerminal.trim().length > 0)
+
+  const setPagoField = (i, campo, val) =>
+    setPagos(ps => ps.map((p, idx) => idx === i ? { ...p, [campo]: val } : p))
+  const addPago = () =>
+    // La nueva línea llega con lo que falta, que es lo que casi siempre se cobra
+    setPagos(ps => [...ps, { metodo: "Tarjeta", monto: falta > 0 ? falta.toFixed(2) : "" }])
+  const removePago = (i) => setPagos(ps => ps.filter((_, idx) => idx !== i))
 
   // ── Carrito ──────────────────────────────────────────
   const agregar = (p, pres) => {
@@ -99,9 +117,12 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
 
   // ── Cobro ────────────────────────────────────────────
   const cobrar = async () => {
-    if (!cart.length || cobrando) return
-    if (metodo === "Efectivo" && pagado > 0 && pagado < total) {
-      return addToast({ kind: "err", msg: "El monto recibido no cubre el total" })
+    if (!puedeCobrar) {
+      if (tieneTarjeta && !folioTerminal.trim()) {
+        return addToast({ kind: "err", msg: "Falta el folio de la terminal" })
+      }
+      if (falta > 0) return addToast({ kind: "err", msg: `Faltan ${fmtMoney(falta)} por cubrir` })
+      return
     }
     setCobrando(true)
     try {
@@ -111,20 +132,30 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
         precio: it.precio, factor: it.factor, nivel: it.nivel,
         facturable: it.facturable, qty: it.qty,
       }))
-      const pagos = [{ metodo, monto: metodo === "Efectivo" && pagado > 0 ? pagado : total }]
+      // Sin montos capturados se cobra todo con la primera forma elegida;
+      // con reparto, cada línea va como la capturó el cajero
+      const pagosPayload = sinCapturar
+        ? [{ metodo: pagos[0].metodo, monto: total }]
+        : pagos
+            .filter(pg => (parseFloat(pg.monto) || 0) > 0)
+            .map(pg => ({ metodo: pg.metodo, monto: parseFloat(pg.monto) }))
 
       // Mismo camino que el flujo largo: se crea la nota y se cobra
       const nota = await postNota({
         fecha: todayISO(), cliente: "Mostrador",
         vendedor: user?.name ?? "Caja", sucursal: suc,
-        items, pagos, subtotal, iva, total,
+        items, pagos: pagosPayload, subtotal, iva, total,
         observaciones: "Venta rápida",
       })
-      await cobrarNota(nota.id, { pagos, sucursal: suc })
+      await cobrarNota(nota.id, {
+        pagos: pagosPayload,
+        sucursal: suc,
+        folioTerminal: folioTerminal.trim() || undefined,
+      })
 
       setCobrada({
         folio: nota.folio,
-        pagos,
+        pagos: pagosPayload,
         totals: { subtotal, iva, total, subtotalFact, subtotalNoFact },
         cambio,
         items,
@@ -139,7 +170,8 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
   }
 
   const nuevaVenta = () => {
-    setCobrada(null); setCart([]); setRecibido(""); setMetodo("Efectivo"); setSearch("")
+    setCobrada(null); setCart([]); setSearch("")
+    setPagos([{ metodo: "Efectivo", monto: "" }]); setFolioTerminal("")
   }
 
   const imprimir = () => {
@@ -157,7 +189,8 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
       if (tag === "TEXTAREA" || tag === "BUTTON") return
       if (e.target?.closest?.(".select-wrap") || document.querySelector(".select-menu")) return
       if (presProducto) return
-      if (tag === "INPUT" && e.target !== searchRef.current) return   // el campo de recibido manda
+      // Enter desde un campo de monto cobra si la cuenta ya cuadra
+      if (tag === "INPUT" && e.target !== searchRef.current && !puedeCobrar) return
       if (cobrada) { e.preventDefault(); nuevaVenta(); return }
       if (search.trim()) return                                        // lo maneja el buscador
       e.preventDefault()
@@ -281,38 +314,68 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
               <div className="vr-row"><span>IVA (16%) fact.</span><span className="num">{fmtMoney(iva)}</span></div>
               <div className="vr-row total"><span>Total</span><span key={total} className="num flash">{fmtMoney(total)}</span></div>
 
-              <div className="vr-metodos">
-                {METODOS.map(m => (
-                  <button
-                    key={m}
-                    className={"vr-metodo" + (metodo === m ? " activo" : "")}
-                    onClick={() => setMetodo(m)}
-                  >{m}</button>
+              {/* Formas de pago: se puede repartir entre varias */}
+              <div className="vr-pagos">
+                {pagos.map((pg, i) => (
+                  <div key={i} className="vr-pago-fila">
+                    <Select
+                      value={pg.metodo}
+                      onChange={e => setPagoField(i, "metodo", e.target.value)}
+                      className="select-filtro"
+                      style={{ flex: 1 }}
+                      ariaLabel={`Forma de pago ${i + 1}`}
+                      options={METODOS.map(m => ({ value: m, label: m }))}
+                    />
+                    <input
+                      type="number" step="0.01" min="0"
+                      className="vr-pago-monto"
+                      value={pg.monto}
+                      onChange={e => setPagoField(i, "monto", e.target.value)}
+                      placeholder={i === 0 && total > 0 ? total.toFixed(2) : "0.00"}
+                    />
+                    {pagos.length > 1 && (
+                      <button className="btn btn-ghost btn-sm" onClick={() => removePago(i)} style={{ color: "var(--err)" }}>
+                        <Icon name="x" size={12} />
+                      </button>
+                    )}
+                  </div>
                 ))}
+
+                <div className="vr-pagos-pie">
+                  <button className="btn btn-default btn-sm" onClick={addPago} disabled={!cart.length}>
+                    <Icon name="plus" size={12} /> Repartir pago
+                  </button>
+                  {!sinCapturar && cambio > 0 && <span className="vr-cambio-chip">Cambio {fmtMoney(cambio)}</span>}
+                  {!sinCapturar && falta  > 0 && <span className="vr-falta-chip">Faltan {fmtMoney(falta)}</span>}
+                  {sinCapturar && cart.length > 0 && (
+                    <span className="muted" style={{ fontSize: "var(--fs-xs)" }}>
+                      Sin capturar montos se cobra todo con {pagos[0].metodo.toLowerCase()}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {metodo === "Efectivo" && (
-                <div className="vr-efectivo">
-                  <label>Recibido</label>
+              {/* Folio de terminal — obligatorio si hay tarjeta, igual que en el cobro normal */}
+              {tieneTarjeta && (
+                <div className="vr-terminal">
+                  <label>Folio de la terminal</label>
                   <input
-                    type="number" step="0.01" min="0"
-                    value={recibido}
-                    onChange={e => setRecibido(e.target.value)}
-                    placeholder={total > 0 ? fmtMoney(total).replace("$", "") : "0.00"}
+                    value={folioTerminal}
+                    onChange={e => setFolioTerminal(e.target.value)}
+                    placeholder="Requerido para cobrar con tarjeta"
+                    style={{ borderColor: folioTerminal.trim() ? "var(--border-strong)" : "var(--err)" }}
                   />
-                  {cambio > 0 && <div className="vr-cambio-chip">Cambio {fmtMoney(cambio)}</div>}
-                  {falta > 0 && <div className="vr-falta-chip">Faltan {fmtMoney(falta)}</div>}
                 </div>
               )}
 
               <button
                 className="btn btn-wine btn-lg vr-cobrar"
                 onClick={cobrar}
-                disabled={!cart.length || cobrando}
+                disabled={!puedeCobrar}
               >
                 <Icon name="check" size={15} />
                 {cobrando ? "Cobrando…" : `Cobrar ${fmtMoney(total)}`}
-                {!cobrando && cart.length > 0 && <kbd className="kbd">Enter</kbd>}
+                {!cobrando && puedeCobrar && <kbd className="kbd">Enter</kbd>}
               </button>
             </div>
           </div>
