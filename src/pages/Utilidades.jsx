@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
+import CountUp from "../components/CountUp"
 import Icon from "../components/Icon"
 import { UTIL_POR_CATEGORIA } from "../data"
 import { getVentas, getCatalogo } from "../api"
@@ -297,25 +298,25 @@ export default function UtilidadesPage() {
         <div className="kpi">
           <div className="kpi-accent"></div>
           <div className="kpi-label">Ingresos del período</div>
-          <div className="kpi-value">{loading ? "…" : fmtMoney(Math.round(ingresos))}</div>
+          <div className="kpi-value">{loading ? "…" : <CountUp value={Math.round(ingresos)} format={fmtMoney} />}</div>
           <div className="kpi-delta"><span className="label">Subtotal sin IVA</span></div>
         </div>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
           <div className="kpi-label">Utilidad estimada (36%)</div>
-          <div className="kpi-value">{loading ? "…" : fmtMoney(Math.round(totalIngresos * 0.36))}</div>
+          <div className="kpi-value">{loading ? "…" : <CountUp value={Math.round(totalIngresos * 0.36)} format={fmtMoney} />}</div>
           <div className="kpi-delta"><span className="label">Estimado sin costos reales</span></div>
         </div>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--info)" }}></div>
           <div className="kpi-label">Ticket promedio</div>
-          <div className="kpi-value">{loading ? "…" : fmtMoney(Math.round(promedio))}</div>
+          <div className="kpi-value">{loading ? "…" : <CountUp value={Math.round(promedio)} format={fmtMoney} />}</div>
           <div className="kpi-delta"><span className="label">Por venta registrada</span></div>
         </div>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--warn)" }}></div>
           <div className="kpi-label">Tickets emitidos</div>
-          <div className="kpi-value">{loading ? "…" : Math.round(tickets)}</div>
+          <div className="kpi-value">{loading ? "…" : <CountUp value={Math.round(tickets)} format={(n) => Math.round(n)} />}</div>
           <div className="kpi-delta"><span className="label">En el período seleccionado</span></div>
         </div>
       </div>

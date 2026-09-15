@@ -4,6 +4,7 @@ import Modal from "../components/Modal"
 import { getCatalogo, patchProducto, postProducto, getNextCodigo, deleteProducto } from "../api"
 import { fmtMoney, fmtNum, exportCSV, tipoLabel } from "../utils"
 import { TIPOS_CONFIG, TIPOS_LISTA } from "../data"
+import { TableSkeleton } from "../components/Skeleton"
 
 const emptyForm = {
   sku: "", tipo: "", name: "", marca: "", min: 5,
@@ -302,7 +303,7 @@ export default function ProductosPage({ addToast }) {
   if (loading) return (
     <div className="page">
       <div className="page-header"><h1 className="page-title">Catálogo de productos</h1></div>
-      <div className="card"><div className="card-body" style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando catálogo…</div></div>
+      <div className="card"><div className="card-body flush"><TableSkeleton rows={8} cols={6} /></div></div>
     </div>
   )
   if (error) return (

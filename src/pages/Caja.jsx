@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { createPortal } from "react-dom"
 import Icon from "../components/Icon"
+import { TableSkeleton } from "../components/Skeleton"
 import Stepper from "../components/Stepper"
 import NotaImpresa from "../components/NotaImpresa"
 import { getCaja, getCajaPorFolio, editarNotaCaja, cobrarNota, cancelarNota, getCatalogo, getHistorialCaja } from "../api"
@@ -601,7 +602,7 @@ export default function CajaPage({ addToast, sucursalActiva }) {
             <div className="card">
               <div className="card-body flush">
                 {loadingHist
-                  ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando historial…</div>
+                  ? <TableSkeleton rows={6} cols={6} />
                   : historial.length === 0
                     ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Sin cobros en este período</div>
                     : <table className="table">

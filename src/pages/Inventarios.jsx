@@ -4,6 +4,8 @@ import Modal from "../components/Modal"
 import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postMovimiento } from "../api"
 import { exportCSV, tipoLabel } from "../utils"
+import { TableSkeleton } from "../components/Skeleton"
+import CountUp from "../components/CountUp"
 
 // ── Modal Recepción masiva ─────────────────────────────
 function RecepcionModal({ productos, onClose, onDone, addToast }) {
@@ -295,9 +297,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
     <div className="page">
       <div className="page-header"><h1 className="page-title">Inventarios</h1></div>
       <div className="card">
-        <div className="card-body" style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>
-          Cargando inventario…
-        </div>
+        <div className="card-body flush"><TableSkeleton rows={8} cols={6} /></div>
       </div>
     </div>
   )
@@ -355,7 +355,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
           >
             <div className="kpi-accent" style={accent ? { background: accent } : {}}></div>
             <div className="kpi-label">{label}</div>
-            <div className="kpi-value">{value}</div>
+            <div className="kpi-value">{typeof value === "number" ? <CountUp value={value} format={(n) => Math.round(n).toLocaleString("es-MX")} /> : value}</div>
             <div className={`kpi-delta${deltaUp === true ? " up" : deltaUp === false ? " down" : ""}`}>{delta}</div>
           </div>
         ))}
@@ -428,8 +428,8 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                     <td className="num"><strong>{v}</strong></td>
                     <td className="num muted">{p.min}</td>
                     <td>
-                      <div style={{ width: 90, height: 6, background: "var(--bg-sunken)", borderRadius: 3, overflow: "hidden" }}>
-                        <div style={{ width: pct + "%", height: "100%", background: fill, borderRadius: 3 }}></div>
+                      <div className="cov-track" style={{ width: 90 }}>
+                        <div className="cov-fill" style={{ width: pct + "%", background: fill }}></div>
                       </div>
                     </td>
                     <td className="num">{p.stock.centro}</td>

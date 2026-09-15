@@ -7,3 +7,4 @@ dist
 mock-api.js
 test-app.html
 src/test-app.jsx
+dev-dist

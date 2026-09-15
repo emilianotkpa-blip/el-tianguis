@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import Icon from "../components/Icon"
+import { TableSkeleton } from "../components/Skeleton"
 import Modal from "../components/Modal"
 import Confirm from "../components/Confirm"
 import { getClientes, postCliente, patchCliente, deleteCliente } from "../api"
@@ -123,7 +124,7 @@ export default function ClientesPage({ addToast }) {
         </div>
         <div className="card-body flush">
           {loading
-            ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando clientes…</div>
+            ? <TableSkeleton rows={6} cols={5} />
             : <table className="table">
                 <thead>
                   <tr><th>Nombre</th><th>RFC</th><th>Tipo</th><th>Teléfono</th><th>Email</th><th></th></tr>

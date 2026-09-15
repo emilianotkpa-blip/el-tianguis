@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import Icon from "../components/Icon"
+import { TableSkeleton } from "../components/Skeleton"
 import Modal from "../components/Modal"
 import Confirm from "../components/Confirm"
 import { getPedidosClientes, postPedidoCliente, patchPedidoCliente, getCatalogo, getClientes, postCliente } from "../api"
@@ -328,7 +329,7 @@ export default function PedidosClientesPage({ addToast }) {
         </div>
         <div className="card-body flush">
           {loading
-            ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando pedidos…</div>
+            ? <TableSkeleton rows={6} cols={6} />
             : <table className="table">
                 <thead>
                   <tr>

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
 import Icon from "../components/Icon"
 import Stepper from "../components/Stepper"
+import { TilesSkeleton } from "../components/Skeleton"
 import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio } from "../api"
 import { fmtMoney, todayISO, tipoLabel } from "../utils"
@@ -910,7 +911,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
           </div>
           <div className="products-grid">
             {loading
-              ? <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Cargando productos…</div>
+              ? <TilesSkeleton count={8} />
               : filtered.map(p => {
                 const stock = p.stock[suc] ?? 0
                 const out = stock <= 0, low = !out && stock < p.min

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react"
 import Icon from "../components/Icon"
+import { TableSkeleton } from "../components/Skeleton"
+import CountUp from "../components/CountUp"
 import { getFacturas, solicitarFactura, cancelarFactura } from "../api"
 import { fmtMoney } from "../utils"
 
@@ -144,25 +146,25 @@ export default function FacturasPage({ addToast }) {
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--wine-600)" }}></div>
           <div className="kpi-label">Total ventas cobradas</div>
-          <div className="kpi-value">{fmtMoney(stats.totalMes)}</div>
+          <div className="kpi-value"><CountUp value={stats.totalMes} format={fmtMoney} /></div>
           <div className="kpi-delta"><span className="label">{ventas.length} notas</span></div>
         </div>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--text-muted)" }}></div>
           <div className="kpi-label">Sin factura</div>
-          <div className="kpi-value">{stats.sinFactura}</div>
+          <div className="kpi-value"><CountUp value={stats.sinFactura} format={(n) => Math.round(n)} /></div>
           <div className="kpi-delta"><span className="label">notas sin CFDI</span></div>
         </div>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--warn)" }}></div>
           <div className="kpi-label">Solicitadas</div>
-          <div className="kpi-value">{stats.solicitadas}</div>
+          <div className="kpi-value"><CountUp value={stats.solicitadas} format={(n) => Math.round(n)} /></div>
           <div className="kpi-delta"><span className="label">pendientes de timbrar</span></div>
         </div>
         <div className="kpi">
           <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
           <div className="kpi-label">Timbradas</div>
-          <div className="kpi-value">{stats.timbradas}</div>
+          <div className="kpi-value"><CountUp value={stats.timbradas} format={(n) => Math.round(n)} /></div>
           <div className="kpi-delta"><span className="label">CFDI emitidos</span></div>
         </div>
       </div>
@@ -189,7 +191,7 @@ export default function FacturasPage({ addToast }) {
             </div>
             <div className="card-body flush">
               {loading
-                ? <div style={{ padding: 20, color: "var(--text-muted)", fontSize: 13 }}>Cargando…</div>
+                ? <TableSkeleton rows={5} cols={5} />
                 : (
                   <table className="table">
                     <thead>
