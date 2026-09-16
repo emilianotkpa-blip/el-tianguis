@@ -3448,16 +3448,49 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   font-size: var(--fs-xs); color: var(--text-muted); margin-bottom: 4px;
 }
 .cmp-barra-top .num { font-family: var(--font-mono); color: var(--text); font-weight: 600; }
+/* Cada presentacion es una fila que se abre: adentro esta el mismo stock,
+   pero contado en sus propias unidades (cajas, paquetes, piezas). Se pueden
+   dejar varias abiertas para comparar de un vistazo. */
 .cmp-pres {
-  margin-top: 12px; padding-top: 10px;
+  margin-top: 12px; padding-top: 6px;
   border-top: 1px solid var(--border);
-  display: flex; flex-direction: column; gap: 4px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.cmp-pres-bloque { border-radius: var(--radius-sm); border: 1px solid transparent; }
+.cmp-pres-bloque.abierta {
+  background: var(--bg-sunken);
+  border-color: var(--border);
 }
 .cmp-pres-fila {
-  display: flex; justify-content: space-between;
-  font-size: var(--fs-xs); color: var(--text-muted);
+  width: 100%;
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 8px;
+  border: 0; background: transparent;
+  text-align: left;
+  font-size: var(--fs-xs);
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease);
 }
-.cmp-pres-fila .num { font-family: var(--font-mono); color: var(--text); }
+.cmp-pres-fila:hover { background: var(--bg-sunken); }
+.cmp-pres-fila > svg { flex: none; color: var(--text-muted); }
+.cmp-pres-label {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 1px;
+  color: var(--text); font-weight: 600;
+}
+.cmp-pres-hint {
+  font-size: var(--fs-2xs); font-weight: 400; color: var(--text-muted);
+  line-height: 1.35;
+}
+.cmp-pres-fila .num {
+  flex: none;
+  font-family: var(--font-mono); font-weight: 700; color: var(--text);
+  font-size: var(--fs-sm);
+}
+.cmp-pres-desglose {
+  display: flex; flex-direction: column; gap: 9px;
+  padding: 2px 10px 10px;
+}
 .cmp-tarjeta.compacta { padding: 12px; }
 .cmp-tarjeta.compacta .cmp-nombre { font-size: var(--fs-base); }
 

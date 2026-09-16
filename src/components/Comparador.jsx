@@ -38,14 +38,14 @@ export function ComparadorProvider({ children }) {
 export const useComparador = () => useContext(Ctx)
 
 // ── Barra de stock de una sucursal ────────────────────
-function BarraStock({ etiqueta, valor, maximo, minimo, unidadBase }) {
+function BarraStock({ etiqueta, valor, maximo, minimo, texto }) {
   const pct = maximo > 0 ? Math.min(100, (valor / maximo) * 100) : 0
   const color = valor <= 0 ? "var(--err)" : valor < minimo ? "var(--warn)" : "var(--ok)"
   return (
     <div className="cmp-barra">
       <div className="cmp-barra-top">
         <span>{etiqueta}</span>
-        <span className="num">{fmtBase(valor, unidadBase)}</span>
+        <span className="num">{texto}</span>
       </div>
       <div className="cov-track">
         <div className="cov-fill" style={{ width: pct + "%", background: color }} />
@@ -54,12 +54,79 @@ function BarraStock({ etiqueta, valor, maximo, minimo, unidadBase }) {
   )
 }
 
+// Cuánto cabe de verdad: 1.6 cajas son 1.6. Truncar a 1 esconde más de media
+// caja de mercancía, que es justo lo que se viene a consultar aquí.
+const fmtCant = (n) => {
+  if (!isFinite(n)) return "—"
+  return (Math.round(n * 10) / 10).toLocaleString("es-MX", { maximumFractionDigits: 1 })
+}
+
+// "Al detalle" y las presentaciones de cantidad libre vienen con factor null:
+// son la unidad suelta, es decir factor 1.
+const factorDe = (p) => p?.factor ?? 1
+
+// Cuánto es una unidad de esa presentación, en unidad base
+const enBaseDe = (factor, esGramo) => esGramo
+  ? (factor >= 1000 ? `${fmtCant(factor / 1000)} kg` : `${fmtNum(factor)} g`)
+  : `${fmtNum(factor)} pzs`
+
+// De qué está hecha una presentación. Una caja no dice nada por sí sola: lo
+// que se necesita saber es cuántos paquetes trae y cuántas piezas son en total.
+function composicion(p, pres, esGramo) {
+  const f = factorDe(p)
+  if (f <= 1) return null                 // la unidad suelta se explica sola
+  const total = enBaseDe(f, esGramo)
+
+  let dentro = null, cuantos = null
+  if (p.contieneN && p.contienePres) {
+    dentro  = pres.find(x => x.id === p.contienePres)
+    cuantos = p.contieneN
+  }
+  // Casi ningún producto declara qué trae dentro, pero en una caja se deduce
+  // del paquete: 500 pzs de caja entre 50 del paquete son 10 paquetes. Solo
+  // para cajas: en las bolsas, 1 kg no es "dos medios kilos empacados".
+  if (!dentro && (p.nivel === "caja" || p.nivel === "bulto")) {
+    dentro = pres
+      .filter(x => x.id !== p.id && x.nivel === "paquete" && factorDe(x) > 1 && factorDe(x) < f)
+      .sort((a, b) => factorDe(b) - factorDe(a))[0] ?? null
+    if (dentro) cuantos = f / factorDe(dentro)
+  }
+  const limpio = (t) => (t ?? "").replace(/s+/g, "").toLowerCase()
+
+  if (dentro && cuantos > 1) {
+    // Si el nombre del paquete ya trae su tamaño ("Paq. 100 pzs"), no se repite
+    const tam = enBaseDe(factorDe(dentro), esGramo)
+    const nombre = limpio(dentro.label).includes(limpio(tam))
+      ? dentro.label
+      : `${dentro.label} de ${tam}`
+    return `${fmtCant(cuantos)} × ${nombre} · ${total}`
+  }
+  // Si el nombre ya lo dice ("1 kg"), repetirlo debajo solo hace ruido
+  return limpio(total) === limpio(p.label) ? null : total
+}
+
 // ── Tarjeta comparativa ───────────────────────────────
 export function TarjetaComparar({ producto, onQuitar, compacta = false }) {
-  const stock = producto.stock ?? {}
-  const total = (stock.centro ?? 0) + (stock.repostero ?? 0) + (stock.bodega ?? 0)
-  const maximo = Math.max(stock.centro ?? 0, stock.repostero ?? 0, stock.bodega ?? 0, 1)
-  const pres = (producto.presentaciones ?? []).filter(p => p.activo !== false)
+  const stock   = producto.stock ?? {}
+  const total   = (stock.centro ?? 0) + (stock.repostero ?? 0) + (stock.bodega ?? 0)
+  const maximo  = Math.max(stock.centro ?? 0, stock.repostero ?? 0, stock.bodega ?? 0, 1)
+  const esGramo = producto.unidadBase === "gramo"
+  const pres    = (producto.presentaciones ?? []).filter(p => p.activo !== false && factorDe(p) > 0)
+
+  // La unidad suelta arranca abierta porque es la lectura de siempre. Las
+  // demás se abren aparte y pueden quedar todas abiertas a la vez.
+  const base = pres.find(p => factorDe(p) === 1) ?? pres[0]
+  const [abiertas, setAbiertas] = useState(() => new Set(base ? [base.id] : []))
+  const alternar = (id) => setAbiertas(prev => {
+    const n = new Set(prev)
+    if (n.has(id)) n.delete(id); else n.add(id)
+    return n
+  })
+
+  // Cuánto hay, leído en las unidades de una presentación
+  const cantidadEn = (p, valor) => factorDe(p) === 1
+    ? fmtBase(valor, producto.unidadBase)
+    : fmtCant(valor / factorDe(p))
 
   return (
     <motion.div layout className={"cmp-tarjeta" + (compacta ? " compacta" : "")}>
@@ -81,32 +148,69 @@ export function TarjetaComparar({ producto, onQuitar, compacta = false }) {
         <strong>{fmtBase(total, producto.unidadBase)}</strong>
       </div>
 
-      <div className="cmp-barras">
-        {SUCURSALES.map(s => (
-          <BarraStock
-            key={s.id}
-            etiqueta={s.short}
-            valor={stock[s.id] ?? 0}
-            maximo={maximo}
-            minimo={producto.min ?? 5}
-            unidadBase={producto.unidadBase}
-          />
-        ))}
-      </div>
-
-      {/* Cuánto es eso en cada presentación que existe */}
-      {pres.length > 0 && (
+      {/* Cada presentación se abre y muestra lo mismo por sucursal, pero
+          contado en sus propias unidades */}
+      {pres.length > 0 ? (
         <div className="cmp-pres">
           {pres.map(p => {
-            const factor = p.factor ?? 1
-            const equiv = factor > 0 ? Math.floor(total / factor) : 0
+            const abierta = abiertas.has(p.id)
+            const hint    = composicion(p, pres, esGramo)
             return (
-              <div className="cmp-pres-fila" key={p.id}>
-                <span>{p.label}</span>
-                <span className="num">{factor > 0 ? fmtNum(equiv) : "—"}</span>
+              <div className={"cmp-pres-bloque" + (abierta ? " abierta" : "")} key={p.id}>
+                <button
+                  className="cmp-pres-fila"
+                  onClick={() => alternar(p.id)}
+                  aria-expanded={abierta}
+                >
+                  <Icon name={abierta ? "chevronDown" : "chevronRight"} size={11} />
+                  <span className="cmp-pres-label">
+                    {p.label}
+                    {hint && <span className="cmp-pres-hint">{hint}</span>}
+                  </span>
+                  <span className="num">{cantidadEn(p, total)}</span>
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {abierta && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: .22, ease: [0.4, 0, 0.2, 1] }}
+                      style={{ overflow: "hidden" }}
+                    >
+                      <div className="cmp-pres-desglose">
+                        {SUCURSALES.map(s => (
+                          <BarraStock
+                            key={s.id}
+                            etiqueta={s.short}
+                            valor={stock[s.id] ?? 0}
+                            maximo={maximo}
+                            minimo={producto.min ?? 5}
+                            texto={cantidadEn(p, stock[s.id] ?? 0)}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )
           })}
+        </div>
+      ) : (
+        // Productos sin presentaciones cargadas: al menos el stock por sucursal
+        <div className="cmp-barras">
+          {SUCURSALES.map(s => (
+            <BarraStock
+              key={s.id}
+              etiqueta={s.short}
+              valor={stock[s.id] ?? 0}
+              maximo={maximo}
+              minimo={producto.min ?? 5}
+              texto={fmtBase(stock[s.id] ?? 0, producto.unidadBase)}
+            />
+          ))}
         </div>
       )}
     </motion.div>
