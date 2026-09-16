@@ -248,6 +248,33 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
     }
   }
 
+  // Arma el paquete completo de una regla: todo lo que pide, con su
+  // presentación y cantidad. Para una proporción hay que meter la base y el
+  // producto beneficiado, si no la regla no se activa.
+  const agregarPaquete = (regla) => {
+    const c = regla.config ?? {}
+    const requisitos = regla.tipo === "proporcion"
+      ? [c.porCada, c.aplicaA].filter(Boolean)
+      : (c.items ?? []).filter(i => i.sku)
+    if (!requisitos.length) return
+
+    let agregados = 0
+    for (const req of requisitos) {
+      const prod = productos.find(x => String(x.sku) === String(req.sku))
+      if (!prod) { addToast({ kind: "err", msg: `No encuentro el producto ${req.sku}` }); continue }
+      if ((prod.stock?.[suc] ?? 0) <= 0) { addToast({ kind: "warn", msg: `Sin stock: ${prod.name}` }); continue }
+      const pres = (prod.presentaciones || []).find(x => x.id === req.presId)
+        ?? (prod.presentaciones || []).find(x => x.activo !== false)
+        ?? null
+      for (let i = 0; i < (req.cant || 1); i++) addToCartWithPres(prod, pres)
+      agregados++
+    }
+    if (agregados) {
+      addToast({ kind: "ok", msg: `${regla.nombre} agregado a la nota` })
+      setVerPaquetes(false)
+    }
+  }
+
   const handleProductoClick = (p) => {
     if ((p.stock[suc] ?? 0) <= 0) {
       addToast({ kind: "warn", msg: `Sin stock: ${p.name} en ${suc}` })
@@ -396,6 +423,15 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   const sugerencias = useMemo(
     () => sugerenciasPromos(promo.restantes, promos, productos),
     [promo.restantes, promos, productos],
+  )
+  // Solo cuentan los paquetes que de verdad bajan el precio
+  const paquetesOfrecibles = useMemo(
+    () => promos.filter(r => {
+      if (r.activo === false) return false
+      const sim = simularRegla(r, productos)
+      return sim && !sim.incompleta && sim.ahorro > 0
+    }),
+    [promos, productos],
   )
   const subtotal  = subtotalBruto - promo.total
   const baseIva   = Math.max(0, subtotalFact - promo.totalFacturable)
@@ -659,19 +695,26 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
         footer={<button className="btn btn-default" onClick={() => setVerPaquetes(false)}>Cerrar</button>}
       >
         <div className="paquetes-lista">
-          {promos.filter(r => r.activo !== false).map(r => {
-            const sim = simularRegla(r, productos)
+          {promos
+            .filter(r => r.activo !== false)
+            .map(r => ({ r, sim: simularRegla(r, productos) }))
+            // Sin ahorro real no se ofrece: el vendedor no tiene nada que decir
+            .filter(({ sim }) => sim && !sim.incompleta && sim.ahorro > 0)
+            .map(({ r, sim }) => {
             return (
-              <div className="paquete-item" key={r.id}>
-                <div className="paquete-nombre">{r.nombre}</div>
+              <button className="paquete-item" key={r.id} onClick={() => agregarPaquete(r)}>
+                <div className="paquete-nombre">
+                  {r.nombre}
+                  <span className="paquete-agregar"><Icon name="plus" size={12} /> Agregar</span>
+                </div>
                 <div className="paquete-desc">{describirRegla(r, productos)}</div>
-                {sim && !sim.incompleta && sim.ahorro > 0 && (
+                {(
                   <div className="paquete-ahorro">
                     Normal {fmtMoney(sim.normal)} · queda en <strong>{fmtMoney(sim.queda)}</strong>
                     <span className="paquete-badge">Ahorra {fmtMoney(sim.ahorro)}</span>
                   </div>
                 )}
-              </div>
+              </button>
             )
           })}
         </div>
@@ -747,10 +790,10 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
               }}><Icon name="barcode" size={15} /></span>
             </div>
           </div>
-          {promos.filter(r => r.activo !== false).length > 0 && (
+          {paquetesOfrecibles.length > 0 && (
             <button className="btn btn-default btn-sm paquetes-btn" onClick={() => setVerPaquetes(true)}>
               <Icon name="sparkle" size={12} /> Paquetes
-              <span className="paquetes-num">{promos.filter(r => r.activo !== false).length}</span>
+              <span className="paquetes-num">{paquetesOfrecibles.length}</span>
             </button>
           )}
           <div className="cart-cat-tabs">

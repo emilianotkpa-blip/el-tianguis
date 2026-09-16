@@ -1967,11 +1967,26 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 }
 .paquetes-lista { display: flex; flex-direction: column; gap: 10px; }
 .paquete-item {
+  display: block;
+  width: 100%;
+  text-align: left;
   padding: 13px 15px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-elev);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
 }
+.paquete-item:hover { border-color: var(--wine-700); transform: translateY(-2px); box-shadow: var(--glass-shadow); }
+.paquete-item:active { transform: translateY(0); }
+.paquete-agregar {
+  float: right;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-xs); font-weight: 600; color: var(--wine-700);
+}
+[data-theme="dark"] .paquete-agregar { color: var(--gold-500); }
 .paquete-nombre { font-weight: 700; font-size: var(--fs-base); }
 .paquete-desc { font-size: var(--fs-sm); color: var(--text-muted); margin-top: 3px; }
 .paquete-ahorro {
