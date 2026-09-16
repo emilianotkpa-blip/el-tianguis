@@ -23,6 +23,7 @@ const reglaVacia = () => ({
   nombre: "",
   tipo: "combo",
   activo: true,
+  visible: true,
   prioridad: 10,
   config: {
     items: [{ sku: "", presId: "*", cant: 1 }, { sku: "", presId: "*", cant: 1 }],
@@ -118,7 +119,7 @@ export default function ReglasPage({ addToast }) {
 
     setGuard(true)
     try {
-      const payload = { nombre: r.nombre, tipo: r.tipo, activo: r.activo, prioridad: r.prioridad, config }
+      const payload = { nombre: r.nombre, tipo: r.tipo, activo: r.activo, visible: r.visible, prioridad: r.prioridad, config }
       if (r.id) await patchPromo(r.id, payload)
       else await postPromo(payload)
       addToast({ kind: "ok", msg: r.id ? "Regla actualizada" : "Regla creada" })
@@ -197,6 +198,7 @@ export default function ReglasPage({ addToast }) {
                   <th>Regla</th>
                   <th>Qué hace</th>
                   <th style={{ width: 90 }}>Activa</th>
+                  <th style={{ width: 130 }}>Dónde</th>
                   <th style={{ width: 90 }}></th>
                 </tr>
               </thead>
@@ -216,6 +218,11 @@ export default function ReglasPage({ addToast }) {
                         <input type="checkbox" checked={r.activo !== false} onChange={() => alternarActivo(r)} />
                         <span>{r.activo !== false ? "Sí" : "No"}</span>
                       </label>
+                    </td>
+                    <td>
+                      {r.visible === false
+                        ? <span className="badge" title="No aparece en Paquetes; el descuento entra solo">Solo se aplica</span>
+                        : <span className="badge badge-ok">En Paquetes</span>}
                     </td>
                     <td className="actions-cell">
                       <button className="btn btn-ghost btn-sm" onClick={() => setEdit(JSON.parse(JSON.stringify({ ...reglaVacia(), ...r, config: { ...reglaVacia().config, ...r.config } })))}>
@@ -400,6 +407,35 @@ export default function ReglasPage({ addToast }) {
                 />
                 <span>Regla activa</span>
               </label>
+
+              {/* Una cosa es que la regla corra y otra que se anuncie. Los
+                  descuentos de todos los días (vaso + tapa) son decenas: si
+                  todos salieran en Paquetes, no se encontraría el de temporada. */}
+              <div className="regla-visibilidad">
+                <div className="regla-visibilidad-titulo">¿Dónde se ofrece?</div>
+                <label className={"regla-opcion" + (editando.visible !== false ? " elegida" : "")}>
+                  <input
+                    type="radio" name="visibilidad"
+                    checked={editando.visible !== false}
+                    onChange={() => setEdit({ ...editando, visible: true })}
+                  />
+                  <span>
+                    <strong>En Paquetes</strong>
+                    <small>Sale como botón en Ventas para armarlo de una vez. Para los de temporada.</small>
+                  </span>
+                </label>
+                <label className={"regla-opcion" + (editando.visible === false ? " elegida" : "")}>
+                  <input
+                    type="radio" name="visibilidad"
+                    checked={editando.visible === false}
+                    onChange={() => setEdit({ ...editando, visible: false })}
+                  />
+                  <span>
+                    <strong>Solo se aplica</strong>
+                    <small>No se muestra ni se sugiere, pero el descuento entra solo cuando el cliente lleva la combinación.</small>
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
         )}

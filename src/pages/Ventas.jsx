@@ -458,10 +458,12 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
     () => sugerenciasPromos(promo.restantes, promos, productos),
     [promo.restantes, promos, productos],
   )
-  // Solo cuentan los paquetes que de verdad bajan el precio
+  // Solo cuentan los paquetes que de verdad bajan el precio y que están
+  // marcados para ofrecerse. Los ocultos siguen aplicándose solos: son los
+  // descuentos de todos los días (vaso + tapa) que saturarían esta lista.
   const paquetesOfrecibles = useMemo(
     () => promos.filter(r => {
-      if (r.activo === false) return false
+      if (r.activo === false || r.visible === false) return false
       const sim = simularRegla(r, productos)
       return sim && !sim.incompleta && sim.ahorro > 0
     }),

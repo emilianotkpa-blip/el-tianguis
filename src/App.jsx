@@ -271,13 +271,30 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
   const [globalSearch, setGlobalSearch] = useState("")
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [installPrompt, setInstallPrompt] = useState(null)
-  const [installed, setInstalled] = useState(false)
+  const [installed, setInstalled] = useState(() => {
+    // Si se está abriendo desde la app instalada, ya está instalada
+    if (window.matchMedia?.("(display-mode: standalone)")?.matches) return true
+    if (window.navigator.standalone) return true
+    try { return localStorage.getItem("elt_instalada") === "1" } catch { return false }
+  })
 
   useEffect(() => {
     const handler = (e) => { e.preventDefault(); setInstallPrompt(e) }
+    const yaEsta = () => {
+      setInstalled(true)
+      setInstallPrompt(null)
+      try { localStorage.setItem("elt_instalada", "1") } catch {}
+    }
     window.addEventListener("beforeinstallprompt", handler)
-    window.addEventListener("appinstalled", () => { setInstalled(true); setInstallPrompt(null) })
-    return () => window.removeEventListener("beforeinstallprompt", handler)
+    window.addEventListener("appinstalled", yaEsta)
+    // Chrome sabe si la PWA está instalada aunque se abra desde el navegador
+    navigator.getInstalledRelatedApps?.()
+      .then(apps => { if (apps?.length) yaEsta() })
+      .catch(() => {})
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler)
+      window.removeEventListener("appinstalled", yaEsta)
+    }
   }, [])
 
   const handleInstall = async () => {
@@ -550,18 +567,8 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
 function InstallBanner({ installPrompt, installed, onInstall }) {
   const [showTip, setShowTip] = useState(false)
 
-  if (installed) {
-    return (
-      <div style={{
-        margin: "8px 10px 4px", padding: "8px 12px",
-        background: "rgba(63,204,110,.1)", border: "1px solid rgba(63,204,110,.3)",
-        borderRadius: 8, fontSize: 11, color: "#3fcc6e", fontWeight: 600,
-        display: "flex", alignItems: "center", gap: 6,
-      }}>
-        <Icon name="check" size={13} /> App instalada
-      </div>
-    )
-  }
+  // Ya instalada: no hay nada que ofrecer ni que avisar
+  if (installed) return null
 
   if (installPrompt) {
     return (

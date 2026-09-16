@@ -1386,6 +1386,44 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 /* Punto al lado del stock: hay piezas apartadas en notas de otros que todavía
    no se cobran, así que lo que se ve ya viene descontado */
 .apartado-marca { color: var(--warn); font-weight: 700; margin-left: 3px; }
+
+/* ============ VISIBILIDAD DE UNA REGLA ============ */
+/* Correr y anunciarse son cosas distintas: las dos opciones se explican
+   completas porque de ahí depende que Paquetes sea usable o un muro. */
+.regla-visibilidad {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.regla-visibilidad-titulo {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.regla-opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+}
+.regla-opcion:hover { background: var(--bg-sunken); }
+.regla-opcion.elegida {
+  border-color: var(--wine-700);
+  background: color-mix(in srgb, var(--wine-700) 6%, transparent);
+}
+.regla-opcion input { margin-top: 2px; flex: none; }
+.regla-opcion span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.regla-opcion strong { font-size: var(--fs-sm); font-weight: 600; }
+.regla-opcion small { font-size: var(--fs-2xs); color: var(--text-muted); line-height: 1.45; }
 .product-tile .sku {
   font-family: var(--font-mono);
   font-size: 10px;

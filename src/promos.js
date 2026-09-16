@@ -168,8 +168,10 @@ export function evaluarPromos(cart = [], reglas = []) {
 // Solo sugiere cuando el cliente YA lleva parte del paquete: proponer los dos
 // productos de la nada sería publicidad, no ayuda.
 export function sugerenciasPromos(restantes = [], reglas = [], catalogo = [], maxFaltante = 3) {
+  // Solo se sugiere lo que el vendedor puede ofrecer. Una regla oculta se
+  // aplica sola cuando el cliente arma la combinación, pero no se anuncia.
   const activas = (reglas || [])
-    .filter(r => r && r.activo !== false)
+    .filter(r => r && r.activo !== false && r.visible !== false)
     .sort((a, b) => (a.prioridad ?? 100) - (b.prioridad ?? 100))
 
   const libres = (req) => restantes

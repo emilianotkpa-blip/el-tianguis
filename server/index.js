@@ -439,6 +439,9 @@ app.get("/api/promos", async (req, res) => {
         nombre: f.Nombre ?? "",
         tipo: f.Tipo ?? "combo",
         activo: f.Activo !== false && f.Activo !== 0,
+        // Las reglas de antes de este campo vienen sin él: se asumen visibles,
+        // que es como se venían comportando.
+        visible: f.Visible !== false && f.Visible !== 0,
         prioridad: f.Prioridad ?? 100,
         config,
       }
@@ -448,12 +451,13 @@ app.get("/api/promos", async (req, res) => {
 
 app.post("/api/promos", async (req, res) => {
   if (!promosListas()) return res.status(503).json({ error: "Falta configurar la tabla de reglas (NOCO_TABLE_PROMOS)" })
-  const { nombre, tipo, activo, prioridad, config } = req.body
+  const { nombre, tipo, activo, visible, prioridad, config } = req.body
   try {
     const fila = await nocoPost(T.promos, {
       Nombre: nombre ?? "Regla sin nombre",
       Tipo: tipo ?? "combo",
       Activo: activo !== false,
+      Visible: visible !== false,
       Prioridad: Number(prioridad) || 100,
       Config_JSON: JSON.stringify(config ?? {}),
     })
@@ -463,12 +467,13 @@ app.post("/api/promos", async (req, res) => {
 
 app.patch("/api/promos/:id", async (req, res) => {
   if (!promosListas()) return res.status(503).json({ error: "Falta configurar la tabla de reglas (NOCO_TABLE_PROMOS)" })
-  const { nombre, tipo, activo, prioridad, config } = req.body
+  const { nombre, tipo, activo, visible, prioridad, config } = req.body
   try {
     const update = { Id: parseInt(req.params.id) }
     if (nombre    !== undefined) update.Nombre      = nombre
     if (tipo      !== undefined) update.Tipo        = tipo
     if (activo    !== undefined) update.Activo      = activo !== false
+    if (visible   !== undefined) update.Visible     = visible !== false
     if (prioridad !== undefined) update.Prioridad   = Number(prioridad) || 100
     if (config    !== undefined) update.Config_JSON = JSON.stringify(config)
     await nocoPatch(T.promos, update)
