@@ -106,6 +106,17 @@ function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone
   )
 }
 
+function SinPermiso() {
+  return (
+    <div className="page">
+      <div className="page-header"><h1 className="page-title">Sin acceso</h1></div>
+      <div className="ia-error" style={{ margin: 24 }}>
+        <Icon name="alert" size={14} /> Esta pantalla es solo para dirección.
+      </div>
+    </div>
+  )
+}
+
 const SUC_ICONS = { centro: "🏪", repostero: "🍰", bodega: "📦" }
 
 function SucursalPicker({ user, onSelect }) {
@@ -165,6 +176,21 @@ function SucursalPicker({ user, onSelect }) {
     </div>
   )
 }
+
+// Los roles que de verdad hay en la tabla Equipo son "Directivo" y "Empleado";
+// nadie está guardado como "gerente". Comparar la cadena exacta dejaba Reglas
+// de precio oculta para todos, incluida la dirección. Se compara por nivel.
+const NIVEL_ROL = {
+  vendedor:  1,
+  empleado:  2,
+  cajero:    2,
+  gerente:   3,
+  directivo: 4,
+  direccion: 4,
+  admin:     4,
+}
+const nivelDe = (rol) => NIVEL_ROL[String(rol ?? "").toLowerCase().trim()] ?? 1
+const puedeVer = (user, rolMin) => !rolMin || nivelDe(user?.rol) >= nivelDe(rolMin)
 
 const NAV = [
   { section: "Operación" },
@@ -304,7 +330,9 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
       case "facturas":           return <FacturasPage addToast={addToast} />
       case "pedidos-mercancia":  return <PedidosMercanciaPage addToast={addToast} user={user} />
       case "pedidos-clientes":   return <PedidosClientesPage addToast={addToast} />
-      case "reglas":             return <ReglasPage addToast={addToast} />
+      case "reglas":             return puedeVer(user, "gerente")
+                                   ? <ReglasPage addToast={addToast} />
+                                   : <SinPermiso />
       case "clientes":           return <ClientesPage addToast={addToast} />
       case "inventarios":        return <InventariosPage addToast={addToast} sucursalActiva={user.sucursal} />
       case "caja":               return <CajaPage addToast={addToast} sucursalActiva={user.sucursal} user={user} />
@@ -354,8 +382,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
           {NAV.map((item, i) => {
             if (item.section) return <div key={i} className="sidebar-section">{item.section}</div>
             // Ocultar items que requieren rol mínimo
-            if (item.rolMin === "cajero" && user?.rol === "vendedor") return null
-            if (item.rolMin === "gerente" && user?.rol !== "gerente") return null
+            if (!puedeVer(user, item.rolMin)) return null
             const dynBadge = item.id === "pedidos-clientes" ? stats.pedidosPendientes
                            : item.id === "inventarios"      ? stats.alertasStock
                            : item.id === "caja"             ? notasCaja

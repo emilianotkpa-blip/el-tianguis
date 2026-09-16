@@ -11,6 +11,11 @@ import { fmtNum, fmtBase } from "../utils"
 // El estado vive aquí arriba para que sobreviva al cambio de página: se puede
 // juntar un producto desde Productos y otro desde Inventarios.
 
+// Comparar es poner cosas lado a lado. Pasada cierta cantidad deja de ser una
+// comparación y es una lista larga que además hace pesada la vista: con el
+// catálogo completo se llegaron a montar 100 tarjetas y 7,000 nodos.
+export const MAX_COMPARAR = 24
+
 const Ctx = createContext(null)
 
 export function ComparadorProvider({ children }) {
@@ -19,7 +24,11 @@ export function ComparadorProvider({ children }) {
   const [modoAgregar, setModo]    = useState(true) // "Agregar a visualización" vs "Sin visualización"
 
   const agregar = useCallback((producto) => {
-    setSeleccion(s => s.some(p => p.sku === producto.sku) ? s : [...s, producto])
+    setSeleccion(s => {
+      if (s.some(p => p.sku === producto.sku)) return s
+      if (s.length >= MAX_COMPARAR) return s
+      return [...s, producto]
+    })
   }, [])
   const quitar = useCallback((sku) => {
     setSeleccion(s => s.filter(p => p.sku !== sku))
@@ -27,10 +36,12 @@ export function ComparadorProvider({ children }) {
   const vaciar = useCallback(() => { setSeleccion([]); setAbierto(false) }, [])
   const tiene  = useCallback((sku) => seleccion.some(p => p.sku === sku), [seleccion])
 
+  const lleno = seleccion.length >= MAX_COMPARAR
+
   const valor = useMemo(() => ({
-    seleccion, agregar, quitar, vaciar, tiene,
+    seleccion, agregar, quitar, vaciar, tiene, lleno,
     abierto, setAbierto, modoAgregar, setModo,
-  }), [seleccion, agregar, quitar, vaciar, tiene, abierto, modoAgregar])
+  }), [seleccion, agregar, quitar, vaciar, tiene, lleno, abierto, modoAgregar])
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>
 }
@@ -263,8 +274,15 @@ export function ComparadorFlotante() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={(e) => { if (e.target === e.currentTarget) setAbierto(false) }}
             >
+              {/* El fondo desenfocado va aparte del scroll: si el mismo
+                  elemento lleva el blur y crece con el contenido, el navegador
+                  no alcanza a pintar la capa y el desenfoque sale a parches. */}
+              <div className="cmp-telon-fondo" aria-hidden="true" />
+              <div
+                className="cmp-telon-scroll"
+                onClick={(e) => { if (e.target === e.currentTarget) setAbierto(false) }}
+              >
               <div className="cmp-vista">
                 <div className="cmp-vista-cabeza">
                   <div>
@@ -293,6 +311,7 @@ export function ComparadorFlotante() {
                     </AnimatePresence>
                   </LayoutGroup>
                 </div>
+              </div>
               </div>
             </motion.div>
           )}

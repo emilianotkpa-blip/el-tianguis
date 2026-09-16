@@ -2,7 +2,7 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { createPortal } from "react-dom"
 import Icon from "./Icon"
-import { TarjetaComparar, useComparador } from "./Comparador"
+import { TarjetaComparar, useComparador, MAX_COMPARAR } from "./Comparador"
 
 // Ficha de un producto en modo lectura: se abre al tocar una fila y desde aquí
 // se manda a comparar. Al agregarlo, la tarjeta viaja hasta el ojo (el layoutId
@@ -67,6 +67,10 @@ export default function ProductoVista({ producto, onCerrar, onEditar }) {
             {yaEsta ? (
               <button className="btn btn-default" onClick={() => cmp.quitar(producto.sku)}>
                 <Icon name="x" size={13} /> Sin visualización
+              </button>
+            ) : cmp?.lleno ? (
+              <button className="btn btn-default" disabled title={`Ya hay ${MAX_COMPARAR} productos en la visualización`}>
+                <Icon name="eye" size={14} /> Visualización llena
               </button>
             ) : (
               <button className="btn btn-wine" onClick={agregar}>

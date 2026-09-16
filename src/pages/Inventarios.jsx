@@ -6,7 +6,7 @@ import { getCatalogo } from "../api"
 import { exportCSV, tipoLabel, fmtBase } from "../utils"
 import { TableSkeleton } from "../components/Skeleton"
 import ProductoVista from "../components/ProductoVista"
-import { useComparador } from "../components/Comparador"
+import { useComparador, MAX_COMPARAR } from "../components/Comparador"
 import Select from "../components/Select"
 import CountUp from "../components/CountUp"
 import AjusteStock from "../components/AjusteStock"
@@ -392,8 +392,14 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                     aria-label="Comparar todos los visibles"
                     checked={paged.length > 0 && paged.every(x => cmp?.tiene(x.sku))}
                     onChange={e => {
-                      if (e.target.checked) paged.forEach(x => cmp?.agregar(x))
-                      else paged.forEach(x => cmp?.quitar(x.sku))
+                      if (!e.target.checked) return paged.forEach(x => cmp?.quitar(x.sku))
+                      const nuevos = paged.filter(x => !cmp?.tiene(x.sku))
+                      const caben  = MAX_COMPARAR - (cmp?.seleccion.length ?? 0)
+                      nuevos.slice(0, caben).forEach(x => cmp?.agregar(x))
+                      if (nuevos.length > caben) addToast({
+                        kind: "warn",
+                        msg: `El comparador admite ${MAX_COMPARAR} productos a la vez; se agregaron ${Math.max(0, caben)}`,
+                      })
                     }}
                   />
                 </th>
