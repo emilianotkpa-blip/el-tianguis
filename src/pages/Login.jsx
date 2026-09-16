@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Icon from "../components/Icon"
+import LogoAnimado from "../components/LogoAnimado"
 import { postLogin } from "../api"
-import { fmtMoney } from "../utils"
-import logoUrl from "../assets/logo.jpeg"
+import logoSvg from "../assets/logo.svg"
 
+// Una sola tarjeta al centro y nada más. Antes había un panel con cifras del
+// negocio (sucursales, productos, ventas del mes) a la vista de cualquiera
+// que abriera la página sin haber entrado.
 export default function Login({ onLogin }) {
   const [email, setEmail]       = useState("")
   const [password, setPassword] = useState("")
@@ -11,11 +14,6 @@ export default function Login({ onLogin }) {
   const [error, setError]       = useState("")
   const [loading, setLoading]   = useState(false)
   const [touched, setTouched]   = useState({ email: false, password: false })
-  const [stats, setStats]       = useState({ numProductos: "…", totalVentasMes: null })
-
-  useEffect(() => {
-    fetch("/api/stats-publicas").then((r) => r.json()).then(setStats).catch(() => {})
-  }, [])
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const isPwdValid   = password.length >= 6
@@ -43,36 +41,16 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="login-shell">
-      <aside className="login-hero">
-        <div className="login-brandmark">
-          <img src={logoUrl} alt="El Tianguis" className="logo-img-full" />
-        </div>
+      {/* El propio logo, muy ampliado y desenfocado: pone el color de la marca
+          sin decir nada ni competir con el formulario */}
+      <img src={logoSvg} alt="" aria-hidden="true" className="login-fondo" />
+      <div className="login-velo" aria-hidden="true" />
 
-        <div className="login-hero-content">
-          <div className="eyebrow">Sistema Administrativo · v{__APP_VERSION__}</div>
-          <h1>Tu negocio bajo control, en tiempo real.</h1>
-          <p>Gestiona ventas, inventarios, pedidos y utilidades de tus tres sucursales desde un solo lugar. Diseñado para mayoristas de bolsas, vasos y desechables.</p>
+      <main className="login-card">
+        <div className="login-logo">
+          <LogoAnimado size={150} animar={false} />
         </div>
-
-        <div className="login-hero-stats">
-          <div>
-            <div className="stat-num">3</div>
-            <div className="stat-label">Sucursales</div>
-          </div>
-          <div>
-            <div className="stat-num">{stats.numProductos}</div>
-            <div className="stat-label">Productos</div>
-          </div>
-          <div>
-            <div className="stat-num">{stats.totalVentasMes != null ? fmtMoney(stats.totalVentasMes) : "…"}</div>
-            <div className="stat-label">Ventas este mes</div>
-          </div>
-        </div>
-      </aside>
-
-      <main className="login-panel">
         <h2>Iniciar sesión</h2>
-        <p className="login-subtitle">Ingresa tus credenciales para acceder al panel.</p>
 
         <form className="login-form" onSubmit={handleSubmit} noValidate>
           {error && (
@@ -124,16 +102,8 @@ export default function Login({ onLogin }) {
             </div>
           </div>
 
-          <div className="login-row">
-            <label className="checkbox-line">
-              <input type="checkbox" defaultChecked />
-              Recordar mi sesión
-            </label>
-            <a href="#" onClick={(e) => e.preventDefault()}>¿Olvidaste tu contraseña?</a>
-          </div>
-
           <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? "Verificando…" : "Ingresar al panel"}
+            {loading ? "Verificando…" : "Ingresar"}
           </button>
         </form>
       </main>

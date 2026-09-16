@@ -260,21 +260,6 @@ app.post("/api/login", async (req, res) => {
   }
 })
 
-app.get("/api/stats-publicas", async (req, res) => {
-  try {
-    const [prods, ventas] = await Promise.all([
-      nocoGet(T.productos),
-      nocoGet(T.ventas, "&sort=-Fecha&limit=500"),
-    ])
-    const now = new Date()
-    const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-    const totalMes = ventas
-      .filter((v) => (v.Fecha ?? "").startsWith(mesActual))
-      .reduce((s, v) => s + (v.Total ?? 0), 0)
-    res.json({ numProductos: prods.length, totalVentasMes: totalMes })
-  } catch { res.json({ numProductos: 0, totalVentasMes: 0 }) }
-})
-
 // ── ESC/POS raw printing ──────────────────────────────
 const PRINT_SCRIPT = join(__dirname, "print-raw.ps1")
 
