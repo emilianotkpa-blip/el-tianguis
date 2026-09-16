@@ -780,29 +780,23 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
         />
       )}
 
-      <div className="page-header" style={{ marginBottom: 8, paddingBottom: 8 }}>
-        <div>
-          <h1 className="page-title">Ventas · Punto de venta</h1>
-          <p className="page-subtitle">
-            Sucursal:&nbsp;
-            <Select
-              value={suc}
-              onChange={e => setSuc(e.target.value)}
-              className="select-plano"
-              ariaLabel="Sucursal"
-              options={SUCURSALES.map(x => ({ value: x.id, label: x.name }))}
-            />
-          </p>
-        </div>
-        <div className="page-actions">
-          <button className="btn btn-default btn-sm" onClick={() => { setCart([]); setCliente("Mostrador"); setPagos([{ metodo: "Efectivo", monto: "" }]) }}>
-            <Icon name="refresh" size={13} /> Cancelar nota
-          </button>
-        </div>
-      </div>
-
       <div className="sales-shell">
         <div className="sales-products">
+          <div className="page-header" style={{ marginBottom: 0, paddingBottom: 8 }}>
+            <div>
+              <h1 className="page-title">Ventas · Punto de venta</h1>
+              <p className="page-subtitle">
+                Sucursal:&nbsp;
+                <Select
+                  value={suc}
+                  onChange={e => setSuc(e.target.value)}
+                  className="select-plano"
+                  ariaLabel="Sucursal"
+                  options={SUCURSALES.map(x => ({ value: x.id, label: x.name }))}
+                />
+              </p>
+            </div>
+          </div>
           <div className="filter-bar" style={{ marginBottom: 4 }}>
             <div className="search-input" style={{ flex: 1, maxWidth: 400, position: "relative" }}>
               <Icon name="search" size={14} className="icon" />
