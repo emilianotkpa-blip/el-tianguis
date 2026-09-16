@@ -458,9 +458,10 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
     () => sugerenciasPromos(promo.restantes, promos, productos),
     [promo.restantes, promos, productos],
   )
-  // Solo cuentan los paquetes que de verdad bajan el precio y que están
-  // marcados para ofrecerse. Los ocultos siguen aplicándose solos: son los
-  // descuentos de todos los días (vaso + tapa) que saturarían esta lista.
+  // Única lista de lo que se ofrece al vendedor: la usan el contador del botón
+  // y el modal. Cuando cada uno tenía su filtro, el modal se quedó sin el de
+  // visibilidad y mostraba reglas marcadas como "solo se aplica".
+  // Se descarta lo inactivo, lo oculto y lo que no baja el precio de verdad.
   const paquetesOfrecibles = useMemo(
     () => promos.filter(r => {
       if (r.activo === false || r.visible === false) return false
@@ -731,11 +732,8 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
         footer={<button className="btn btn-default" onClick={() => setVerPaquetes(false)}>Cerrar</button>}
       >
         <div className="paquetes-lista">
-          {promos
-            .filter(r => r.activo !== false)
+          {paquetesOfrecibles
             .map(r => ({ r, sim: simularRegla(r, productos) }))
-            // Sin ahorro real no se ofrece: el vendedor no tiene nada que decir
-            .filter(({ sim }) => sim && !sim.incompleta && sim.ahorro > 0)
             .map(({ r, sim }) => {
             return (
               <button className="paquete-item" key={r.id} onClick={() => agregarPaquete(r)}>
