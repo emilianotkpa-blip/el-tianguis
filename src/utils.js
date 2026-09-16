@@ -9,6 +9,17 @@ export const fmtMoneyShort = (n) => {
 
 export const fmtNum = (n) => Number(n).toLocaleString("es-MX")
 
+// Stock en la unidad con la que se habla del producto: las bolsas y los rollos
+// se venden y se cuentan por kilo, no por gramo suelto. El stock se guarda en
+// gramos, pero mostrarlo así ("71,100 g") no es como lo lee nadie del negocio.
+export const fmtBase = (n, unidadBase) => {
+  const v = Number(n) || 0
+  if (unidadBase !== "gramo") return `${fmtNum(v)} pzs`
+  return Math.abs(v) >= 1000
+    ? `${fmtNum(Math.round(v / 100) / 10)} kg`
+    : `${fmtNum(v)} g`
+}
+
 // Nombre legible de un tipo de producto: "rollos_ad" → "Rollos alta densidad".
 // Si el tipo no está en el catálogo (productos viejos), al menos se limpia
 // el id en vez de mostrarlo crudo.

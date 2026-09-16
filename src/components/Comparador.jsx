@@ -4,7 +4,7 @@ import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
 import Icon from "./Icon"
 import Confirm from "./Confirm"
 import { SUCURSALES } from "../data"
-import { fmtNum } from "../utils"
+import { fmtNum, fmtBase } from "../utils"
 
 // Comparador de productos: se van guardando productos en un "ojo" y luego se
 // ven todos juntos para comparar inventario de un vistazo.
@@ -38,14 +38,14 @@ export function ComparadorProvider({ children }) {
 export const useComparador = () => useContext(Ctx)
 
 // ── Barra de stock de una sucursal ────────────────────
-function BarraStock({ etiqueta, valor, maximo, minimo }) {
+function BarraStock({ etiqueta, valor, maximo, minimo, unidadBase }) {
   const pct = maximo > 0 ? Math.min(100, (valor / maximo) * 100) : 0
   const color = valor <= 0 ? "var(--err)" : valor < minimo ? "var(--warn)" : "var(--ok)"
   return (
     <div className="cmp-barra">
       <div className="cmp-barra-top">
         <span>{etiqueta}</span>
-        <span className="num">{fmtNum(valor)}</span>
+        <span className="num">{fmtBase(valor, unidadBase)}</span>
       </div>
       <div className="cov-track">
         <div className="cov-fill" style={{ width: pct + "%", background: color }} />
@@ -59,7 +59,6 @@ export function TarjetaComparar({ producto, onQuitar, compacta = false }) {
   const stock = producto.stock ?? {}
   const total = (stock.centro ?? 0) + (stock.repostero ?? 0) + (stock.bodega ?? 0)
   const maximo = Math.max(stock.centro ?? 0, stock.repostero ?? 0, stock.bodega ?? 0, 1)
-  const esGramo = producto.unidadBase === "gramo"
   const pres = (producto.presentaciones ?? []).filter(p => p.activo !== false)
 
   return (
@@ -79,7 +78,7 @@ export function TarjetaComparar({ producto, onQuitar, compacta = false }) {
       {/* Stock general: la referencia contra la que se leen las sucursales */}
       <div className="cmp-total">
         <span>Stock total</span>
-        <strong>{esGramo ? `${fmtNum(total)} g` : `${fmtNum(total)} pzs`}</strong>
+        <strong>{fmtBase(total, producto.unidadBase)}</strong>
       </div>
 
       <div className="cmp-barras">
@@ -90,6 +89,7 @@ export function TarjetaComparar({ producto, onQuitar, compacta = false }) {
             valor={stock[s.id] ?? 0}
             maximo={maximo}
             minimo={producto.min ?? 5}
+            unidadBase={producto.unidadBase}
           />
         ))}
       </div>

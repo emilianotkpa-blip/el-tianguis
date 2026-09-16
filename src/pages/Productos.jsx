@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
 import { getCatalogo, patchProducto, postProducto, getNextCodigo, deleteProducto } from "../api"
-import { fmtMoney, fmtNum, exportCSV, tipoLabel } from "../utils"
+import { fmtMoney, fmtNum, fmtBase, exportCSV, tipoLabel } from "../utils"
 import { TIPOS_CONFIG, TIPOS_LISTA, SUCURSALES } from "../data"
 import { TableSkeleton } from "../components/Skeleton"
 import ProductoVista from "../components/ProductoVista"
@@ -20,13 +20,6 @@ function genPresId(base, presentaciones) {
   let n = 2
   while (presentaciones.find(p => p.id === `${base}_${n}`)) n++
   return `${base}_${n}`
-}
-
-// Stock de una sucursal en su unidad natural, para el resumen plegado
-function stockCorto(p, sucId) {
-  const v = p?.stock?.[sucId] ?? 0
-  if (p?.unidadBase !== "gramo") return fmtNum(v)
-  return v >= 1000 ? `${fmtNum(Math.round(v / 100) / 10)} kg` : `${fmtNum(v)} g`
 }
 
 function buildPresFromTipo(tipoId) {
@@ -529,7 +522,7 @@ export default function ProductosPage({ addToast, sucursalActiva }) {
                 <span className="inv-edicion-stock">
                   {SUCURSALES.map(su => (
                     <span key={su.id}>
-                      {su.short} <strong>{stockCorto(editing, su.id)}</strong>
+                      {su.short} <strong>{fmtBase(editing.stock?.[su.id] ?? 0, editing.unidadBase)}</strong>
                     </span>
                   ))}
                 </span>

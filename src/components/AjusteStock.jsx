@@ -3,6 +3,7 @@ import Icon from "./Icon"
 import Select from "./Select"
 import { SUCURSALES } from "../data"
 import { postMovimiento } from "../api"
+import { fmtBase } from "../utils"
 
 const TIPOS_MOV = [
   { value: "Entrada",  label: "Entrada por compra" },
@@ -40,10 +41,6 @@ export default function AjusteStock({
   const paqP = pres.find(p => p.nivel === "paquete")
     || pres.find(p => p.nivel === "gramo" && p.factor >= 1000)
   const cajP = pres.find(p => p.nivel === "caja" || p.nivel === "bulto")
-
-  const fmtBase = (g) => esGramo
-    ? (g >= 1000 ? `${(g / 1000).toLocaleString("es-MX")} kg` : `${g.toLocaleString("es-MX")} g`)
-    : `${g.toLocaleString("es-MX")} pzs`
 
   // Unidades en las que se puede capturar: la suelta y cada empaque real
   const unidades = (() => {
@@ -172,7 +169,7 @@ export default function AjusteStock({
               )}
               <div className="stock-chip destacado">
                 <span className="sc-label">{esGramo ? "Total" : "Piezas"}</span>
-                <span className="sc-value">{fmtBase(baseStock)}</span>
+                <span className="sc-value">{fmtBase(baseStock, producto.unidadBase)}</span>
               </div>
             </div>
           </div>
@@ -182,7 +179,7 @@ export default function AjusteStock({
       <div className="ajuste-pie">
         <span className="ajuste-equiv">
           {enBase > 0
-            ? <>{resta ? "Resta" : "Suma"} <strong>{fmtBase(enBase)}</strong> en {suc}</>
+            ? <>{resta ? "Resta" : "Suma"} <strong>{fmtBase(enBase, producto.unidadBase)}</strong> en {suc}</>
             : <span className="muted">{notaIdle}</span>}
         </span>
         <button

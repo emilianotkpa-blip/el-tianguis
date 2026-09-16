@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
 import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo } from "../api"
-import { exportCSV, tipoLabel } from "../utils"
+import { exportCSV, tipoLabel, fmtBase } from "../utils"
 import { TableSkeleton } from "../components/Skeleton"
 import ProductoVista from "../components/ProductoVista"
 import { useComparador } from "../components/Comparador"
@@ -198,6 +198,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
   const [suc, setSuc]               = useState(initSuc)
   const [search, setSearch]         = useState("")
   const [statusFilter, setStatus]   = useState("todos")
+  const [tipoFiltro, setTipoFiltro] = useState("all")
   const [adjustingP, setAdjustingP] = useState(null)
   const [vistaRapida, setVista]     = useState(null)
   const cmp = useComparador()
@@ -225,6 +226,14 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
 
   const sucObj = SUCURSALES.find((s) => s.id === suc)
 
+  // Solo los tipos que de verdad existen en el catálogo, no la lista completa
+  const tipos = useMemo(() => {
+    const set = new Set(productos.map(p => p.tipo).filter(Boolean))
+    return [{ id: "all", name: "Todos los tipos" }, ...[...set]
+      .map(t => ({ id: t, name: tipoLabel(t, TIPOS_CONFIG) }))
+      .sort((a, b) => a.name.localeCompare(b.name, "es"))]
+  }, [productos])
+
   const stockTotals = SUCURSALES.map((s) => {
     let normal = 0, bajo = 0, agotado = 0
     productos.forEach((p) => {
@@ -238,6 +247,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
   const cur = stockTotals.find((s) => s.id === suc) ?? { normal: 0, bajo: 0, agotado: 0, total: 0 }
 
   const filtered = productos.filter((p) => {
+    if (tipoFiltro !== "all" && p.tipo !== tipoFiltro) return false
     if (search) {
       const q = search.toLowerCase()
       const matchName    = p.name.toLowerCase().includes(q)
@@ -330,6 +340,13 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
               <input placeholder="Buscar por nombre, SKU o código de barras…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <Select
+              value={tipoFiltro}
+              onChange={(e) => { setTipoFiltro(e.target.value); setPage(1) }}
+              className="select-filtro"
+              ariaLabel="Filtrar por tipo de producto"
+              options={tipos.map(t => ({ value: t.id, label: t.name }))}
+            />
+            <Select
               value={statusFilter}
               onChange={(e) => setStatus(e.target.value)}
               className="select-filtro"
@@ -352,18 +369,18 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
           </div>
         </div>
         <div className="card-body flush" style={{ overflowX: "auto" }}>
-          <table className="table tarjetas-movil" style={{ tableLayout: "fixed", minWidth: 900 }}>
+          <table className="table tarjetas-movil" style={{ tableLayout: "fixed", minWidth: 980 }}>
             <colgroup>
               <col style={{ width: 42 }} />
-              <col style={{ width: 130 }} />
-              <col style={{ width: "30%" }} />
-              <col style={{ width: 110 }} />
-              <col style={{ width: 70 }} />
-              <col style={{ width: 70 }} />
+              <col style={{ width: 120 }} />
+              <col style={{ width: "26%" }} />
               <col style={{ width: 100 }} />
-              <col style={{ width: 70 }} />
-              <col style={{ width: 80 }} />
-              <col style={{ width: 70 }} />
+              <col style={{ width: 92 }} />
+              <col style={{ width: 62 }} />
+              <col style={{ width: 96 }} />
+              <col style={{ width: 92 }} />
+              <col style={{ width: 96 }} />
+              <col style={{ width: 92 }} />
               <col style={{ width: 90 }} />
               <col style={{ width: 44 }} />
             </colgroup>
@@ -412,16 +429,16 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                       <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</strong>
                     </td>
                     <td className="muted" data-label="Tipo" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tipoLabel(p.tipo, TIPOS_CONFIG)}</td>
-                    <td className="num" data-label="En sucursal"><strong>{v}</strong></td>
+                    <td className="num" data-label="En sucursal"><strong>{fmtBase(v, p.unidadBase)}</strong></td>
                     <td className="num muted" data-label="Mínimo">{p.min}</td>
                     <td data-label="Cobertura">
                       <div className="cov-track" style={{ width: 90 }}>
                         <div className="cov-fill" style={{ width: pct + "%", background: fill }}></div>
                       </div>
                     </td>
-                    <td className="num" data-label="Centro">{p.stock.centro}</td>
-                    <td className="num" data-label="Repostero">{p.stock.repostero}</td>
-                    <td className="num" data-label="Bodega">{p.stock.bodega}</td>
+                    <td className="num" data-label="Centro">{fmtBase(p.stock.centro, p.unidadBase)}</td>
+                    <td className="num" data-label="Repostero">{fmtBase(p.stock.repostero, p.unidadBase)}</td>
+                    <td className="num" data-label="Bodega">{fmtBase(p.stock.bodega, p.unidadBase)}</td>
                     <td data-label="Estado">
                       {status === "agotado" && <span className="badge badge-err">● Agotado</span>}
                       {status === "bajo"    && <span className="badge badge-warn">● Bajo</span>}

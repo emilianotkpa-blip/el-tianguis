@@ -1632,6 +1632,10 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
    producto, así que trae su propio pie con el botón: donde se monte, se
    aplica igual. */
 .ajuste-stock .form-grid { margin: 0; }
+
+/* Una cantidad con su unidad ("14.9 kg") es una sola cosa: no se parte en dos
+   líneas aunque la columna venga estrecha. */
+.table td.num, .table th.num { white-space: nowrap; }
 .ajuste-pie {
   display: flex;
   align-items: center;
