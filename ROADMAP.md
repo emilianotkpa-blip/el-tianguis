@@ -20,9 +20,10 @@ historial de commits.
 
 ## Pendiente menor, ya identificado
 
-- **Rol de Dirección**: la pantalla de Reglas de precio está restringida a
-  `gerente`, el rol más alto que existe hoy. Si se crea "Dirección" en la tabla
-  de usuarios, hay que cambiar el `rolMin` en `src/App.jsx`.
+- ~~**Rol de Dirección**~~ — resuelto. Los roles reales en la tabla Equipo son
+  "Directivo" y "Empleado"; el menú exigía la cadena exacta `gerente`, así que
+  Reglas de precio no la veía nadie. Ahora `src/App.jsx` compara por nivel
+  (`NIVEL_ROL`) y la ruta también está protegida, no solo el menú.
 - **`NOCO_TABLE_PROMOS`**: la tabla `ReglasPrecio` ya existe en NocoDB
   (`mwwyc4tgm81emyn`); falta poner la variable en el entorno del servidor
   desplegado para que las reglas se guarden.
