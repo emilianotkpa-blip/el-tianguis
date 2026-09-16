@@ -1332,6 +1332,10 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
      más alta y dejaba huecos enormes de espacio muerto */
   align-content: start;
   align-items: start;
+  /* Con el catálogo completo las filas "auto" se encogían hasta 37 px dentro
+     de este contenedor de alto fijo, y las tarjetas (124 px) se montaban unas
+     sobre otras. max-content fija cada fila al alto de su contenido. */
+  grid-auto-rows: max-content;
 }
 .product-tile {
   position: relative;
@@ -2373,35 +2377,16 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   pointer-events: none;
 }
 
-.cart-cat-tabs {
+/* Los tipos eran una fila de píldoras: con 24 tipos ocupaba tres renglones
+   y dejaba la cuadrícula de productos sin espacio. Un campo ocupa uno. */
+.cart-cat-filtro {
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   padding: 0 2px;
 }
-.cat-pill {
-  position: relative;
-  padding: 6px 12px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-edge);
-  border-radius: 14px;
-  font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 500;
-  box-shadow: inset 0 1px 0 var(--glass-highlight);
-  transition: background var(--dur-fast) var(--ease),
-              color var(--dur-fast) var(--ease),
-              transform var(--dur-fast) var(--ease),
-              box-shadow var(--dur-fast) var(--ease);
-}
-.cat-pill:hover { background: var(--bg-elev); color: var(--text); }
-.cat-pill:active { transform: translateY(1px); }
-.cat-pill.active {
-  background: var(--wine-700);
-  color: #fff;
-  border-color: var(--wine-800);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 3px 10px rgba(114,24,42,.25);
-}
+.cart-cat-filtro .select-wrap { flex: 1; min-width: 0; }
+.cart-cat-filtro .btn { flex: none; }
 
 /* ============ INVENTORY (sucursales) ============ */
 .sucursal-tabs {

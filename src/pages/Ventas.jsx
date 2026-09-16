@@ -8,7 +8,7 @@ import { TilesSkeleton } from "../components/Skeleton"
 import Select from "../components/Select"
 import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio, getPromos } from "../api"
-import { fmtMoney, todayISO, tipoLabel } from "../utils"
+import { fmtMoney, fmtBase, todayISO, tipoLabel } from "../utils"
 import { evaluarPromos, sugerenciasPromos, describirRegla, simularRegla } from "../promos"
 
 const STEPS = ["Llenar carrito", "Verificar pedido", "Enviar a caja"]
@@ -796,10 +796,18 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
               <span className="paquetes-num">{paquetesOfrecibles.length}</span>
             </button>
           )}
-          <div className="cart-cat-tabs">
-            {tipos.map(t => (
-              <button key={t.id} className={"cat-pill" + (cat === t.id ? " active" : "")} onClick={() => setCat(t.id)}>{t.name}</button>
-            ))}
+          <div className="cart-cat-filtro">
+            <Select
+              value={cat}
+              onChange={e => setCat(e.target.value)}
+              ariaLabel="Filtrar por tipo de producto"
+              options={tipos.map(t => ({ value: t.id, label: t.name }))}
+            />
+            {cat !== "all" && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setCat("all")} title="Quitar el filtro">
+                <Icon name="x" size={12} /> Todos
+              </button>
+            )}
           </div>
           <div className="products-grid">
             {loading
@@ -821,7 +829,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
                     <div className="name">{p.name}</div>
                     <div className="meta">
                       <span style={{ fontSize: 10 }}>{presLabels || "—"}</span>
-                      <span>{stock} pzs</span>
+                      <span>{fmtBase(stock, p.unidadBase)}</span>
                     </div>
                     <div className="price">
                       {pres.length > 1
