@@ -1065,6 +1065,55 @@ app.post("/api/notas/borrador", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+// Guardar lo que el vendedor lleva capturado, sin cambiar de estado.
+// Sin esto el borrador existe pero vacío: nadie más se entera de que esa
+// mercancía ya está apartada, y dos vendedores venden la misma pieza.
+app.patch("/api/notas/:id/items", async (req, res) => {
+  try {
+    await nocoPatch(T.ventas, {
+      Id: parseInt(req.params.id),
+      Items_JSON: JSON.stringify(req.body?.items ?? []),
+    })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Mercancía apartada en notas que todavía no se cobran: borradores que alguien
+// está capturando ahora mismo y notas esperando en caja. El stock real no baja
+// hasta el cobro, así que esto es lo que separa el stock que hay del que queda.
+// Un borrador que alguien dejó abierto y olvidó no puede apartar para siempre:
+// pasados estos minutos sin tocarlo, deja de contar.
+const MINUTOS_BORRADOR_VIVO = 30
+
+app.get("/api/stock-comprometido", async (req, res) => {
+  const { sucursal, excluir } = req.query
+  try {
+    const [borradores, enCaja] = await Promise.all([
+      nocoGet(T.ventas, "&where=(EstadoNota,eq,borrador)&limit=500"),
+      nocoGet(T.ventas, "&where=(EstadoNota,eq,en_caja)&limit=500"),
+    ])
+    const corte  = Date.now() - MINUTOS_BORRADOR_VIVO * 60000
+    const porSku = {}
+
+    for (const n of [...borradores, ...enCaja]) {
+      if (excluir && String(n.Id) === String(excluir)) continue
+      if (sucursal && String(n.Sucursal ?? "").toLowerCase() !== String(sucursal).toLowerCase()) continue
+      if (n.EstadoNota === "borrador") {
+        const tocado = Date.parse(n.UpdatedAt ?? n.CreatedAt ?? "")
+        if (!tocado || tocado < corte) continue
+      }
+      let items = []
+      try { items = JSON.parse(n.Items_JSON || "[]") } catch {}
+      for (const it of items) {
+        if (!it || it.tipo === "descuento" || !it.sku) continue
+        const base = (Number(it.qty) || 0) * (Number(it.factor) || 1)
+        if (base > 0) porSku[it.sku] = (porSku[it.sku] ?? 0) + base
+      }
+    }
+    res.json(porSku)
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
 // Confirmar borrador → pasa a en_caja con items y totales finales
 app.patch("/api/notas/:id/confirmar", async (req, res) => {
   const { cliente, vendedor, items, pagos, subtotal, iva, total, observaciones } = req.body

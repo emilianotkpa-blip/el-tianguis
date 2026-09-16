@@ -9,6 +9,55 @@ historial de commits.
 
 ---
 
+## Vender sin stock, con permiso
+
+Pedido de la junta de septiembre. Hoy un producto agotado queda inerte: no se
+puede ni tocar para ver qué presentaciones y precios tiene. Se quiere lo
+contrario, y en este orden:
+
+1. **Que se pueda abrir aunque no haya.** Tocar un producto agotado debe
+   mostrar igual sus presentaciones y precios. Lo único distinto es cómo se
+   ve: un marco rojo o ámbar que deje claro que no hay, en vez de una tarjeta
+   apagada que no responde.
+
+2. **Agregarlo igual, con autorización.** Un empleado puede meterlo a la nota,
+   pero el sistema pide la contraseña de un superior. No una contraseña
+   genérica: la de quien esté a cargo **en ese momento**.
+
+3. **Saber quién está a cargo.** Para lo anterior hace falta una pantalla de
+   turnos: horarios, encargado de cada turno y quién está activo. El sistema
+   propone a esa persona para autorizar.
+
+4. **Jerarquía de roles de verdad.** Hoy `NIVEL_ROL` en `src/App.jsx` es un
+   mapa fijo de cuatro niveles. Para esto hace falta que los roles y quién
+   puede autorizar a quién vivan en datos, no en el código.
+
+5. **Login a Supabase Auth.** El login lee la tabla Equipo de NocoDB y compara
+   la contraseña en texto plano (`server/index.js`, `/api/login`). Cualquiera
+   con acceso de lectura a esa tabla ve las contraseñas del equipo. Para pedir
+   la contraseña de un superior en caja, eso no se sostiene: hay que mover la
+   autenticación a Supabase Auth y dejar en NocoDB solo el perfil.
+
+El orden importa: 1 y 2 sin 3 y 4 sería pedir una contraseña sin saber de
+quién, y sin 5 esa contraseña viaja y se compara en claro.
+
+---
+
+## Candado final de stock
+
+El stock apartado (`/api/stock-comprometido`) resuelve el caso de todos los
+días: dos vendedores capturando a la vez ya no ven las mismas piezas. Pero se
+refresca cada 10 segundos, así que si los dos agregan la última pieza dentro
+de la misma ventana, los dos la agregan.
+
+Falta el candado que lo vuelve imposible: **validar en el cobro**. Que
+`/api/caja/:id/cobrar` revise el stock antes de descontar y rechace la nota si
+ya no alcanza, en vez de dejar el inventario en negativo. Es lo que convierte
+"muy improbable" en "no puede pasar", y es también donde encaja la
+autorización del punto 2 de arriba.
+
+---
+
 ## Descartado
 
 - **Canvas tipo n8n para las reglas de precio.** Se evaluó y se descartó: para

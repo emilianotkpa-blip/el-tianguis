@@ -1383,6 +1383,9 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   min-width: 0;
 }
 .product-tile .meta > span:last-child { flex-shrink: 0; padding-left: 6px; }
+/* Punto al lado del stock: hay piezas apartadas en notas de otros que todavía
+   no se cobran, así que lo que se ve ya viene descontado */
+.apartado-marca { color: var(--warn); font-weight: 700; margin-left: 3px; }
 .product-tile .sku {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -1467,10 +1470,25 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
 .cart-header h3 { margin: 0; font-size: 14px; font-weight: 600; }
+/* El folio vive junto al título: abajo se comía una franja del panel, que es
+   justo donde hace falta espacio para ver la nota */
+.cart-folio {
+  margin-right: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--wine-700);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+[data-theme="dark"] .cart-folio { color: var(--gold-500); }
 .cart-total-movil { display: none; }   /* solo en pantalla chica */
 .cart-header .count {
   background: var(--wine-700);
@@ -1526,7 +1544,7 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   background: var(--bg-elev);
 }
 .qty-stepper button {
-  width: 24px; height: 26px;
+  width: 28px; height: 30px;
   background: transparent;
   border: 0;
   color: var(--text);
@@ -1535,17 +1553,25 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 }
 .qty-stepper button:hover { background: var(--bg-sunken); }
 .qty-stepper input {
-  width: 38px;
-  height: 26px;
+  width: 56px;
+  height: 30px;
+  padding: 0 4px;
   border: 0;
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
+  border-radius: 0;
   background: transparent;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   color: var(--text);
   font-family: var(--font-mono);
+  /* Sin las flechitas nativas: se comían el ancho y tapaban el número */
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
+.qty-stepper input::-webkit-outer-spin-button,
+.qty-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .qty-stepper input:focus { outline: none; }
 .cart-item .remove {
   background: transparent;

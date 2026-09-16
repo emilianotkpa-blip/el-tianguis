@@ -62,6 +62,11 @@ export const postNota          = (b)      => apiFetch("/api/notas", json(b))
 export const crearBorrador     = (b)      => apiFetch("/api/notas/borrador", json(b))
 export const confirmarNota     = (id, b)  => apiFetch(`/api/notas/${id}/confirmar`, patch(b))
 export const cancelarBorrador  = (id)     => apiFetch(`/api/notas/${id}/cancelar-borrador`, patch({}))
+// Va guardando lo capturado en el borrador para que los demás vean la
+// mercancía como apartada antes de que la nota llegue a caja.
+export const guardarItemsBorrador = (id, items) => apiFetch(`/api/notas/${id}/items`, patch({ items }))
+export const getStockComprometido = (sucursal, excluir) =>
+  apiFetch(`/api/stock-comprometido?sucursal=${encodeURIComponent(sucursal)}${excluir ? `&excluir=${excluir}` : ""}`)
 export const getCaja           = ()       => apiFetch("/api/caja")
 export const getHistorialCaja  = (rango)  => apiFetch(`/api/caja/historial?rango=${rango ?? "1d"}`)
 export const getCajaPorFolio   = (folio)  => apiFetch(`/api/caja/${folio}`)

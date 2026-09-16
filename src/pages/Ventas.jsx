@@ -7,9 +7,9 @@ import PresPicker from "../components/PresPicker"
 import { TilesSkeleton } from "../components/Skeleton"
 import Select from "../components/Select"
 import { SUCURSALES, TIPOS_CONFIG } from "../data"
-import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio, getPromos } from "../api"
+import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio, getPromos, guardarItemsBorrador, getStockComprometido } from "../api"
 import { fmtMoney, fmtBase, todayISO, tipoLabel } from "../utils"
-import { evaluarPromos, sugerenciasPromos, describirRegla, simularRegla } from "../promos"
+import { evaluarPromos, sugerenciasPromos, describirRegla, simularRegla, soloProductos } from "../promos"
 
 const STEPS = ["Llenar carrito", "Verificar pedido", "Enviar a caja"]
 
@@ -41,6 +41,8 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   const [saving, setSaving]       = useState(false)
   const [folio, setFolio]         = useState(null)
   const [notaEnviada, setNotaEnviada] = useState(null)
+  // Mercancía que otros ya tienen apartada en sus notas sin cobrar
+  const [comprometido, setComprometido] = useState({})
 
   // Selector de presentación
   const [presModal, setPresModal] = useState(null)
@@ -54,6 +56,34 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   const searchRef = useRef(null)
 
   useEffect(() => { getPromos().then(setPromos).catch(() => setPromos([])) }, [])
+
+  // El stock real no baja hasta que se cobra. Mientras tanto, dos vendedores
+  // veían las mismas 9 piezas y vendían 11. Aquí cada uno publica lo que lleva
+  // capturado y lee lo que llevan los demás, para restarlo de lo disponible.
+  useEffect(() => {
+    if (!borradorId) return
+    const t = setTimeout(() => {
+      guardarItemsBorrador(borradorId, soloProductos(cart)).catch(() => {})
+    }, 700)   // se espera a que deje de teclear, no una llamada por clic
+    return () => clearTimeout(t)
+  }, [cart, borradorId])
+
+  useEffect(() => {
+    let vivo = true
+    const leer = () => getStockComprometido(suc, borradorId)
+      .then(d => { if (vivo) setComprometido(d ?? {}) })
+      .catch(() => {})
+    leer()
+    const t = setInterval(leer, 10000)
+    return () => { vivo = false; clearInterval(t) }
+  }, [suc, borradorId])
+
+  // El stock real sí cambia cuando alguien cobra, así que el catálogo también
+  // se refresca, más espaciado porque es mucho más pesado.
+  useEffect(() => {
+    const t = setInterval(() => { getCatalogo().then(setProductos).catch(() => {}) }, 60000)
+    return () => clearInterval(t)
+  }, [])
 
   useEffect(() => {
     if (preloadedCatalogo) setLoading(false)
@@ -275,8 +305,12 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
     }
   }
 
+  // Lo que queda: el stock de la sucursal menos lo que ya está apartado en
+  // notas de otros vendedores que aún no se cobran.
+  const disponibleDe = (p) => (p.stock?.[suc] ?? 0) - (comprometido[p.sku] ?? 0)
+
   const handleProductoClick = (p) => {
-    if ((p.stock[suc] ?? 0) <= 0) {
+    if (disponibleDe(p) <= 0) {
       addToast({ kind: "warn", msg: `Sin stock: ${p.name} en ${suc}` })
       return
     }
@@ -813,7 +847,8 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
             {loading
               ? <TilesSkeleton count={8} />
               : filtered.map(p => {
-                const stock = p.stock[suc] ?? 0
+                const stock = disponibleDe(p)
+                const apartado = comprometido[p.sku] ?? 0
                 const out = stock <= 0, low = !out && stock < p.min
                 const pres = p.presentaciones || []
                 // Mostrar precio base (primera presentación activa con precio > 0)
@@ -829,7 +864,9 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
                     <div className="name">{p.name}</div>
                     <div className="meta">
                       <span style={{ fontSize: 10 }}>{presLabels || "—"}</span>
-                      <span>{fmtBase(stock, p.unidadBase)}</span>
+                      <span title={apartado > 0 ? `${fmtBase(apartado, p.unidadBase)} apartados en otras notas` : undefined}>
+                        {fmtBase(stock, p.unidadBase)}{apartado > 0 && <span className="apartado-marca">•</span>}
+                      </span>
                     </div>
                     <div className="price">
                       {pres.length > 1
@@ -851,6 +888,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
           <div className={"cart-card" + (cartPulse ? " pulse" : "")}>
             <div className="cart-header" onClick={() => setNotaAbierta(v => !v)}>
               <h3>Nota actual</h3>
+              {folio && <span className="cart-folio" title="Folio reservado">{folio}</span>}
               {/* En pantalla chica la hoja va colapsada: el total tiene que
                   verse sin abrirla, que es lo único que el cajero necesita */}
               <span className="cart-total-movil">{fmtMoney(total)}</span>
@@ -943,12 +981,6 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
               </label>
               <div className="row total"><span>Total</span><span key={total} className="num flash">{fmtMoney(total)}</span></div>
             </div>
-            {folio && (
-              <div style={{ padding: "8px 12px", background: "var(--bg-sunken)", borderRadius: 6, margin: "0 0 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Folio reservado</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 13, color: "var(--wine-700)" }}>{folio}</span>
-              </div>
-            )}
             <div className="cart-actions">
               <button className="btn btn-default" onClick={resetVenta} disabled={cart.length === 0} style={{ color: "var(--err)" }}>
                 <Icon name="x" size={13} /> Cancelar
