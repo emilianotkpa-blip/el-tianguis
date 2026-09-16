@@ -151,7 +151,7 @@ export default function PresPicker({ producto, suc, onSelect, onClose, cart }) {
 }
 
 // ── Modal de precios por presentación (en la nota) ─────
-function CartItemPreciosModal({ item, producto, suc, onCambiar, onClose }) {
+export function CartItemPreciosModal({ item, producto, suc, onCambiar, onClose }) {
   const pres = producto?.presentaciones ?? []
   if (!pres.length) return null
   const cfg = producto
@@ -246,7 +246,7 @@ function CartItemPreciosModal({ item, producto, suc, onCambiar, onClose }) {
 }
 
 // ── Modal de abrir caja ─────────────────────────────────
-function AbrirCajaModal({ producto, cajaLevel, paqLabel, onConfirm, onCancel }) {
+export function AbrirCajaModal({ producto, cajaLevel, paqLabel, onConfirm, onCancel }) {
   return (
     <div style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,.65)",
