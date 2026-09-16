@@ -19,6 +19,7 @@ import CajaPage from "./pages/Caja"
 import BásculaPage from "./pages/Balanza"
 import { getStats, getAlertas, getCatalogo, getClientes, getPrinters, printFolio } from "./api"
 import logoUrl from "./assets/logo.jpeg"
+import LogoAnimado from "./components/LogoAnimado"
 
 function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone }) {
   const [fading, setFading] = useState(false)
@@ -59,25 +60,15 @@ function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone
         transition: "opacity 0.5s ease",
       }}
     >
-      <img
-        src={logoUrl}
-        alt="El Tianguis"
-        style={{
-          width: 110, height: 110, borderRadius: "50%",
-          objectFit: "cover",
-          boxShadow: "0 0 0 4px #f0bf2e, 0 8px 32px rgba(0,0,0,.5)",
-          animation: "splashPulse 2s ease-in-out infinite",
-        }}
-      />
+      <div style={{ width: "min(340px, 76vw)" }}>
+        <LogoAnimado size={340} />
+      </div>
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 28, fontWeight: 700, color: "#f0bf2e", letterSpacing: 1 }}>
-          El <span style={{ color: "#fff" }}>Tianguis</span>
-        </div>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 6, letterSpacing: 2 }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", letterSpacing: 2 }}>
           {statusText.toUpperCase()}
         </div>
       </div>
-      <div style={{ width: 240, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ width: "min(340px, 76vw)", display: "flex", flexDirection: "column", gap: 6 }}>
         <div style={{
           width: "100%", height: 6, borderRadius: 99,
           background: "rgba(255,255,255,0.15)", overflow: "hidden",
@@ -96,12 +87,6 @@ function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone
         </div>
       </div>
 
-      <style>{`
-        @keyframes splashPulse {
-          0%, 100% { transform: scale(1); box-shadow: 0 0 0 4px #f0bf2e, 0 8px 32px rgba(0,0,0,.5); }
-          50%        { transform: scale(1.04); box-shadow: 0 0 0 7px #f0bf2e99, 0 12px 40px rgba(0,0,0,.6); }
-        }
-      `}</style>
     </div>
   )
 }

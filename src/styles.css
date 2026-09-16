@@ -1387,6 +1387,106 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
    no se cobran, así que lo que se ve ya viene descontado */
 .apartado-marca { color: var(--warn); font-weight: 700; margin-left: 3px; }
 
+/* ============ LOGO ANIMADO (carga) ============ */
+/* El logo entra por capas mientras arranca el sistema: primero el plato, que
+   es el ancla; luego el nombre; y al final la fiesta de alrededor. Así la
+   espera tiene algo que mirar en vez de un giro vacío. */
+.logo-animado {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .45);
+}
+
+/* transform-box hace que el origen sea la propia figura y no el lienzo
+   completo: sin esto, escalar una capa la manda fuera de cuadro */
+.logo-animado g { transform-box: fill-box; transform-origin: center; }
+
+.logo-animado.entrando .lg-ambiente,
+.logo-animado.entrando .lg-banderines,
+.logo-animado.entrando .lg-confeti,
+.logo-animado.entrando .lg-plato,
+.logo-animado.entrando .lg-titulo,
+.logo-animado.entrando .lg-servilleta,
+.logo-animado.entrando .lg-cubiertos,
+.logo-animado.entrando .lg-vasos {
+  opacity: 0;
+  animation-duration: .62s;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* El plato primero: todo lo demás se apoya en él */
+.logo-animado.entrando .lg-plato      { animation-name: lgPlato;   animation-delay: .05s; }
+.logo-animado.entrando .lg-titulo     { animation-name: lgTitulo;  animation-delay: .30s; }
+.logo-animado.entrando .lg-servilleta { animation-name: lgEntraAbajo; animation-delay: .46s; }
+.logo-animado.entrando .lg-cubiertos  { animation-name: lgCubiertos; animation-delay: .62s; }
+.logo-animado.entrando .lg-vasos      { animation-name: lgEntraAbajo; animation-delay: .72s; }
+/* La fiesta al final, que es el adorno */
+.logo-animado.entrando .lg-ambiente   { animation-name: lgSube;    animation-delay: .80s; }
+.logo-animado.entrando .lg-banderines { animation-name: lgCuelga;  animation-delay: .92s; }
+.logo-animado.entrando .lg-confeti    { animation-name: lgConfeti; animation-delay: 1.02s; animation-duration: .8s; }
+
+@keyframes lgPlato {
+  from { opacity: 0; transform: scale(.72); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes lgTitulo {
+  from { opacity: 0; transform: scale(1.14); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes lgEntraAbajo {
+  from { opacity: 0; transform: translateY(46px) scale(.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes lgCubiertos {
+  from { opacity: 0; transform: translate(40px, 40px) rotate(12deg); }
+  to   { opacity: 1; transform: translate(0, 0) rotate(0); }
+}
+@keyframes lgSube {
+  from { opacity: 0; transform: translateY(60px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes lgCuelga {
+  from { opacity: 0; transform: translateY(-40px) rotate(-4deg); }
+  to   { opacity: 1; transform: translateY(0) rotate(0); }
+}
+@keyframes lgConfeti {
+  from { opacity: 0; transform: translateY(-30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Cuando ya entró, los globos siguen respirando: que no parezca congelado
+   mientras el sistema termina de cargar */
+.logo-animado.entrando .lg-ambiente {
+  animation-name: lgSube, lgFlota;
+  animation-duration: .62s, 4.5s;
+  animation-delay: .80s, 1.5s;
+  animation-timing-function: cubic-bezier(.22, 1, .36, 1), ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, none;
+}
+@keyframes lgFlota {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-animado.entrando .lg-ambiente,
+  .logo-animado.entrando .lg-banderines,
+  .logo-animado.entrando .lg-confeti,
+  .logo-animado.entrando .lg-plato,
+  .logo-animado.entrando .lg-titulo,
+  .logo-animado.entrando .lg-servilleta,
+  .logo-animado.entrando .lg-cubiertos,
+  .logo-animado.entrando .lg-vasos {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 /* ============ FALTA INVENTARIO AL COBRAR ============ */
 /* Se decide con el cliente enfrente: tiene que leerse de un vistazo qué
    producto falta y cuánto, sin tener que interpretar nada. */
