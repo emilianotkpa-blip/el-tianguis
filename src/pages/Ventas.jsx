@@ -2,13 +2,14 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
 import Icon from "../components/Icon"
 import Stepper from "../components/Stepper"
+import Modal from "../components/Modal"
 import PresPicker from "../components/PresPicker"
 import { TilesSkeleton } from "../components/Skeleton"
 import Select from "../components/Select"
 import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio, getPromos } from "../api"
 import { fmtMoney, todayISO, tipoLabel } from "../utils"
-import { evaluarPromos } from "../promos"
+import { evaluarPromos, sugerenciasPromos, describirRegla, simularRegla } from "../promos"
 
 const STEPS = ["Llenar carrito", "Verificar pedido", "Enviar a caja"]
 
@@ -25,6 +26,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   const [promos, setPromos]       = useState([])
   // En pantalla chica la nota vive abajo como hoja: esto la despliega
   const [notaAbierta, setNotaAbierta] = useState(false)
+  const [verPaquetes, setVerPaquetes] = useState(false)
   const [folioImpreso, setFolioImpreso] = useState(false)
   const [borradorId, setBorradorId]     = useState(null)
   const creatingRef = useRef(false) // evita crear borrador duplicado
@@ -233,6 +235,19 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
     }
   }
 
+  // Completar un paquete desde la sugerencia: agrega justo lo que falta
+  const agregarSugerencia = (sug) => {
+    for (const falta of sug.faltan) {
+      const prod = productos.find(x => String(x.sku) === String(falta.sku))
+      if (!prod) { addToast({ kind: "err", msg: `No encuentro ${falta.nombre}` }); continue }
+      if ((prod.stock?.[suc] ?? 0) <= 0) { addToast({ kind: "warn", msg: `Sin stock: ${prod.name}` }); continue }
+      const pres = (prod.presentaciones || []).find(x => x.id === falta.presId)
+        ?? (prod.presentaciones || []).find(x => x.activo !== false)
+        ?? null
+      for (let i = 0; i < falta.cant; i++) addToCartWithPres(prod, pres)
+    }
+  }
+
   const handleProductoClick = (p) => {
     if ((p.stock[suc] ?? 0) <= 0) {
       addToast({ kind: "warn", msg: `Sin stock: ${p.name} en ${suc}` })
@@ -378,6 +393,10 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   // Reglas de precio: el ahorro se muestra aparte, no se toca el precio de
   // cada línea, y el IVA se calcula ya con el descuento aplicado
   const promo     = useMemo(() => evaluarPromos(cart, promos), [cart, promos])
+  const sugerencias = useMemo(
+    () => sugerenciasPromos(promo.restantes, promos, productos),
+    [promo.restantes, promos, productos],
+  )
   const subtotal  = subtotalBruto - promo.total
   const baseIva   = Math.max(0, subtotalFact - promo.totalFacturable)
   const iva       = conIva ? baseIva * 0.16 : 0
@@ -633,6 +652,31 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       <Stepper steps={STEPS} current={0} />
 
       {/* Modales */}
+      <Modal
+        open={verPaquetes}
+        onClose={() => setVerPaquetes(false)}
+        title="Paquetes disponibles"
+        footer={<button className="btn btn-default" onClick={() => setVerPaquetes(false)}>Cerrar</button>}
+      >
+        <div className="paquetes-lista">
+          {promos.filter(r => r.activo !== false).map(r => {
+            const sim = simularRegla(r, productos)
+            return (
+              <div className="paquete-item" key={r.id}>
+                <div className="paquete-nombre">{r.nombre}</div>
+                <div className="paquete-desc">{describirRegla(r, productos)}</div>
+                {sim && !sim.incompleta && sim.ahorro > 0 && (
+                  <div className="paquete-ahorro">
+                    Normal {fmtMoney(sim.normal)} · queda en <strong>{fmtMoney(sim.queda)}</strong>
+                    <span className="paquete-badge">Ahorra {fmtMoney(sim.ahorro)}</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </Modal>
+
       {presModal && (
         <PresPicker
           producto={presModal} suc={suc} cart={cart}
@@ -703,6 +747,12 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
               }}><Icon name="barcode" size={15} /></span>
             </div>
           </div>
+          {promos.filter(r => r.activo !== false).length > 0 && (
+            <button className="btn btn-default btn-sm paquetes-btn" onClick={() => setVerPaquetes(true)}>
+              <Icon name="sparkle" size={12} /> Paquetes
+              <span className="paquetes-num">{promos.filter(r => r.activo !== false).length}</span>
+            </button>
+          )}
           <div className="cart-cat-tabs">
             {tipos.map(t => (
               <button key={t.id} className={"cat-pill" + (cat === t.id ? " active" : "")} onClick={() => setCat(t.id)}>{t.name}</button>
@@ -805,6 +855,26 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
                 ))
               }
             </div>
+            {sugerencias.length > 0 && (
+              <div className="promo-sugerencias">
+                {sugerencias.map(sug => (
+                  <div className="promo-sugerencia" key={sug.reglaId}>
+                    <div className="ps-texto">
+                      <div className="ps-titulo">
+                        <Icon name="sparkle" size={12} /> {sug.nombre}
+                      </div>
+                      <div className="ps-detalle">
+                        Agrega {sug.faltan.map(f => `${f.cant} × ${f.nombre}`).join(" + ")} y
+                        {" "}ahorras <strong>{fmtMoney(sug.ahorro)}</strong>
+                      </div>
+                    </div>
+                    <button className="btn btn-default btn-sm" onClick={() => agregarSugerencia(sug)}>
+                      <Icon name="plus" size={12} /> Agregar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="cart-summary">
               {subtotalNoFact > 0 && <div className="row"><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Sin factura</span><span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtMoney(subtotalNoFact)}</span></div>}
               {subtotalFact > 0   && <div className="row"><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Facturable</span><span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmtMoney(subtotalFact)}</span></div>}

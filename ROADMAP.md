@@ -5,26 +5,7 @@ historial de commits.
 
 ---
 
-## 1. Ver paquetes disponibles al vender
-
-En el punto de venta, una forma de consultar las reglas de precio activas y
-**cuánto se ahorra** con cada una, sin tener que armar el carrito a ciegas.
-
-La idea: que el vendedor pueda decirle al cliente "si te llevas también la
-tapa, te sale en X" en lugar de descubrirlo por accidente.
-
-Por definir: si va como panel lateral, como pestaña junto a los filtros de
-tipo, o como aviso que aparece cuando el carrito está a un producto de
-completar un combo ("agrega 1 tapa y ahorras $5.50"). Esta última es la más
-útil pero también la más invasiva.
-
-Ya existe: el motor (`src/promos.js`) y las reglas activas se cargan en la
-página de ventas, así que la información está disponible sin pedir nada nuevo
-al servidor.
-
----
-
-## 2. Comparador de productos (ambicioso)
+## 1. Comparador de productos (ambicioso)
 
 Poder comparar el inventario de varios productos a la vez, sin salir de la
 pantalla.
@@ -74,7 +55,8 @@ instalarlo.
 
 - **Canvas tipo n8n para las reglas de precio.** Se evaluó y se descartó: para
   la cantidad de reglas que maneja el negocio, la tabla se opera más rápido que
-  arrastrando nodos. El esfuerzo va a mejorar la pantalla actual (punto 2).
+  arrastrando nodos. El esfuerzo se fue a mejorar la pantalla actual, que ya
+  muestra el efecto de cada regla mientras se edita.
 
 ---
 

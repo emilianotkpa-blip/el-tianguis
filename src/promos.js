@@ -161,7 +161,51 @@ export function evaluarPromos(cart = [], reglas = []) {
     .reduce((s, d) => s + d.monto, 0)
     .toFixed(2)
 
-  return { descuentos, total, totalFacturable }
+  return { descuentos, total, totalFacturable, restantes: disponibles }
+}
+
+// Qué le falta al carrito para activar una regla que todavía no aplica.
+// Solo sugiere cuando el cliente YA lleva parte del paquete: proponer los dos
+// productos de la nada sería publicidad, no ayuda.
+export function sugerenciasPromos(restantes = [], reglas = [], catalogo = [], maxFaltante = 3) {
+  const activas = (reglas || [])
+    .filter(r => r && r.activo !== false)
+    .sort((a, b) => (a.prioridad ?? 100) - (b.prioridad ?? 100))
+
+  const libres = (req) => restantes
+    .filter(l => String(l.sku) === String(req.sku) && (!req.presId || req.presId === "*" || l.presId === req.presId))
+    .reduce((s, l) => s + l.libres, 0)
+
+  const nombreDe = (sku) => catalogo.find(p => String(p.sku) === String(sku))?.name ?? sku
+
+  const out = []
+  for (const regla of activas) {
+    const c = regla.config ?? {}
+    const requisitos = regla.tipo === "proporcion"
+      ? [c.porCada, c.aplicaA].filter(Boolean)
+      : (c.items ?? []).filter(i => i.sku)
+    if (requisitos.length < 2) continue
+
+    let tieneAlgo = false
+    let faltanTotal = 0
+    const faltan = []
+    for (const req of requisitos) {
+      const hay = libres(req)
+      if (hay > 0) tieneAlgo = true
+      const falta = Math.max(0, (req.cant || 1) - hay)
+      if (falta > 0) {
+        faltanTotal += falta
+        faltan.push({ sku: req.sku, presId: req.presId, cant: falta, nombre: nombreDe(req.sku) })
+      }
+    }
+    // Ya aplica (no falta nada) o el cliente no lleva nada del paquete
+    if (!faltan.length || !tieneAlgo || faltanTotal > maxFaltante) continue
+
+    const sim = simularRegla(regla, catalogo)
+    if (!sim || sim.incompleta || !(sim.ahorro > 0)) continue
+    out.push({ reglaId: regla.id, nombre: regla.nombre, faltan, ahorro: sim.ahorro })
+  }
+  return out
 }
 
 // Texto corto para mostrar la regla en pantalla

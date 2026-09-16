@@ -1958,6 +1958,57 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   font-size: var(--fs-sm); font-weight: 600;
 }
 
+/* Consulta de paquetes disponibles */
+.paquetes-btn { align-self: flex-start; gap: 6px; }
+.paquetes-num {
+  background: var(--wine-700); color: #fff;
+  border-radius: 9px; padding: 1px 6px;
+  font-size: var(--fs-2xs); font-weight: 700;
+}
+.paquetes-lista { display: flex; flex-direction: column; gap: 10px; }
+.paquete-item {
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev);
+}
+.paquete-nombre { font-weight: 700; font-size: var(--fs-base); }
+.paquete-desc { font-size: var(--fs-sm); color: var(--text-muted); margin-top: 3px; }
+.paquete-ahorro {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 9px; padding-top: 9px;
+  border-top: 1px dashed var(--border);
+  font-size: var(--fs-sm); color: var(--text-muted);
+}
+.paquete-ahorro strong { color: var(--text); font-family: var(--font-mono); }
+.paquete-badge {
+  margin-left: auto;
+  background: var(--ok-bg); color: var(--ok);
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  font-weight: 700; font-size: var(--fs-xs);
+}
+
+/* Sugerencia de paquete: aparece solo cuando el cliente ya lleva parte */
+.promo-sugerencias { border-top: 1px solid var(--border); }
+.promo-sugerencia {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  background: color-mix(in srgb, var(--ok) 7%, transparent);
+  border-bottom: 1px solid var(--border);
+  animation: riseIn var(--dur) var(--ease-out);
+}
+.promo-sugerencia:last-child { border-bottom: 0; }
+.ps-texto { flex: 1; min-width: 0; }
+.ps-titulo {
+  display: flex; align-items: center; gap: 5px;
+  font-size: var(--fs-sm); font-weight: 700; color: var(--ok);
+}
+.ps-detalle { font-size: var(--fs-xs); color: var(--text-muted); margin-top: 2px; }
+.ps-detalle strong { color: var(--ok); }
+.promo-sugerencia .btn { flex-shrink: 0; }
+
 /* Línea de ahorro por regla de precio */
 .promo-row span:first-child {
   display: inline-flex;
