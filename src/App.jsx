@@ -300,7 +300,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
   const renderPage = () => {
     switch (page) {
       case "ventas":             return <VentasPage addToast={addToast} user={user} sucursalActiva={user.sucursal} preloadedCatalogo={preloadedData?.catalogo} preloadedClientes={preloadedData?.clientes} sharedCart={sharedCart} clearSharedCart={() => setSharedCart([])} onIrACaja={() => setPage("caja")} />
-      case "productos":          return <ProductosPage addToast={addToast} />
+      case "productos":          return <ProductosPage addToast={addToast} sucursalActiva={user.sucursal} />
       case "facturas":           return <FacturasPage addToast={addToast} />
       case "pedidos-mercancia":  return <PedidosMercanciaPage addToast={addToast} user={user} />
       case "pedidos-clientes":   return <PedidosClientesPage addToast={addToast} />

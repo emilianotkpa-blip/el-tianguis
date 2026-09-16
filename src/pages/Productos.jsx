@@ -3,11 +3,12 @@ import Icon from "../components/Icon"
 import Modal from "../components/Modal"
 import { getCatalogo, patchProducto, postProducto, getNextCodigo, deleteProducto } from "../api"
 import { fmtMoney, fmtNum, exportCSV, tipoLabel } from "../utils"
-import { TIPOS_CONFIG, TIPOS_LISTA } from "../data"
+import { TIPOS_CONFIG, TIPOS_LISTA, SUCURSALES } from "../data"
 import { TableSkeleton } from "../components/Skeleton"
 import ProductoVista from "../components/ProductoVista"
 import { useComparador } from "../components/Comparador"
 import Select from "../components/Select"
+import AjusteStock from "../components/AjusteStock"
 
 const emptyForm = {
   sku: "", tipo: "", name: "", marca: "", min: 5,
@@ -21,13 +22,20 @@ function genPresId(base, presentaciones) {
   return `${base}_${n}`
 }
 
+// Stock de una sucursal en su unidad natural, para el resumen plegado
+function stockCorto(p, sucId) {
+  const v = p?.stock?.[sucId] ?? 0
+  if (p?.unidadBase !== "gramo") return fmtNum(v)
+  return v >= 1000 ? `${fmtNum(Math.round(v / 100) / 10)} kg` : `${fmtNum(v)} g`
+}
+
 function buildPresFromTipo(tipoId) {
   const cfg = TIPOS_CONFIG[tipoId]
   if (!cfg) return []
   return cfg.presentaciones.map(p => ({ ...p, precio: "", codigoBarras: "" }))
 }
 
-export default function ProductosPage({ addToast }) {
+export default function ProductosPage({ addToast, sucursalActiva }) {
   const [productos, setProductos] = useState([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
@@ -36,6 +44,7 @@ export default function ProductosPage({ addToast }) {
   const [factF, setFactF]         = useState("todos")
   const [editing, setEditing]     = useState(null)
   const [showNew, setShowNew]     = useState(false)
+  const [invAbierto, setInvAbierto] = useState(false)
   const [form, setForm]           = useState(emptyForm)
   const [presentaciones, setPresentaciones] = useState([])
   const [saving, setSaving]       = useState(false)
@@ -109,7 +118,7 @@ export default function ProductosPage({ addToast }) {
       setForm(f => ({ ...f, sku: String(next).padStart(4, "0") }))
     } catch {}
   }
-  const closeModal = () => { setEditing(null); setShowNew(false) }
+  const closeModal = () => { setEditing(null); setShowNew(false); setInvAbierto(false) }
 
   const [confirmDel, setConfirmDel] = useState(null)
   const [deleting, setDeleting]     = useState(false)
@@ -134,6 +143,16 @@ export default function ProductosPage({ addToast }) {
     finally { setLoading(false) }
   }
   useEffect(() => { cargar() }, [])
+
+  // Tras un movimiento de stock: refresca el catálogo y el producto abierto,
+  // sin tocar el formulario para no perder lo que se esté capturando.
+  const refrescarStock = async () => {
+    try {
+      const lista = await getCatalogo()
+      setProductos(lista)
+      setEditing(e => e ? (lista.find(p => p._id === e._id) ?? e) : e)
+    } catch (err) { addToast({ kind: "err", msg: err.message }) }
+  }
 
   // ── Filtros ───────────────────────────────────────────
   const tipos = useMemo(() => {
@@ -496,6 +515,45 @@ export default function ProductosPage({ addToast }) {
         }
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+
+          {/* Inventario: mover stock sin salir a la pantalla de Inventarios */}
+          {editing && (
+            <div className="inv-edicion">
+              <button
+                type="button"
+                className={"inv-edicion-cabeza" + (invAbierto ? " abierto" : "")}
+                onClick={() => setInvAbierto(v => !v)}
+              >
+                <Icon name="warehouse" size={14} />
+                <span className="inv-edicion-titulo">Inventario</span>
+                <span className="inv-edicion-stock">
+                  {SUCURSALES.map(su => (
+                    <span key={su.id}>
+                      {su.short} <strong>{stockCorto(editing, su.id)}</strong>
+                    </span>
+                  ))}
+                </span>
+                <Icon name={invAbierto ? "chevronDown" : "chevronRight"} size={13} />
+              </button>
+
+              {invAbierto && (
+                <div className="inv-edicion-cuerpo">
+                  <p className="inv-edicion-aviso">
+                    <Icon name="alert" size={12} />
+                    El movimiento se registra al momento de aplicarlo: no espera al botón Guardar.
+                  </p>
+                  <AjusteStock
+                    key={editing._id}
+                    producto={editing}
+                    sucursalInicial={SUCURSALES.find(s => s.id === sucursalActiva)?.short}
+                    addToast={addToast}
+                    onAplicado={refrescarStock}
+                    notaIdle=""
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Datos generales */}
           <div className="form-grid cols-2">

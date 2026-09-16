@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
 import { SUCURSALES, TIPOS_CONFIG } from "../data"
-import { getCatalogo, postMovimiento } from "../api"
+import { getCatalogo } from "../api"
 import { exportCSV, tipoLabel } from "../utils"
 import { TableSkeleton } from "../components/Skeleton"
 import ProductoVista from "../components/ProductoVista"
 import { useComparador } from "../components/Comparador"
 import Select from "../components/Select"
 import CountUp from "../components/CountUp"
+import AjusteStock from "../components/AjusteStock"
 
 // ── Modal Recepción masiva ─────────────────────────────
 function RecepcionModal({ productos, onClose, onDone, addToast }) {
@@ -206,12 +207,6 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
 
-  const [movTipo,  setMovTipo]  = useState("Entrada")
-  const [movSuc,   setMovSuc]   = useState(initSucShort)
-  const [movCant,  setMovCant]  = useState("")
-  const [movNivel, setMovNivel] = useState("pieza")
-  const [movObs,   setMovObs]   = useState("")
-  const [saving,   setSaving]   = useState(false)
   const [recepcionOpen, setRecepcionOpen] = useState(false)
 
   const cargar = async () => {
@@ -258,45 +253,6 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-
-  const aplicar = async () => {
-    const cant = parseFloat(movCant)
-    if (!adjustingP || !cant || cant <= 0) return
-    setSaving(true)
-    try {
-      // Buscar el factor de la presentación seleccionada
-      const pres = adjustingP.presentaciones ?? []
-      let presObj = null
-      if (movNivel === "caja") {
-        presObj = pres.find(p => p.nivel === "caja" || p.nivel === "bulto")
-      } else if (movNivel === "paq") {
-        // Primero buscar nivel "paquete"; fallback a gramo con factor >= 1000 (bolsas sin migrar)
-        presObj = pres.find(p => p.nivel === "paquete")
-          || pres.find(p => p.nivel === "gramo" && p.factor >= 1000)
-      }
-      const factor = presObj?.factor ?? 1
-
-      await postMovimiento({
-        tipo:            movTipo,
-        producto_codigo: parseInt(adjustingP.sku, 10),
-        sucursal:        movSuc,
-        cantidad:        cant,
-        nivel:           movNivel,
-        factor,
-        descripcion:     adjustingP.name,
-        observaciones:   movObs,
-      })
-      addToast({ kind: "ok", msg: "Movimiento registrado" })
-      setAdjustingP(null)
-      setMovCant("")
-      setMovObs("")
-      cargar()
-    } catch (err) {
-      addToast({ kind: "err", msg: err.message })
-    } finally {
-      setSaving(false)
-    }
-  }
 
   if (loading) return (
     <div className="page">
@@ -472,7 +428,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                       {status === "normal"  && <span className="badge badge-ok">● Normal</span>}
                     </td>
                     <td className="actions-cell" onClick={e => e.stopPropagation()}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setAdjustingP(p); setMovSuc(SUCURSALES.find(s => s.id === suc)?.short ?? "Centro"); setMovNivel("pieza"); setMovCant("") }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setAdjustingP(p)} title="Ajustar stock">
                         <Icon name="edit" size={12} />
                       </button>
                     </td>
@@ -488,139 +444,16 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
         open={!!adjustingP}
         onClose={() => setAdjustingP(null)}
         title={`Ajustar stock: ${adjustingP?.name}`}
-        footer={
-          <>
-            <button className="btn btn-default" onClick={() => setAdjustingP(null)}>Cancelar</button>
-            <button className="btn btn-wine" onClick={aplicar} disabled={saving || !movCant}>
-              <Icon name="check" size={13} /> {saving ? "Guardando…" : "Aplicar movimiento"}
-            </button>
-          </>
-        }
+        footer={<button className="btn btn-default" onClick={() => setAdjustingP(null)}>Cerrar</button>}
       >
         {adjustingP && (
-          <div className="form-grid cols-2">
-            <div className="form-row" style={{ gridColumn: "1/-1" }}>
-              <label>Tipo de movimiento</label>
-              <Select
-                value={movTipo}
-                onChange={(e) => setMovTipo(e.target.value)}
-                options={[
-                  { value: "Entrada",  label: "Entrada por compra" },
-                  { value: "Salida",   label: "Salida por venta" },
-                  { value: "Traspaso", label: "Traspaso entre sucursales" },
-                  { value: "Ajuste",   label: "Ajuste por inventario físico" },
-                  { value: "Merma",    label: "Merma / daño" },
-                ]}
-              />
-            </div>
-            <div className="form-row">
-              <label>Sucursal</label>
-              <Select
-                value={movSuc}
-                onChange={(e) => setMovSuc(e.target.value)}
-                options={SUCURSALES.map((s) => ({ value: s.short, label: s.name, hint: s.desc }))}
-              />
-            </div>
-            <div className="form-row">
-              <label>Unidad de entrada</label>
-              <Select
-                value={movNivel}
-                onChange={e => setMovNivel(e.target.value)}
-                options={(() => {
-                  const esGramo = adjustingP.unidadBase === "gramo"
-                  const ops = [{
-                    value: "pieza",
-                    label: esGramo ? "Gramo / unidad suelta" : "Pieza / unidad suelta",
-                  }]
-                  // Paquetes: nivel "paquete" o gramo con factor ≥ 1000 (bolsas 1kg sin migrar)
-                  adjustingP.presentaciones?.filter(p =>
-                    p.nivel === "paquete" ||
-                    (p.nivel === "gramo" && p.factor >= 1000 && p.id !== "detalle")
-                  ).forEach(p => {
-                    const u = esGramo
-                      ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
-                      : `${p.factor} pzs c/u`
-                    ops.push({ value: "paq", label: p.label, hint: u })
-                  })
-                  // Cajas/Bultos: se registran en stockNiveles.caja
-                  adjustingP.presentaciones?.filter(p => p.nivel === "caja" || p.nivel === "bulto").forEach(p => {
-                    let u
-                    if (p.contieneN && p.contienePres) {
-                      const paqPres = adjustingP.presentaciones.find(x => x.id === p.contienePres)
-                      u = `${p.contieneN} ${paqPres ? paqPres.label : "paq"} c/u`
-                    } else {
-                      u = esGramo
-                        ? (p.factor >= 1000 ? `${p.factor / 1000} kg` : `${p.factor} g`) + " c/u"
-                        : `${p.factor} pzs c/u`
-                    }
-                    ops.push({ value: "caja", label: p.label, hint: u })
-                  })
-                  return ops
-                })()}
-              />
-            </div>
-            <div className="form-row">
-              <label>Cantidad{movNivel !== "pieza" ? ` (en ${movNivel === "caja" ? "cajas" : "paquetes"})` : ""}</label>
-              <input type="number" min="1" value={movCant} onChange={(e) => setMovCant(e.target.value)} placeholder="0" />
-            </div>
-            <div className="form-row" style={{ gridColumn: "1/-1" }}>
-              <label>Observaciones</label>
-              <textarea rows="2" value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Opcional…" />
-            </div>
-            {/* Mostrar stock con equivalencias (base stock como fuente de verdad) */}
-            <div className="stock-panel" style={{ gridColumn: "1/-1" }}>
-              <div className="stock-panel-title">Stock actual · {movSuc}</div>
-              {(() => {
-                const sucId    = movSuc.toLowerCase()
-                const n        = adjustingP.stockNiveles?.[sucId] ?? {}
-                const pres     = adjustingP.presentaciones ?? []
-                // paqP: nivel "paquete" o gramo con factor >= 1000 (bolsas 1kg sin migrar)
-                const paqP = pres.find(p => p.nivel === "paquete")
-                  || pres.find(p => p.nivel === "gramo" && p.factor >= 1000)
-                // cajP: caja o bulto (contenedor cerrado)
-                const cajP = pres.find(p => p.nivel === "caja" || p.nivel === "bulto")
-                const cajFac   = cajP?.factor ?? 0
-                const paqFac   = paqP?.factor ?? 0
-                const esGramo  = adjustingP.unidadBase === "gramo"
-
-                // Helpers para formato de unidad base
-                const fmtBase = (g) => esGramo
-                  ? (g >= 1000 ? `${(g / 1000).toLocaleString()} kg` : `${g} g`)
-                  : g.toLocaleString() + " pzs"
-
-                // Stock base = fuente de verdad
-                const baseStock  = adjustingP.stock?.[sucId] ?? 0
-                const cajasN     = n.caja ?? 0
-                const paqSueltos = n.paq ?? 0
-
-                const paqEquiv = paqFac > 0 ? Math.floor(baseStock / paqFac) : 0
-                const cajEquiv = cajFac > 0 ? Math.floor(baseStock / cajFac) : 0
-
-                return (
-                  <div className="stock-chips">
-                    {cajFac > 0 && (
-                      <div className="stock-chip">
-                        <span className="sc-label">{cajP.label}</span>
-                        <span className="sc-value">{cajasN}</span>
-                        {paqFac > 0 && <span className="sc-hint">equiv. {cajEquiv}</span>}
-                      </div>
-                    )}
-                    {paqFac > 0 && (
-                      <div className="stock-chip">
-                        <span className="sc-label">{paqP.label}</span>
-                        <span className="sc-value">{paqEquiv}</span>
-                        {paqSueltos > 0 && <span className="sc-hint">{paqSueltos} sueltos</span>}
-                      </div>
-                    )}
-                    <div className="stock-chip destacado">
-                      <span className="sc-label">{esGramo ? "Total" : "Piezas"}</span>
-                      <span className="sc-value">{fmtBase(baseStock)}</span>
-                    </div>
-                  </div>
-                )
-              })()}
-            </div>
-          </div>
+          <AjusteStock
+            key={adjustingP._id}
+            producto={adjustingP}
+            sucursalInicial={sucObj?.short ?? initSucShort}
+            addToast={addToast}
+            onAplicado={() => { setAdjustingP(null); cargar() }}
+          />
         )}
       </Modal>
 

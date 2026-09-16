@@ -1627,6 +1627,82 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 .stock-chip.destacado .sc-value { color: var(--wine-700); }
 [data-theme="dark"] .stock-chip.destacado .sc-value { color: var(--gold-500); }
 
+/* ============ AJUSTE DE STOCK (formulario compartido) ============ */
+/* El mismo formulario se usa en Inventarios y dentro de la edición de un
+   producto, así que trae su propio pie con el botón: donde se monte, se
+   aplica igual. */
+.ajuste-stock .form-grid { margin: 0; }
+.ajuste-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.ajuste-equiv {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.ajuste-equiv strong { color: var(--text); font-weight: 700; }
+
+/* ============ INVENTARIO DENTRO DE EDITAR PRODUCTO ============ */
+/* Va plegado: la edición es de datos y precios, el stock se abre solo cuando
+   hace falta moverlo. El resumen se ve aun estando cerrado. */
+.inv-edicion {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 16px;
+  background: var(--bg-elev);
+}
+.inv-edicion-cabeza {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-sunken);
+  border: 0;
+  text-align: left;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  transition: background var(--dur-fast) var(--ease);
+}
+.inv-edicion-cabeza:hover { background: color-mix(in srgb, var(--wine-700) 6%, var(--bg-sunken)); }
+.inv-edicion-cabeza.abierto { border-bottom: 1px solid var(--border); }
+.inv-edicion-titulo { font-weight: 600; }
+.inv-edicion-stock {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+.inv-edicion-stock strong {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text);
+}
+.inv-edicion-cuerpo { padding: 12px; }
+.inv-edicion-aviso {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 28%, transparent);
+  font-size: var(--fs-2xs);
+  color: var(--text-body);
+  line-height: 1.5;
+}
+.inv-edicion-aviso svg { flex: none; color: var(--warn); }
+
 /* ============ DESPLEGABLE PROPIO ============ */
 .select-wrap { position: relative; display: block; }
 .select-trigger {
@@ -1893,6 +1969,11 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   .vr-items { max-height: 30vh; }
 }
 @media (max-width: 560px) {
+  /* El resumen por sucursal baja a su propia línea */
+  .inv-edicion-cabeza { flex-wrap: wrap; }
+  .inv-edicion-stock { margin-left: 0; width: 100%; order: 3; }
+  .ajuste-pie .btn { width: 100%; justify-content: center; }
+
   .vr-grid { max-height: 26vh; }
   .vr-metodos, .vr-pago-fila { flex-wrap: wrap; }
   .vr-pago-monto { width: 100%; }
