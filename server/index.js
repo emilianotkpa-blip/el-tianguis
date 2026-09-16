@@ -12,7 +12,10 @@ import { tmpdir } from "os"
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const app = express()
-app.use(express.json())
+// Las fotos de producto llegan en base64 y rebasan los 100 KB por defecto:
+// esa ruta trae su propio parser con más margen, el resto sigue igual.
+const RUTA_IMAGEN = /^\/api\/catalogo\/\d+\/imagen$/
+app.use((req, res, next) => RUTA_IMAGEN.test(req.path) ? next() : express.json()(req, res, next))
 app.use(express.static(join(__dirname, "../dist"), {
   setHeaders(res, filePath) {
     if (filePath.endsWith(".webmanifest"))
@@ -380,6 +383,35 @@ app.get("/api/balanza/stream", (req, res) => {
   })
 })
 
+// ── Imagen de producto ─────────────────────────────────
+// NocoDB guarda la foto como adjunto. Se sirve desde aquí y no con la URL de
+// NocoDB para que el navegador nunca conozca ese host ni el token, igual que
+// con todo lo demás. Va antes del candado porque un <img> no puede mandar el
+// encabezado de autorización; solo entrega la foto, nada más del producto.
+const adjuntoDe = (valor) => {
+  let v = valor
+  if (typeof v === "string") { try { v = JSON.parse(v) } catch { return null } }
+  return Array.isArray(v) && v[0]?.path ? v[0] : null
+}
+
+app.get("/api/media/producto/:id", async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (!id) return res.status(400).end()
+  try {
+    const filas = await nocoGet(T.productos, `&where=(Id,eq,${id})`)
+    const img = adjuntoDe(filas[0]?.Imagen)
+    if (!img) return res.status(404).end()
+    const r = await fetch(`${NOCO_URL}/${img.path}`, { headers: { "xc-token": NOCO_TOKEN } })
+    if (!r.ok) return res.status(404).end()
+    res.setHeader("Content-Type", img.mimetype || r.headers.get("content-type") || "image/jpeg")
+    // La URL cambia con cada foto nueva (?v=), así que se puede guardar sin miedo
+    res.setHeader("Cache-Control", "public, max-age=2592000, immutable")
+    res.send(Buffer.from(await r.arrayBuffer()))
+  } catch {
+    res.status(500).end()
+  }
+})
+
 app.use("/api", (req, res, next) => {
   const token = req.headers["authorization"]?.replace("Bearer ", "")
   if (!token || token !== SESSION_TOKEN) return res.status(401).json({ error: "No autorizado" })
@@ -526,6 +558,13 @@ app.get("/api/catalogo/next-codigo", async (req, res) => {
   }
 })
 
+// El nombre del archivo en NocoDB es único por subida: sirve de versión para
+// que el navegador pida la foto nueva en cuanto se cambia
+const urlImagen = (p) => {
+  const img = adjuntoDe(p.Imagen)
+  return img ? `/api/media/producto/${p.Id}?v=${encodeURIComponent(img.path.split("/").pop())}` : null
+}
+
 app.get("/api/catalogo", async (req, res) => {
   try {
     const [prods, stocks] = await Promise.all([
@@ -555,11 +594,46 @@ app.get("/api/catalogo", async (req, res) => {
         presentaciones,
         stock: { centro: s.Centro ?? 0, repostero: s.Repostero ?? 0, bodega: s.Bodega ?? 0 },
         stockNiveles,
+        imagen: urlImagen(p),
       }
     }))
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
+})
+
+// Subir la foto de un producto. Llega ya reducida desde el navegador; aquí
+// solo se valida que sea imagen y que no se haya colado un archivo enorme.
+const TIPOS_IMAGEN = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }
+
+app.post("/api/catalogo/:id/imagen", express.json({ limit: "6mb" }), async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec(req.body?.dataUrl ?? "")
+  if (!id || !m || !TIPOS_IMAGEN[m[1]]) return res.status(400).json({ error: "El archivo no es una imagen válida" })
+  const datos = Buffer.from(m[2], "base64")
+  if (datos.length > 3 * 1024 * 1024) return res.status(413).json({ error: "La imagen pesa más de 3 MB" })
+  try {
+    const fd = new FormData()
+    fd.append("files", new Blob([datos], { type: m[1] }), `producto-${id}.${TIPOS_IMAGEN[m[1]]}`)
+    const r = await fetch(`${NOCO_URL}/api/v2/storage/upload?path=el-tianguis/productos`, {
+      method: "POST", headers: { "xc-token": NOCO_TOKEN }, body: fd,
+    })
+    const subida = await r.json()
+    if (!r.ok || !Array.isArray(subida) || !subida[0]?.path) {
+      return res.status(502).json({ error: "No se pudo guardar la imagen" })
+    }
+    await nocoPatch(T.productos, { Id: id, Imagen: subida })
+    res.json({ ok: true, imagen: urlImagen({ Id: id, Imagen: subida }) })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.delete("/api/catalogo/:id/imagen", async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (!id) return res.status(400).json({ error: "Producto no válido" })
+  try {
+    await nocoPatch(T.productos, { Id: id, Imagen: null })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 app.patch("/api/catalogo/:id", async (req, res) => {

@@ -43,6 +43,9 @@ export const getNextCodigo      = ()       => apiFetch("/api/catalogo/next-codig
 export const patchProducto      = (id, b)  => apiFetch(`/api/catalogo/${id}`, patch(b))
 export const postProducto       = (b)      => apiFetch("/api/catalogo", json(b))
 export const deleteProducto     = (id)     => apiFetch(`/api/catalogo/${id}`, { method: "DELETE" })
+// La foto viaja ya reducida en el navegador (ver CampoImagen)
+export const subirImagenProducto = (id, dataUrl) => apiFetch(`/api/catalogo/${id}/imagen`, json({ dataUrl }))
+export const quitarImagenProducto = (id)         => apiFetch(`/api/catalogo/${id}/imagen`, { method: "DELETE" })
 
 export const getVentas          = ()       => apiFetch("/api/ventas")
 export const postVenta          = (b)      => apiFetch("/api/ventas", json(b))

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import Icon from "../components/Icon"
 import Modal from "../components/Modal"
-import { getCatalogo, patchProducto, postProducto, getNextCodigo, deleteProducto } from "../api"
+import { getCatalogo, patchProducto, postProducto, getNextCodigo, deleteProducto, subirImagenProducto } from "../api"
 import { fmtMoney, fmtNum, fmtBase, exportCSV, tipoLabel } from "../utils"
 import { TIPOS_CONFIG, TIPOS_LISTA, SUCURSALES } from "../data"
 import { TableSkeleton } from "../components/Skeleton"
@@ -9,6 +9,7 @@ import ProductoVista from "../components/ProductoVista"
 import { useComparador, MAX_COMPARAR } from "../components/Comparador"
 import Select from "../components/Select"
 import AjusteStock from "../components/AjusteStock"
+import CampoImagen from "../components/CampoImagen"
 
 const emptyForm = {
   sku: "", tipo: "", name: "", marca: "", min: 5,
@@ -38,6 +39,8 @@ export default function ProductosPage({ addToast, sucursalActiva }) {
   const [editing, setEditing]     = useState(null)
   const [showNew, setShowNew]     = useState(false)
   const [invAbierto, setInvAbierto] = useState(false)
+  // Un producto nuevo no tiene dónde colgar la foto hasta crearse
+  const [imagenPendiente, setImagenPendiente] = useState(null)
   const [form, setForm]           = useState(emptyForm)
   const [presentaciones, setPresentaciones] = useState([])
   const [saving, setSaving]       = useState(false)
@@ -111,7 +114,7 @@ export default function ProductosPage({ addToast, sucursalActiva }) {
       setForm(f => ({ ...f, sku: String(next).padStart(4, "0") }))
     } catch {}
   }
-  const closeModal = () => { setEditing(null); setShowNew(false); setInvAbierto(false) }
+  const closeModal = () => { setEditing(null); setShowNew(false); setInvAbierto(false); setImagenPendiente(null) }
 
   const [confirmDel, setConfirmDel] = useState(null)
   const [deleting, setDeleting]     = useState(false)
@@ -310,7 +313,14 @@ export default function ProductosPage({ addToast, sucursalActiva }) {
         piezasPorUnidad: presActivas.find(p => p.nivel === "pieza")?.factor ?? 1,
       }
       if (editing) { await patchProducto(editing._id, payload) }
-      else         { await postProducto({ sku: form.sku, ...payload }) }
+      else {
+        const creado = await postProducto({ sku: form.sku, ...payload })
+        if (imagenPendiente && creado?.id) {
+          // El producto ya existe aunque la foto falle: se avisa y no se pierde lo demás
+          await subirImagenProducto(creado.id, imagenPendiente).catch(() =>
+            addToast({ kind: "warn", msg: "El producto se creó, pero la imagen no se pudo subir" }))
+        }
+      }
       addToast({ kind: "ok", msg: editing ? "Producto actualizado" : "Producto creado" })
       closeModal(); cargar()
     } catch (err) { addToast({ kind: "err", msg: err.message }) }
@@ -595,6 +605,22 @@ export default function ProductosPage({ addToast, sucursalActiva }) {
                   Debe comenzar con "{cfg.prefijo}"
                 </span>
               )}
+            </div>
+            <div className="form-row" style={{ gridColumn: "1/-1" }}>
+              <label>Imagen</label>
+              <CampoImagen
+                productoId={editing?._id ?? null}
+                imagen={editing?.imagen ?? null}
+                pendiente={imagenPendiente}
+                onPendiente={setImagenPendiente}
+                addToast={addToast}
+                onCambio={(url) => {
+                  // La foto se guarda al momento: se refleja ya en la lista y en
+                  // el producto abierto, sin esperar a Guardar
+                  setEditing(e => e ? { ...e, imagen: url } : e)
+                  setProductos(ps => ps.map(p => p._id === editing?._id ? { ...p, imagen: url } : p))
+                }}
+              />
             </div>
             <div className="form-row"><label>Marca</label><input value={form.marca} onChange={setF("marca")} /></div>
             <div className="form-row"><label>Proveedor</label><input value={form.proveedor} onChange={setF("proveedor")} placeholder="Nombre del proveedor" /></div>

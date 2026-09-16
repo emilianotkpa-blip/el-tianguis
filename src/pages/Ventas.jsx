@@ -654,10 +654,16 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
         <Stepper steps={STEPS} current={1} />
         <div style={{ flex: 1, overflow: "auto" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12, marginBottom: 16 }}>
-            {cart.map((it, i) => (
+            {cart.map((it, i) => {
+              // La línea de la nota no guarda la foto: se toma del catálogo,
+              // así una foto recién subida ya aparece aquí
+              const imagen = productos.find(p => p.sku === it.sku)?.imagen
+              return (
               <div key={i} className="card" style={{ padding: 0, overflow: "hidden" }}>
-                <div style={{ height: 80, background: "var(--bg-sunken)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 12 }}>
-                  📦
+                <div className={"verif-foto" + (imagen ? "" : " sin-foto")}>
+                  {imagen
+                    ? <img src={imagen} alt={it.name} loading="lazy" />
+                    : <Icon name="box" size={24} />}
                 </div>
                 <div className="card-body" style={{ padding: 12 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{it.name}</div>
@@ -675,7 +681,8 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
           <div className="card" style={{ position: "sticky", bottom: 0 }}>
             <div className="card-body" style={{ padding: "12px 16px" }}>
