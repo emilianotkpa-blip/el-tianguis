@@ -5,6 +5,8 @@ import { getCatalogo, patchProducto, postProducto, getNextCodigo, deleteProducto
 import { fmtMoney, fmtNum, exportCSV, tipoLabel } from "../utils"
 import { TIPOS_CONFIG, TIPOS_LISTA } from "../data"
 import { TableSkeleton } from "../components/Skeleton"
+import ProductoVista from "../components/ProductoVista"
+import { useComparador } from "../components/Comparador"
 import Select from "../components/Select"
 
 const emptyForm = {
@@ -38,6 +40,8 @@ export default function ProductosPage({ addToast }) {
   const [presentaciones, setPresentaciones] = useState([])
   const [saving, setSaving]       = useState(false)
   const [inline, setInline]       = useState(null)
+  const [vistaRapida, setVista]   = useState(null)
+  const cmp = useComparador()
   const [page, setPage]           = useState(1)
   const PAGE_SIZE = 100
 
@@ -368,6 +372,18 @@ export default function ProductosPage({ addToast }) {
                 { value: "no",    label: "Sin factura" },
               ]}
             />
+            {tipoFiltro !== "all" && filtered.length > 1 && (
+              <button
+                className="btn btn-default btn-sm"
+                onClick={() => {
+                  filtered.forEach(p => cmp?.agregar(p))
+                  cmp?.setAbierto(true)
+                }}
+                title="Comparar todos los de esta clasificación"
+              >
+                <Icon name="eye" size={13} /> Visualizar todos
+              </button>
+            )}
             <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{filtered.length} resultados</span>
             {totalPages > 1 && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
@@ -398,7 +414,7 @@ export default function ProductosPage({ addToast }) {
                   ?? presArr.find(x => x.activo !== false && x.precio > 0)?.precio
                   ?? p.precio ?? 0
                 return (
-                  <tr key={p._id} onClick={() => openEdit(p)} style={{ cursor: "pointer" }}>
+                  <tr key={p._id} onClick={() => setVista(p)} style={{ cursor: "pointer" }}>
                     <td className="tnum" data-label="Código" style={{ fontSize: 11.5 }}>{p.sku}</td>
                     <td data-label="Producto" className="td-titulo"><strong>{p.name}</strong></td>
                     <td data-label="Tipo"><span className="badge badge-neutral">{tipoLabel(p.tipo, TIPOS_CONFIG)}</span></td>
@@ -771,6 +787,14 @@ export default function ProductosPage({ addToast }) {
           )}
         </div>
       </Modal>
+
+      {vistaRapida && (
+        <ProductoVista
+          producto={vistaRapida}
+          onCerrar={() => setVista(null)}
+          onEditar={openEdit}
+        />
+      )}
     </div>
   )
 }

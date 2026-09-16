@@ -14,6 +14,7 @@ import UtilidadesPage from "./pages/Utilidades"
 import TianguisIAPage from "./pages/TianguisIA"
 import ClientesPage from "./pages/Clientes"
 import ReglasPage from "./pages/Reglas"
+import { ComparadorProvider, ComparadorFlotante } from "./components/Comparador"
 import CajaPage from "./pages/Caja"
 import BásculaPage from "./pages/Balanza"
 import { getStats, getAlertas, getCatalogo, getClientes, getPrinters, printFolio } from "./api"
@@ -315,6 +316,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
   }
 
   return (
+    <ComparadorProvider>
     <div className={"app" + (menuAbierto ? " menu-abierto" : "")}>
       <aside className="app-sidebar">
         <div className="sidebar-brand">
@@ -512,7 +514,9 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
 
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} addToast={addToast} />}
       <Toast toasts={toasts} onDismiss={dismissToast} />
+      <ComparadorFlotante />
     </div>
+    </ComparadorProvider>
   )
 }
 

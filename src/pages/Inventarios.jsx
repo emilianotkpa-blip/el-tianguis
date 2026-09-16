@@ -5,6 +5,7 @@ import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postMovimiento } from "../api"
 import { exportCSV, tipoLabel } from "../utils"
 import { TableSkeleton } from "../components/Skeleton"
+import ProductoVista from "../components/ProductoVista"
 import Select from "../components/Select"
 import CountUp from "../components/CountUp"
 
@@ -196,6 +197,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
   const [search, setSearch]         = useState("")
   const [statusFilter, setStatus]   = useState("todos")
   const [adjustingP, setAdjustingP] = useState(null)
+  const [vistaRapida, setVista]     = useState(null)
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 250
   const [productos, setProductos]   = useState([])
@@ -421,7 +423,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                 const pct    = Math.min(100, (v / (p.min * 2)) * 100)
                 const fill   = status === "agotado" ? "var(--err)" : status === "bajo" ? "var(--warn)" : "var(--ok)"
                 return (
-                  <tr key={p._id}>
+                  <tr key={p._id} onClick={() => setVista(p)} style={{ cursor: "pointer" }}>
                     <td className="tnum" data-label="Código" style={{ fontSize: 11, overflow: "hidden" }}>
                       <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.codigoBarras || p.sku}</div>
                       {p.codigoBarras && p.codigoBarras !== p.sku && (
@@ -447,7 +449,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                       {status === "bajo"    && <span className="badge badge-warn">● Bajo</span>}
                       {status === "normal"  && <span className="badge badge-ok">● Normal</span>}
                     </td>
-                    <td className="actions-cell">
+                    <td className="actions-cell" onClick={e => e.stopPropagation()}>
                       <button className="btn btn-ghost btn-sm" onClick={() => { setAdjustingP(p); setMovSuc(SUCURSALES.find(s => s.id === suc)?.short ?? "Centro"); setMovNivel("pieza"); setMovCant("") }}>
                         <Icon name="edit" size={12} />
                       </button>
@@ -599,6 +601,10 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
           </div>
         )}
       </Modal>
+
+      {vistaRapida && (
+        <ProductoVista producto={vistaRapida} onCerrar={() => setVista(null)} />
+      )}
 
       {recepcionOpen && (
         <RecepcionModal

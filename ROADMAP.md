@@ -3,51 +3,9 @@
 Lo que sigue, en orden de lo pedido. Lo terminado no se anota aquí: vive en el
 historial de commits.
 
----
-
-## 1. Comparador de productos (ambicioso)
-
-Poder comparar el inventario de varios productos a la vez, sin salir de la
-pantalla.
-
-**Cómo se arma la selección**
-- Al hacer clic en un producto (en Productos) se abre una tarjeta en modo
-  **solo lectura** —como la de editar, pero sin campos— con: stock en todas
-  las sucursales, desglosado por cada presentación que exista (pieza, paquete,
-  caja).
-- Esa tarjeta ofrece **"Visualizar en conjunto"**. Al activarla, la tarjeta
-  *se desplaza en pantalla* hasta guardarse en un botón con forma de **ojo**,
-  como quien echa algo al carrito.
-- El ojo aparece **debajo de "Recepción de mercancía"** y solo existe cuando
-  hay algo dentro. Muestra el número de productos guardados y **sube con una
-  animación** cada vez que entra otro (1, 2, 3…).
-- Mientras el modo está activo, cada producto que se abra ofrece **"Agregar a
-  visualización"** o **"Sin visualización"**.
-
-**La vista de conjunto**
-- Al tocar el ojo se abren todas las tarjetas juntas, **más pequeñas y
-  repartidas por la pantalla**, con el fondo difuminado (igual que hoy se ve
-  al editar un producto).
-- Si hay muchas, la vista baja con scroll.
-- Cada tarjeta trae lo esencial para comparar: **barras de cobertura por
-  sucursal** y una **barra del stock general** del producto.
-- Cada tarjeta tiene su propia **tacha para cerrarla** (por si se agregó por
-  error o ya se terminó con ese producto), y la vista tiene botón de cerrar.
-
-**Vaciar la selección**
-- Junto al ojo va una tacha. Al tocarla **pide confirmación**; al confirmar se
-  quitan todos y hay que volver a armar la selección desde cero.
-
-**Por clasificación**
-- Si se filtra por tipo, aparece un botón **"Visualizar todos"** que abre en
-  conjunto todos los productos de esa clasificación, con la misma vista.
-
-**Animación**
-- Con Framer Motion. Lo importante es que **se vea el movimiento**: la primera
-  tarjeta viajando hasta el ojo, y las siguientes igual.
-
-Nota: Framer Motion todavía no es dependencia del proyecto; habría que
-instalarlo.
+> Los tres puntos que había (paquetes al vender, efecto en vivo al editar una
+> regla y el comparador de productos) ya están hechos. Esta lista quedó solo
+> con lo descartado y los pendientes de configuración.
 
 ---
 
