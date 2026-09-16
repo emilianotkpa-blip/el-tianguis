@@ -214,11 +214,6 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       addToast({ kind: "err", msg: `Código no encontrado: ${q}` })
       return
     }
-    const stock = exact.stock[suc] ?? 0
-    if (stock <= 0) {
-      addToast({ kind: "warn", msg: `Sin stock: ${exact.name} en ${suc}` })
-      return
-    }
     handleProductoClick(exact)
   }
 
@@ -310,21 +305,19 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   const disponibleDe = (p) => (p.stock?.[suc] ?? 0) - (comprometido[p.sku] ?? 0)
 
   const handleProductoClick = (p) => {
-    if (disponibleDe(p) <= 0) {
-      addToast({ kind: "warn", msg: `Sin stock: ${p.name} en ${suc}` })
-      return
-    }
-    const pres = (p.presentaciones || [])
+    const pres    = (p.presentaciones || [])
+    const agotado = disponibleDe(p) <= 0
+
     if (pres.length === 0) {
-      // Sin presentaciones configuradas: usar precio legacy
+      // Sin presentaciones no hay nada que consultar: o se agrega o se avisa
+      if (agotado) return addToast({ kind: "warn", msg: `Sin existencia: ${p.name} en ${suc}` })
       addToCartWithPres(p, null)
       return
     }
-    if (pres.length === 1) {
-      checkAndAdd(p, pres[0])
-    } else {
-      setPresModal(p)
-    }
+    // Agotado se abre aunque tenga una sola presentación: es la única forma
+    // de consultar precios y empaques con el cliente preguntando
+    if (agotado || pres.length > 1) { setPresModal(p); return }
+    checkAndAdd(p, pres[0])
   }
 
   const handlePresSelect = (pres) => {
@@ -853,7 +846,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
                   ? pres.map(x => x.label).join(" · ")
                   : (p.unidad || "")
                 return (
-                  <button key={p.sku} className={"product-tile" + (out ? " disabled" : "")} onClick={() => !out && handleProductoClick(p)}>
+                  <button key={p.sku} className={"product-tile" + (out ? " agotado" : "")} onClick={() => handleProductoClick(p)}>
                     <div className="sku">{p.sku}</div>
                     <div className="name">{p.name}</div>
                     <div className="meta">

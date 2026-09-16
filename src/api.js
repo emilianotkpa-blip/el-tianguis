@@ -12,7 +12,12 @@ async function apiFetch(path, options = {}) {
     return
   }
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`)
+  if (!res.ok) {
+    const err = new Error(data.error ?? `Error ${res.status}`)
+    err.status = res.status
+    err.datos  = data
+    throw err
+  }
   return data
 }
 

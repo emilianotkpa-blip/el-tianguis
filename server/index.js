@@ -122,6 +122,28 @@ async function descontarNiveles(item, campo) {
   })
 }
 
+// Antes de tocar el inventario: ¿alcanza? El stock apartado avisa mientras se
+// captura, pero se refresca cada 10 s y entre apartar y cobrar puede pasar
+// cualquier cosa. Este es el último punto donde se puede decir que no, y el
+// único donde el inventario todavía no quedó en negativo.
+async function faltantesDe(items, campo) {
+  const necesita = new Map()
+  for (const it of items) {
+    const sku = parseInt(it.sku, 10)
+    if (!sku) continue
+    const base = (Number(it.qty) || 0) * (Number(it.factor ?? it.piezasPorUnidad) || 1)
+    const ya = necesita.get(sku) ?? { pide: 0, nombre: it.name ?? it.descripcion ?? `SKU ${sku}` }
+    necesita.set(sku, { ...ya, pide: ya.pide + base })
+  }
+  const faltan = []
+  for (const [sku, { pide, nombre }] of necesita) {
+    const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${sku})`)
+    const hay = rows.length ? (rows[0][campo] ?? 0) : 0
+    if (hay < pide) faltan.push({ sku: String(sku), nombre, pide, hay })
+  }
+  return faltan
+}
+
 // ── Contexto IA ────────────────────────────────────────
 async function buildContexto() {
   try {
@@ -1218,7 +1240,7 @@ app.patch("/api/caja/:id/editar", async (req, res) => {
 
 // Cobrar nota: marcar como pagada y decrementar stock
 app.patch("/api/caja/:id/cobrar", async (req, res) => {
-  const { pagos, sucursal } = req.body
+  const { pagos, sucursal, forzar, forzadoPor } = req.body
   try {
     // Fetch the nota to get items
     const notas = await nocoGet(T.ventas, `&where=(Id,eq,${parseInt(req.params.id)})`)
@@ -1228,13 +1250,29 @@ app.patch("/api/caja/:id/cobrar", async (req, res) => {
     const suc   = (sucursal ?? nota.Sucursal ?? "centro").toLowerCase()
     const campo = suc.includes("repostero") ? "Repostero" : suc.includes("bodega") ? "Bodega" : "Centro"
 
-    // Decrement stock por nivel.
     // Las líneas de descuento viajan en el mismo array pero no son productos.
-    for (const item of items.filter(i => i && i.tipo !== "descuento")) {
+    const productos = items.filter(i => i && i.tipo !== "descuento")
+
+    // Se revisa antes de descontar nada. Si no alcanza se devuelve qué falta,
+    // para que en caja se decida: no siempre el sistema tiene la razón contra
+    // lo que hay en el anaquel, y bloquear la venta con el cliente enfrente
+    // sería peor que el negativo. Por eso se puede seguir dejando constancia.
+    const faltan = await faltantesDe(productos, campo)
+    if (faltan.length && !forzar) {
+      return res.status(409).json({ error: "No alcanza el stock", faltantes: faltan })
+    }
+
+    for (const item of productos) {
       await descontarNiveles(item, campo)
     }
 
-    // Mark as paid
+    // Cobrar con faltante no se pierde: queda escrito en la nota quién lo
+    // autorizó y de qué producto, que es lo que después se revisa.
+    const marca = faltan.length
+      ? `[Sin stock, cobrado por ${forzadoPor || "sin identificar"}: ` +
+        faltan.map(x => `${x.nombre} pedía ${x.pide}, había ${x.hay}`).join("; ") + "]"
+      : ""
+
     await nocoPatch(T.ventas, {
       Id: parseInt(req.params.id),
       EstadoNota: "pagada",
@@ -1242,8 +1280,9 @@ app.patch("/api/caja/:id/cobrar", async (req, res) => {
       Pagos_JSON: JSON.stringify(pagos ?? []),
       MetodoPago: pagos?.[0]?.metodo ?? nota.MetodoPago,
       FechaPago: new Date().toISOString(),
+      ...(marca ? { Observaciones: [nota.Observaciones, marca].filter(Boolean).join(" ") } : {}),
     })
-    res.json({ ok: true })
+    res.json({ ok: true, faltantes: faltan })
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 

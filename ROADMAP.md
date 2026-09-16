@@ -15,10 +15,11 @@ Pedido de la junta de septiembre. Hoy un producto agotado queda inerte: no se
 puede ni tocar para ver qué presentaciones y precios tiene. Se quiere lo
 contrario, y en este orden:
 
-1. **Que se pueda abrir aunque no haya.** Tocar un producto agotado debe
-   mostrar igual sus presentaciones y precios. Lo único distinto es cómo se
-   ve: un marco rojo o ámbar que deje claro que no hay, en vez de una tarjeta
-   apagada que no responde.
+1. ~~**Que se pueda abrir aunque no haya.**~~ Hecho. La tarjeta agotada se
+   toca, se marca con borde rojo en vez de apagarse, y abre el selector con
+   todas sus presentaciones y precios. Cada una dice "Sin stock disponible" y
+   no se puede elegir: ver no es lo mismo que poder vender. El escáner
+   tampoco rebota ya: deja consultar.
 
 2. **Agregarlo igual, con autorización.** Un empleado puede meterlo a la nota,
    pero el sistema pide la contraseña de un superior. No una contraseña
@@ -43,18 +44,21 @@ quién, y sin 5 esa contraseña viaja y se compara en claro.
 
 ---
 
-## Candado final de stock
+## ~~Candado final de stock~~ — hecho
 
-El stock apartado (`/api/stock-comprometido`) resuelve el caso de todos los
-días: dos vendedores capturando a la vez ya no ven las mismas piezas. Pero se
-refresca cada 10 segundos, así que si los dos agregan la última pieza dentro
-de la misma ventana, los dos la agregan.
+`/api/caja/:id/cobrar` revisa el stock antes de descontar nada. Si no alcanza
+devuelve 409 con qué producto falta y cuánto, y caja lo muestra con las dos
+salidas reales: revisar la nota, o cobrar dejando constancia.
 
-Falta el candado que lo vuelve imposible: **validar en el cobro**. Que
-`/api/caja/:id/cobrar` revise el stock antes de descontar y rechace la nota si
-ya no alcanza, en vez de dejar el inventario en negativo. Es lo que convierte
-"muy improbable" en "no puede pasar", y es también donde encaja la
-autorización del punto 2 de arriba.
+Se hizo con esa válvula a propósito. Rechazar sin excepción habría bloqueado
+la venta con el cliente enfrente cada vez que el inventario del sistema no
+coincide con el anaquel, que pasa seguido, y eso es peor que el negativo que
+se quería evitar. Cobrar con faltante queda escrito en las Observaciones de la
+nota: quién lo autorizó, qué producto y cuánto faltaba.
+
+**Lo que falta aquí** es quién puede accionar esa válvula: hoy la acciona
+quien esté cobrando. Se endurece con los puntos 2, 3 y 4 de arriba, que es
+donde esto se convierte en una autorización de verdad.
 
 ---
 

@@ -1387,6 +1387,50 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
    no se cobran, así que lo que se ve ya viene descontado */
 .apartado-marca { color: var(--warn); font-weight: 700; margin-left: 3px; }
 
+/* ============ FALTA INVENTARIO AL COBRAR ============ */
+/* Se decide con el cliente enfrente: tiene que leerse de un vistazo qué
+   producto falta y cuánto, sin tener que interpretar nada. */
+.falta-telon {
+  position: fixed; inset: 0; z-index: 400;
+  background: rgba(15, 19, 24, .82);
+  display: grid; place-items: center;
+  padding: 24px;
+}
+.falta-caja {
+  width: 100%; max-width: 460px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+  padding: 18px;
+}
+.falta-cabeza { display: flex; gap: 10px; align-items: flex-start; }
+.falta-cabeza > svg { color: var(--warn); flex: none; margin-top: 2px; }
+.falta-cabeza h3 { margin: 0; font-size: var(--fs-md); }
+.falta-cabeza p  { margin: 3px 0 0; font-size: var(--fs-xs); color: var(--text-muted); }
+.falta-lista {
+  margin: 14px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.falta-fila {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 9px 11px;
+  font-size: var(--fs-xs);
+  border-bottom: 1px solid var(--border);
+}
+.falta-fila:last-child { border-bottom: 0; }
+.falta-nombre { font-weight: 600; min-width: 0; }
+.falta-num { color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
+.falta-num strong { color: var(--text); }
+.falta-num .falta-hay { color: var(--err); }
+.falta-nota {
+  margin: 0 0 14px;
+  font-size: var(--fs-2xs); color: var(--text-muted); line-height: 1.5;
+}
+.falta-acciones { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
 /* ============ VISIBILIDAD DE UNA REGLA ============ */
 /* Correr y anunciarse son cosas distintas: las dos opciones se explican
    completas porque de ahí depende que Paquetes sea usable o un muro. */
@@ -1468,6 +1512,18 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   letter-spacing: 1px;
 }
 .product-tile.disabled { opacity: .55; pointer-events: none; }
+/* Agotado no es lo mismo que inservible: se puede abrir para consultar precios
+   y presentaciones, que es lo que se pregunta en el mostrador. Se marca con
+   color, no apagando la tarjeta hasta volverla ilegible. */
+.product-tile.agotado {
+  border-color: var(--err);
+  background: color-mix(in srgb, var(--err) 5%, var(--bg-elev));
+}
+.product-tile.agotado:hover {
+  border-color: var(--err);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--err) 14%, transparent), var(--glass-shadow);
+}
+.product-tile.agotado .name { color: var(--text); }
 
 /* La nota es la pieza que siempre está presente mientras se vende:
    vidrio con filo de luz, y destella al recibir un producto. */

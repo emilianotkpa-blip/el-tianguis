@@ -29,7 +29,7 @@ function RelativeTime({ fecha }) {
 }
 
 // ── Wizard de cobro (overlay pantalla completa) ─────────
-function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCancelar, addToast }) {
+function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCancelar, addToast, user }) {
   const [step, setStep] = useState(0)
   const [pagos, setPagos] = useState(() => {
     try {
@@ -55,18 +55,30 @@ function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCa
   const addPago      = () => setPagos(p => [...p, { metodo: "Efectivo", monto: "" }])
   const removePago   = (i) => setPagos(p => p.filter((_, idx) => idx !== i))
 
-  const ejecutarCobro = async () => {
+  // Cuando el servidor dice que no alcanza, no se falla: se muestra qué falta
+  // y se decide aquí. El inventario puede estar desfasado del anaquel, y
+  // plantar la venta con el cliente enfrente es peor que el faltante.
+  const [faltantes, setFaltantes] = useState(null)
+
+  const ejecutarCobro = async (forzar = false) => {
     setSaving(true)
     try {
       await cobrarNota(nota.Id, {
         pagos: pagos.map(p => ({ metodo: p.metodo, monto: parseFloat(p.monto) || 0 })),
         sucursal: nota.Sucursal,
         folioTerminal: folioTerminal || undefined,
+        forzar,
+        forzadoPor: forzar ? (user?.name ?? "sin identificar") : undefined,
       })
+      setFaltantes(null)
       setCobradaLocal({ pagos, cambio, totals })
       setStep(3)
     } catch (err) {
-      addToast({ kind: "err", msg: err.message })
+      if (err.status === 409 && err.datos?.faltantes?.length) {
+        setFaltantes(err.datos.faltantes)
+      } else {
+        addToast({ kind: "err", msg: err.message })
+      }
     } finally {
       setSaving(false)
     }
@@ -262,7 +274,7 @@ function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCa
               </div>
               <div style={{ display: "flex", gap: 10, marginTop: 16, justifyContent: "space-between" }}>
                 <button className="btn btn-default" onClick={() => setStep(1)}><Icon name="chevronLeft" size={13} /> Editar pago</button>
-                <button className="btn btn-wine" onClick={ejecutarCobro} disabled={saving}>
+                <button className="btn btn-wine" onClick={() => ejecutarCobro()} disabled={saving}>
                   <Icon name="check" size={13} /> {saving ? "Procesando…" : "Confirmar y cobrar"}
                 </button>
               </div>
@@ -304,6 +316,47 @@ function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCa
 
         </div>
       </div>
+
+      {/* No alcanza el stock: se dice qué falta y se decide con el cliente
+          enfrente. Seguir queda escrito en la nota. */}
+      {faltantes && (
+        <div className="falta-telon" onClick={e => { if (e.target === e.currentTarget) setFaltantes(null) }}>
+          <div className="falta-caja">
+            <div className="falta-cabeza">
+              <Icon name="alert" size={16} />
+              <div>
+                <h3>No alcanza el inventario</h3>
+                <p>El sistema tiene menos de lo que pide esta nota.</p>
+              </div>
+            </div>
+
+            <div className="falta-lista">
+              {faltantes.map(x => (
+                <div className="falta-fila" key={x.sku}>
+                  <span className="falta-nombre">{x.nombre}</span>
+                  <span className="falta-num">
+                    pide <strong>{x.pide}</strong> · hay <strong className="falta-hay">{x.hay}</strong>
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <p className="falta-nota">
+              Si la mercancía sí está en el anaquel, cobra y queda anotado en la nota
+              para revisarlo después. Si no está, conviene ajustar la nota.
+            </p>
+
+            <div className="falta-acciones">
+              <button className="btn btn-default" onClick={() => setFaltantes(null)}>
+                Revisar la nota
+              </button>
+              <button className="btn btn-wine" disabled={saving} onClick={() => ejecutarCobro(true)}>
+                <Icon name="check" size={13} /> {saving ? "Cobrando…" : "Cobrar y dejar constancia"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -577,6 +630,7 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
       {/* Wizard de cobro — overlay pantalla completa */}
       {wizardNota && (
         <CobrarWizard
+          user={user}
           nota={wizardNota}
           getItems={getItems}
           getDescuentos={getDescuentos}
