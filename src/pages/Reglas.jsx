@@ -5,7 +5,7 @@ import Select from "../components/Select"
 import Confirm from "../components/Confirm"
 import { TableSkeleton } from "../components/Skeleton"
 import { getPromos, postPromo, patchPromo, deletePromo, getCatalogo } from "../api"
-import { describirRegla, describirEfecto } from "../promos"
+import { describirRegla, describirEfecto, simularRegla } from "../promos"
 import { fmtMoney } from "../utils"
 
 const TIPOS = [
@@ -351,6 +351,47 @@ export default function ReglasPage({ addToast }) {
                 <Icon name="sparkle" size={13} />
                 <span>{describirRegla(editando, catalogo)}</span>
               </div>
+
+              {/* Cuánto cuesta normal y en cuánto queda: sin esto, quien
+                  configura no sabe si el número que puso tiene sentido hasta
+                  que alguien vende */}
+              {(() => {
+                const sim = simularRegla(editando, catalogo)
+                if (!sim) return null
+                if (sim.incompleta) {
+                  return (
+                    <div className="regla-sim incompleta">
+                      Elige los productos y su precio para ver cómo queda.
+                    </div>
+                  )
+                }
+                return (
+                  <div className={"regla-sim" + (sim.sinBeneficio ? " alerta" : "")}>
+                    <div className="regla-sim-fila">
+                      <span>Precio normal</span>
+                      <span className="num">{fmtMoney(sim.normal)}</span>
+                    </div>
+                    <div className="regla-sim-fila">
+                      <span>Queda en</span>
+                      <span className="num fuerte">{fmtMoney(sim.queda)}</span>
+                    </div>
+                    <div className="regla-sim-fila ahorro">
+                      <span>{editando.tipo === "proporcion" ? "Ahorro en el producto con descuento" : "Ahorro"}</span>
+                      <span className="num">−{fmtMoney(sim.ahorro)}{sim.ahorro > 0 ? ` (${sim.pct}%)` : ""}</span>
+                    </div>
+                    {sim.masCaro && (
+                      <div className="regla-sim-aviso">
+                        El precio de paquete es mayor que comprar por separado: así nadie ahorra nada.
+                      </div>
+                    )}
+                    {sim.sinBeneficio && !sim.masCaro && (
+                      <div className="regla-sim-aviso">
+                        Con estos valores la regla no baja el precio.
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
               <label className="iva-toggle" style={{ marginTop: 10 }}>
                 <input
                   type="checkbox"

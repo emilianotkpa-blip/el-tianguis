@@ -42,7 +42,7 @@ function consumir(lineas, cantidad) {
   return usadas
 }
 
-function montoDelEfecto(efecto, precioNormal) {
+export function montoDelEfecto(efecto, precioNormal) {
   if (!efecto) return 0
   if (efecto.tipo === "precio_paquete") return Math.max(0, precioNormal - (Number(efecto.valor) || 0))
   if (efecto.tipo === "descuento_monto") return Math.min(precioNormal, Number(efecto.valor) || 0)
@@ -195,3 +195,61 @@ export const sumaDescuentos = (items, soloFacturables = false) =>
   soloDescuentos(items)
     .filter(d => !soloFacturables || d.facturable)
     .reduce((s, d) => s + (Number(d.monto) || 0), 0)
+
+// Precio unitario de un requisito de regla ({ sku, presId, cant }), leyendo el
+// catálogo. presId "*" = la primera presentación activa con precio.
+export function precioDeRequisito(req, catalogo = []) {
+  if (!req?.sku) return null
+  const prod = catalogo.find(p => String(p.sku) === String(req.sku))
+  if (!prod) return null
+  const pres = (prod.presentaciones ?? []).filter(x => x.activo !== false)
+  if (req.presId && req.presId !== "*") {
+    const elegida = pres.find(x => x.id === req.presId)
+    return elegida?.precio > 0 ? elegida.precio : null
+  }
+  const conPrecio = pres.find(x => x.precio > 0)
+  if (conPrecio) return conPrecio.precio
+  return prod.precio > 0 ? prod.precio : null
+}
+
+// Qué pasaría con una regla tal como está capturada, para mostrarlo mientras
+// se edita: cuánto cuesta normal, en cuánto queda y cuánto se ahorra.
+// Devuelve null si todavía falta información.
+export function simularRegla(regla, catalogo = []) {
+  const c = regla?.config ?? {}
+  const efecto = c.efecto
+  if (!efecto || !(Number(efecto.valor) > 0)) return null
+
+  let normal = 0
+  let faltanPrecios = false
+
+  if (regla.tipo === "proporcion") {
+    // El beneficio cae sobre el producto que lleva descuento, no sobre la base
+    const precio = precioDeRequisito(c.aplicaA, catalogo)
+    if (precio == null) return { incompleta: true }
+    normal = precio * (c.aplicaA?.cant || 1)
+  } else {
+    const items = (c.items ?? []).filter(i => i.sku)
+    if (items.length < 2) return { incompleta: true }
+    for (const it of items) {
+      const precio = precioDeRequisito(it, catalogo)
+      if (precio == null) { faltanPrecios = true; break }
+      normal += precio * (it.cant || 1)
+    }
+    if (faltanPrecios) return { incompleta: true }
+  }
+
+  if (!(normal > 0)) return { incompleta: true }
+
+  const ahorro = montoDelEfecto(efecto, normal)
+  const queda  = normal - ahorro
+  return {
+    normal: +normal.toFixed(2),
+    queda: +queda.toFixed(2),
+    ahorro: +ahorro.toFixed(2),
+    pct: normal > 0 ? Math.round((ahorro / normal) * 100) : 0,
+    // Un paquete que cuesta más que comprar suelto casi siempre es un dedazo
+    sinBeneficio: ahorro <= 0,
+    masCaro: efecto.tipo === "precio_paquete" && Number(efecto.valor) > normal,
+  }
+}

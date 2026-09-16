@@ -24,23 +24,7 @@ al servidor.
 
 ---
 
-## 2. Reglas de precio: ver el efecto mientras se edita
-
-Al crear o editar una regla, mostrar **el precio normal y en cuánto queda**
-con el beneficio elegido, para los tres tipos: precio de paquete, descuento en
-pesos y descuento en porcentaje.
-
-Hoy la pantalla describe la regla en palabras ("1 × Vasos + 1 × Domos → precio
-de paquete $48.00") pero no dice que lo normal serían $53.50 ni que el ahorro
-es de $5.50. Sin eso, quien configura no sabe si el número que puso tiene
-sentido hasta que vende.
-
-Necesita: leer los precios del catálogo de los productos elegidos y calcular en
-vivo dentro del modal.
-
----
-
-## 3. Comparador de productos (ambicioso)
+## 2. Comparador de productos (ambicioso)
 
 Poder comparar el inventario de varios productos a la vez, sin salir de la
 pantalla.

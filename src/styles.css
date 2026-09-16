@@ -1932,6 +1932,25 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   background: var(--bg-elev); color: var(--text);
 }
 .regla-por { color: var(--text-muted); font-size: var(--fs-sm); }
+.regla-sim {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+  font-size: var(--fs-sm);
+}
+.regla-sim.incompleta { color: var(--text-muted); }
+.regla-sim.alerta { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: var(--warn-bg); }
+.regla-sim-fila { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; color: var(--text-muted); }
+.regla-sim-fila .num { font-family: var(--font-mono); color: var(--text); }
+.regla-sim-fila .num.fuerte { font-weight: 700; font-size: var(--fs-md); }
+.regla-sim-fila.ahorro { padding-top: 8px; margin-top: 6px; border-top: 1px dashed var(--border-strong); }
+.regla-sim-fila.ahorro span, .regla-sim-fila.ahorro .num { color: var(--ok); font-weight: 700; }
+.regla-sim.alerta .regla-sim-fila.ahorro span,
+.regla-sim.alerta .regla-sim-fila.ahorro .num { color: var(--warn); }
+.regla-sim-aviso { margin-top: 8px; font-size: var(--fs-xs); color: var(--warn); font-weight: 600; }
+
 .regla-preview {
   display: flex; align-items: center; gap: 8px;
   padding: 12px 14px; border-radius: var(--radius-md);
