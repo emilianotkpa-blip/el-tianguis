@@ -37,7 +37,7 @@ export default function ProductoVista({ producto, onCerrar, onEditar }) {
         onClick={(e) => { if (e.target === e.currentTarget) onCerrar() }}
       >
         <motion.div
-          className="pv-caja"
+          className={"pv-caja" + (producto.imagen ? " con-foto" : "")}
           initial={{ opacity: 0, y: 14, scale: .97 }}
           animate={volando
             ? {
@@ -61,7 +61,16 @@ export default function ProductoVista({ producto, onCerrar, onEditar }) {
             </button>
           </div>
 
-          <TarjetaComparar producto={producto} />
+          {/* Con foto, la vista se abre a lo ancho: la foto a un lado y el
+              inventario al otro. Sin foto se queda como estaba. */}
+          <div className="pv-cuerpo">
+            {producto.imagen && (
+              <div className="pv-foto">
+                <img src={producto.imagen} alt={producto.name} />
+              </div>
+            )}
+            <TarjetaComparar producto={producto} />
+          </div>
 
           <div className="pv-acciones">
             {yaEsta ? (

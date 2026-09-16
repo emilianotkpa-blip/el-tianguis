@@ -3604,11 +3604,39 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 }
 .pv-caja {
   width: 100%; max-width: 440px;
+  /* Con las presentaciones abiertas la ficha crece; si no cabe en la
+     pantalla, se desplaza por dentro en vez de quedar cortada */
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-edge);
   border-radius: var(--radius-md);
   box-shadow: var(--glass-shadow-lg);
   padding: 16px;
+}
+/* Con foto: dos columnas, la foto a la izquierda sobre blanco y sin recortar,
+   del mismo alto que la ficha de inventario */
+.pv-caja.con-foto { max-width: 860px; }
+.pv-caja.con-foto .pv-cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+.pv-foto {
+  position: relative;
+  min-height: 280px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.pv-foto img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  padding: 18px;
+  box-sizing: border-box;
 }
 .pv-cabeza { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .pv-acciones { display: flex; gap: 8px; margin-top: 14px; }
@@ -3768,4 +3796,7 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   .cmp-telon-scroll { padding: 14px; }
   .cmp-rejilla { grid-template-columns: 1fr; }
   .pv-acciones { flex-direction: column; }
+  /* En celular la foto va arriba y la ficha debajo */
+  .pv-caja.con-foto .pv-cuerpo { grid-template-columns: 1fr; }
+  .pv-foto { min-height: 210px; }
 }
