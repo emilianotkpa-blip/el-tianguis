@@ -659,12 +659,12 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
                         <tbody>
                           {historial.map(n => (
                             <tr key={n.Id} style={{ cursor: "pointer" }} onClick={() => setSelectedHist(selectedHist?.Id === n.Id ? null : n)}>
-                              <td className="tnum" style={{ fontWeight: 700 }}>{n.Folio}</td>
+                              <td className="tnum td-titulo" data-label="Folio" style={{ fontWeight: 700 }}>{n.Folio}</td>
                               <td className="muted" style={{ fontSize: 12 }}>{n.UpdatedAt ? new Date(n.UpdatedAt).toLocaleString("es-MX", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" }) : "—"}</td>
-                              <td>{n.Vendedor || "—"}</td>
-                              <td>{n.Cliente}</td>
+                              <td data-label="Vendedor">{n.Vendedor || "—"}</td>
+                              <td data-label="Cliente">{n.Cliente}</td>
                               <td><span className="badge badge-neutral">{n.MetodoPago}</span></td>
-                              <td className="num"><strong>{fmtMoney(n.Total ?? 0)}</strong></td>
+                              <td className="num" data-label="Total"><strong>{fmtMoney(n.Total ?? 0)}</strong></td>
                               <td className="actions-cell"><span className="badge badge-ok">● Cobrado</span></td>
                             </tr>
                           ))}
@@ -731,7 +731,7 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
                         <Icon name="check" size={32} />
                         <div style={{ marginTop: 8 }}>Sin notas pendientes</div>
                       </div>
-                    : <table className="table">
+                    : <table className="table tarjetas-movil">
                         <thead>
                           <tr><th>Folio</th><th>Hora</th><th>Vendedor</th><th>Cliente</th><th>Items</th><th className="num">Total</th><th></th></tr>
                         </thead>
@@ -741,10 +741,10 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
                             return (
                               <tr key={n.Id} className={selected?.Id === n.Id ? "selected" : ""} style={{ cursor: "pointer" }} onClick={() => abrirNota(n)}>
                                 <td className="tnum" style={{ fontWeight: 700 }}>{n.Folio}</td>
-                                <td className="muted" style={{ fontSize: 12 }}><RelativeTime fecha={n.CreatedAt} /></td>
+                                <td className="muted" data-label="Hora" style={{ fontSize: 12 }}><RelativeTime fecha={n.CreatedAt} /></td>
                                 <td>{n.Vendedor || "—"}</td>
                                 <td>{n.Cliente}</td>
-                                <td className="muted">{its.length} prod.</td>
+                                <td className="muted" data-label="Items">{its.length} prod.</td>
                                 <td className="num"><strong>{fmtMoney(n.Total ?? 0)}</strong></td>
                                 <td className="actions-cell">
                                   <button className="btn btn-wine btn-sm" onClick={e => { e.stopPropagation(); setWizardNota(n) }}>

@@ -349,7 +349,7 @@ export default function PedidosClientesPage({ addToast }) {
         <div className="card-body flush">
           {loading
             ? <TableSkeleton rows={6} cols={6} />
-            : <table className="table">
+            : <table className="table tarjetas-movil">
                 <thead>
                   <tr>
                     <th>Folio</th><th>Fecha</th><th>Cliente</th><th>Sucursal</th>
@@ -359,13 +359,13 @@ export default function PedidosClientesPage({ addToast }) {
                 <tbody>
                   {filtered.map((p) => (
                     <tr key={p.Id}>
-                      <td className="tnum">{p.Folio}</td>
-                      <td className="muted">{fmtDateTime(parseMeta(p.Meta_JSON).ts_creado) ?? p.Fecha}</td>
-                      <td><strong>{p.Cliente}</strong></td>
-                      <td>{p.Sucursal}</td>
-                      <td className="num"><strong>{fmtMoney(p.Total ?? 0)}</strong></td>
-                      <td className="muted">{p.FechaEntrega ?? "—"}</td>
-                      <td>{badge((p.Estado ?? "").toLowerCase())}</td>
+                      <td className="tnum" data-label="Folio">{p.Folio}</td>
+                      <td className="muted" data-label="Fecha">{fmtDateTime(parseMeta(p.Meta_JSON).ts_creado) ?? p.Fecha}</td>
+                      <td data-label="Cliente" className="td-titulo"><strong>{p.Cliente}</strong></td>
+                      <td data-label="Sucursal">{p.Sucursal}</td>
+                      <td className="num" data-label="Total"><strong>{fmtMoney(p.Total ?? 0)}</strong></td>
+                      <td className="muted" data-label="Entrega">{p.FechaEntrega ?? "—"}</td>
+                      <td data-label="Estado">{badge((p.Estado ?? "").toLowerCase())}</td>
                       <td className="actions-cell">
                         <button className="btn btn-ghost btn-sm" title="Ver detalle" onClick={() => setDetalle(p)}>
                           <Icon name="eye" size={12} />

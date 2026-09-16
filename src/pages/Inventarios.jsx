@@ -392,7 +392,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
           </div>
         </div>
         <div className="card-body flush" style={{ overflowX: "auto" }}>
-          <table className="table" style={{ tableLayout: "fixed", minWidth: 900 }}>
+          <table className="table tarjetas-movil" style={{ tableLayout: "fixed", minWidth: 900 }}>
             <colgroup>
               <col style={{ width: 130 }} />
               <col style={{ width: "30%" }} />
@@ -422,27 +422,27 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                 const fill   = status === "agotado" ? "var(--err)" : status === "bajo" ? "var(--warn)" : "var(--ok)"
                 return (
                   <tr key={p._id}>
-                    <td className="tnum" style={{ fontSize: 11, overflow: "hidden" }}>
+                    <td className="tnum" data-label="Código" style={{ fontSize: 11, overflow: "hidden" }}>
                       <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.codigoBarras || p.sku}</div>
                       {p.codigoBarras && p.codigoBarras !== p.sku && (
                         <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{p.sku}</div>
                       )}
                     </td>
-                    <td style={{ overflow: "hidden" }} title={p.name}>
+                    <td data-label="Producto" className="td-titulo" style={{ overflow: "hidden" }} title={p.name}>
                       <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</strong>
                     </td>
-                    <td className="muted" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tipoLabel(p.tipo, TIPOS_CONFIG)}</td>
-                    <td className="num"><strong>{v}</strong></td>
-                    <td className="num muted">{p.min}</td>
-                    <td>
+                    <td className="muted" data-label="Tipo" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tipoLabel(p.tipo, TIPOS_CONFIG)}</td>
+                    <td className="num" data-label="En sucursal"><strong>{v}</strong></td>
+                    <td className="num muted" data-label="Mínimo">{p.min}</td>
+                    <td data-label="Cobertura">
                       <div className="cov-track" style={{ width: 90 }}>
                         <div className="cov-fill" style={{ width: pct + "%", background: fill }}></div>
                       </div>
                     </td>
-                    <td className="num">{p.stock.centro}</td>
-                    <td className="num">{p.stock.repostero}</td>
-                    <td className="num">{p.stock.bodega}</td>
-                    <td>
+                    <td className="num" data-label="Centro">{p.stock.centro}</td>
+                    <td className="num" data-label="Repostero">{p.stock.repostero}</td>
+                    <td className="num" data-label="Bodega">{p.stock.bodega}</td>
+                    <td data-label="Estado">
                       {status === "agotado" && <span className="badge badge-err">● Agotado</span>}
                       {status === "bajo"    && <span className="badge badge-warn">● Bajo</span>}
                       {status === "normal"  && <span className="badge badge-ok">● Normal</span>}

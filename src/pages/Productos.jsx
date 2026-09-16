@@ -379,7 +379,7 @@ export default function ProductosPage({ addToast }) {
           </div>
         </div>
         <div className="card-body flush">
-          <table className="table">
+          <table className="table tarjetas-movil">
             <thead>
               <tr>
                 <th>Cód.</th><th>Producto</th><th>Tipo</th><th>Presentaciones activas</th>
@@ -399,14 +399,14 @@ export default function ProductosPage({ addToast }) {
                   ?? p.precio ?? 0
                 return (
                   <tr key={p._id} onClick={() => openEdit(p)} style={{ cursor: "pointer" }}>
-                    <td className="tnum" style={{ fontSize: 11.5 }}>{p.sku}</td>
-                    <td><strong>{p.name}</strong></td>
-                    <td><span className="badge badge-neutral">{tipoLabel(p.tipo, TIPOS_CONFIG)}</span></td>
-                    <td style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{presLabels}</td>
-                    <td className="num">{precioRef > 0 ? fmtMoney(precioRef) : <span className="muted">—</span>}</td>
-                    <td className="num">{fmtNum(total)}</td>
-                    <td>{p.facturable ? <span className="badge badge-ok">Sí</span> : <span className="badge badge-neutral">No</span>}</td>
-                    <td>
+                    <td className="tnum" data-label="Código" style={{ fontSize: 11.5 }}>{p.sku}</td>
+                    <td data-label="Producto" className="td-titulo"><strong>{p.name}</strong></td>
+                    <td data-label="Tipo"><span className="badge badge-neutral">{tipoLabel(p.tipo, TIPOS_CONFIG)}</span></td>
+                    <td data-label="Presentaciones" style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{presLabels}</td>
+                    <td className="num" data-label="Precio ref.">{precioRef > 0 ? fmtMoney(precioRef) : <span className="muted">—</span>}</td>
+                    <td className="num" data-label="Stock">{fmtNum(total)}</td>
+                    <td data-label="Factura">{p.facturable ? <span className="badge badge-ok">Sí</span> : <span className="badge badge-neutral">No</span>}</td>
+                    <td data-label="Estado">
                       {status === "out" && <span className="badge badge-err">● Agotado</span>}
                       {status === "low" && <span className="badge badge-warn">● Bajo</span>}
                       {status === "ok"  && <span className="badge badge-ok">● Normal</span>}

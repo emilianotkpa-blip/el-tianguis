@@ -817,7 +817,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
               <div className="row"><span>Subtotal</span><span className="num">{fmtMoney(subtotal)}</span></div>
               <label className="iva-toggle">
                 <input type="checkbox" checked={conIva} onChange={e => setConIva(e.target.checked)} />
-                <span>Agregar IVA (16%)</span>
+                <span>Para facturar</span>
                 <span className={"num" + (conIva ? " on" : "")}>{fmtMoney(iva)}</span>
               </label>
               <div className="row total"><span>Total</span><span key={total} className="num flash">{fmtMoney(total)}</span></div>
