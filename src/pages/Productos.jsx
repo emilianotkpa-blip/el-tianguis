@@ -398,6 +398,18 @@ export default function ProductosPage({ addToast }) {
           <table className="table tarjetas-movil">
             <thead>
               <tr>
+                <th className="col-check">
+                  {/* Marca de un golpe todo lo que está a la vista */}
+                  <input
+                    type="checkbox"
+                    aria-label="Comparar todos los visibles"
+                    checked={paged.length > 0 && paged.every(p => cmp?.tiene(p.sku))}
+                    onChange={e => {
+                      if (e.target.checked) paged.forEach(p => cmp?.agregar(p))
+                      else paged.forEach(p => cmp?.quitar(p.sku))
+                    }}
+                  />
+                </th>
                 <th>Cód.</th><th>Producto</th><th>Tipo</th><th>Presentaciones activas</th>
                 <th className="num">Precio ref.</th><th className="num">Stock</th><th>Factura</th><th>Estado</th><th></th>
               </tr>
@@ -414,7 +426,15 @@ export default function ProductosPage({ addToast }) {
                   ?? presArr.find(x => x.activo !== false && x.precio > 0)?.precio
                   ?? p.precio ?? 0
                 return (
-                  <tr key={p._id} onClick={() => setVista(p)} style={{ cursor: "pointer" }}>
+                  <tr key={p._id} className={cmp?.tiene(p.sku) ? "fila-comparando" : ""} onClick={() => setVista(p)} style={{ cursor: "pointer" }}>
+                    <td className="col-check" data-label="Comparar" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Comparar ${p.name}`}
+                        checked={!!cmp?.tiene(p.sku)}
+                        onChange={e => e.target.checked ? cmp?.agregar(p) : cmp?.quitar(p.sku)}
+                      />
+                    </td>
                     <td className="tnum" data-label="Código" style={{ fontSize: 11.5 }}>{p.sku}</td>
                     <td data-label="Producto" className="td-titulo"><strong>{p.name}</strong></td>
                     <td data-label="Tipo"><span className="badge badge-neutral">{tipoLabel(p.tipo, TIPOS_CONFIG)}</span></td>

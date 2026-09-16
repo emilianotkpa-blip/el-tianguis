@@ -6,6 +6,7 @@ import { getCatalogo, postMovimiento } from "../api"
 import { exportCSV, tipoLabel } from "../utils"
 import { TableSkeleton } from "../components/Skeleton"
 import ProductoVista from "../components/ProductoVista"
+import { useComparador } from "../components/Comparador"
 import Select from "../components/Select"
 import CountUp from "../components/CountUp"
 
@@ -198,6 +199,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
   const [statusFilter, setStatus]   = useState("todos")
   const [adjustingP, setAdjustingP] = useState(null)
   const [vistaRapida, setVista]     = useState(null)
+  const cmp = useComparador()
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 250
   const [productos, setProductos]   = useState([])
@@ -396,6 +398,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
         <div className="card-body flush" style={{ overflowX: "auto" }}>
           <table className="table tarjetas-movil" style={{ tableLayout: "fixed", minWidth: 900 }}>
             <colgroup>
+              <col style={{ width: 42 }} />
               <col style={{ width: 130 }} />
               <col style={{ width: "30%" }} />
               <col style={{ width: 110 }} />
@@ -410,6 +413,17 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
             </colgroup>
             <thead>
               <tr>
+                <th className="col-check">
+                  <input
+                    type="checkbox"
+                    aria-label="Comparar todos los visibles"
+                    checked={paged.length > 0 && paged.every(x => cmp?.tiene(x.sku))}
+                    onChange={e => {
+                      if (e.target.checked) paged.forEach(x => cmp?.agregar(x))
+                      else paged.forEach(x => cmp?.quitar(x.sku))
+                    }}
+                  />
+                </th>
                 <th>Cód.</th><th>Producto</th><th>Tipo</th>
                 <th className="num">{sucObj?.short ?? suc}</th><th className="num">Mínimo</th><th>Cobertura</th>
                 <th className="num">Centro</th><th className="num">Repostero</th><th className="num">Bodega</th>
@@ -423,7 +437,15 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
                 const pct    = Math.min(100, (v / (p.min * 2)) * 100)
                 const fill   = status === "agotado" ? "var(--err)" : status === "bajo" ? "var(--warn)" : "var(--ok)"
                 return (
-                  <tr key={p._id} onClick={() => setVista(p)} style={{ cursor: "pointer" }}>
+                  <tr key={p._id} className={cmp?.tiene(p.sku) ? "fila-comparando" : ""} onClick={() => setVista(p)} style={{ cursor: "pointer" }}>
+                    <td className="col-check" data-label="Comparar" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Comparar ${p.name}`}
+                        checked={!!cmp?.tiene(p.sku)}
+                        onChange={e => e.target.checked ? cmp?.agregar(p) : cmp?.quitar(p.sku)}
+                      />
+                    </td>
                     <td className="tnum" data-label="Código" style={{ fontSize: 11, overflow: "hidden" }}>
                       <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.codigoBarras || p.sku}</div>
                       {p.codigoBarras && p.codigoBarras !== p.sku && (

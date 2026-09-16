@@ -3292,6 +3292,26 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 }
 
 /* ============ COMPARADOR DE PRODUCTOS ============ */
+/* Casilla para mandar a comparar sin abrir nada: abrir ficha por ficha para
+   elegir era demasiada fricción */
+.col-check { width: 42px; text-align: center; }
+.col-check input[type="checkbox"] {
+  width: 17px; height: 17px;
+  accent-color: var(--wine-700);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.fila-comparando td { background: color-mix(in srgb, var(--wine-700) 6%, transparent); }
+.fila-comparando td:first-child { box-shadow: inset 3px 0 0 var(--wine-700); }
+@media (max-width: 560px) {
+  /* En tarjeta, la casilla va arriba con su etiqueta */
+  .table.tarjetas-movil td.col-check { justify-content: space-between; }
+  .fila-comparando td:first-child { box-shadow: none; }
+  .table.tarjetas-movil tr.fila-comparando {
+    border-color: var(--wine-700);
+    box-shadow: 0 0 0 1px var(--wine-700);
+  }
+}
 /* Ficha en modo lectura */
 .pv-telon {
   position: fixed; inset: 0; z-index: 210;
