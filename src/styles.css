@@ -1470,17 +1470,51 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   50%      { transform: translateY(-10px); }
 }
 
+/* La salida es la entrada al revés: se va primero lo último que llegó (el
+   confeti) y al final el plato. Cada capa sale con su propio movimiento
+   invertido; son animaciones aparte porque invertir la dirección de la misma
+   no la reinicia. */
+.logo-animado.saliendo .lg-ambiente,
+.logo-animado.saliendo .lg-banderines,
+.logo-animado.saliendo .lg-confeti,
+.logo-animado.saliendo .lg-plato,
+.logo-animado.saliendo .lg-titulo,
+.logo-animado.saliendo .lg-servilleta,
+.logo-animado.saliendo .lg-cubiertos,
+.logo-animado.saliendo .lg-vasos {
+  animation-duration: .45s;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(.64, 0, .78, 0);
+}
+.logo-animado.saliendo .lg-confeti    { animation-name: lgConfetiSale;  animation-delay: 0s; }
+.logo-animado.saliendo .lg-banderines { animation-name: lgCuelgaSale;   animation-delay: .08s; }
+.logo-animado.saliendo .lg-ambiente   { animation-name: lgSubeSale;     animation-delay: .16s; }
+.logo-animado.saliendo .lg-vasos      { animation-name: lgAbajoSale;    animation-delay: .26s; }
+.logo-animado.saliendo .lg-cubiertos  { animation-name: lgCubiertosSale; animation-delay: .34s; }
+.logo-animado.saliendo .lg-servilleta { animation-name: lgAbajoSale;    animation-delay: .44s; }
+.logo-animado.saliendo .lg-titulo     { animation-name: lgTituloSale;   animation-delay: .56s; }
+.logo-animado.saliendo .lg-plato      { animation-name: lgPlatoSale;    animation-delay: .70s; }
+
+@keyframes lgPlatoSale     { from { opacity: 1; transform: scale(1); }  to { opacity: 0; transform: scale(.72); } }
+@keyframes lgTituloSale    { from { opacity: 1; transform: scale(1); }  to { opacity: 0; transform: scale(1.14); } }
+@keyframes lgAbajoSale     { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(46px) scale(.94); } }
+@keyframes lgCubiertosSale { from { opacity: 1; transform: translate(0, 0) rotate(0); } to { opacity: 0; transform: translate(40px, 40px) rotate(12deg); } }
+@keyframes lgSubeSale      { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(60px); } }
+@keyframes lgCuelgaSale    { from { opacity: 1; transform: translateY(0) rotate(0); } to { opacity: 0; transform: translateY(-40px) rotate(-4deg); } }
+@keyframes lgConfetiSale   { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-30px); } }
+
+/* Con movimiento reducido el logo se queda quieto y completo: ni entra ni sale */
 @media (prefers-reduced-motion: reduce) {
-  .logo-animado.entrando .lg-ambiente,
-  .logo-animado.entrando .lg-banderines,
-  .logo-animado.entrando .lg-confeti,
-  .logo-animado.entrando .lg-plato,
-  .logo-animado.entrando .lg-titulo,
-  .logo-animado.entrando .lg-servilleta,
-  .logo-animado.entrando .lg-cubiertos,
-  .logo-animado.entrando .lg-vasos {
-    animation: none;
-    opacity: 1;
+  .logo-animado .lg-ambiente,
+  .logo-animado .lg-banderines,
+  .logo-animado .lg-confeti,
+  .logo-animado .lg-plato,
+  .logo-animado .lg-titulo,
+  .logo-animado .lg-servilleta,
+  .logo-animado .lg-cubiertos,
+  .logo-animado .lg-vasos {
+    animation: none !important;
+    opacity: 1 !important;
   }
 }
 

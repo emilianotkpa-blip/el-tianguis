@@ -61,7 +61,7 @@ function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone
       }}
     >
       <div style={{ width: "min(340px, 76vw)" }}>
-        <LogoAnimado size={340} />
+        <LogoAnimado size={340} ciclo />
       </div>
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", letterSpacing: 2 }}>

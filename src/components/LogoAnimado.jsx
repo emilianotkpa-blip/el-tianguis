@@ -1,10 +1,31 @@
+import { useEffect, useState } from "react"
+
+// Cuánto dura cada fase del ciclo. La entrada termina con el confeti a los
+// 1.82 s; se deja ver un momento antes de salir. La salida termina a 1.15 s y
+// hay una pausa corta con el lienzo vacío antes de volver a entrar.
+const MS_ENTRA_Y_SE_VE = 3200
+const MS_SALE_Y_PAUSA  = 1500
+
 // Logo de la marca, partido en capas para que entre por partes durante la
 // carga. Va en línea y no como <img> porque cada capa se anima por separado:
 // primero el plato, luego el nombre, y la fiesta alrededor al final.
-export default function LogoAnimado({ size = 280, animar = true }) {
+// Con `ciclo`, al terminar de entrar sale al revés y vuelve a entrar, una y
+// otra vez, mientras siga montado (en la carga: hasta que entra al panel).
+export default function LogoAnimado({ size = 280, animar = true, ciclo = false }) {
+  const [fase, setFase] = useState("entrando")
+
+  useEffect(() => {
+    if (!animar || !ciclo) return
+    const t = setTimeout(
+      () => setFase(f => f === "entrando" ? "saliendo" : "entrando"),
+      fase === "entrando" ? MS_ENTRA_Y_SE_VE : MS_SALE_Y_PAUSA,
+    )
+    return () => clearTimeout(t)
+  }, [fase, animar, ciclo])
+
   return (
     <svg
-      className={"logo-animado" + (animar ? " entrando" : "")}
+      className={"logo-animado" + (animar ? " " + fase : "")}
       viewBox="0 0 1080 950"
       width={size}
       role="img"
