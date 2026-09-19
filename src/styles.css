@@ -1384,6 +1384,47 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
    altura en todas las tarjetas */
 .verif-foto.sin-foto { background: var(--bg-sunken); color: var(--text-muted); }
 
+/* ============ PROVEEDORES Y DEPÓSITOS ============ */
+/* En la ficha del proveedor, lo que se le ha depositado: fecha, quién lo
+   llevó y cuánto, con el total arriba */
+.prov-depositos {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.prov-depositos-cabeza {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 8px;
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted);
+}
+.prov-depositos-cabeza strong { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text); }
+.prov-depositos ul {
+  list-style: none; margin: 0; padding: 0;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden;
+}
+.prov-depositos li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 11px;
+  font-size: var(--fs-xs);
+  border-bottom: 1px solid var(--border);
+}
+.prov-depositos li:last-child { border-bottom: 0; }
+.prov-depositos li > span:first-child { width: 96px; flex: none; }
+.prov-depositos li > span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prov-depositos li strong { font-family: var(--font-mono); }
+
+.deposito-sin-proveedores {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+}
+.deposito-sin-proveedores p { margin: 0; font-size: var(--fs-sm); line-height: 1.5; }
+.deposito-sin-proveedores svg { flex: none; margin-top: 2px; color: var(--wine-700); }
+
 /* ============ LOGO ANIMADO (carga) ============ */
 /* El logo entra por capas mientras arranca el sistema: primero el plato, que
    es el ancla; luego el nombre; y al final la fiesta de alrededor. Así la

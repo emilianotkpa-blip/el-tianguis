@@ -33,6 +33,22 @@ export function tipoLabel(tipoId, TIPOS_CONFIG) {
 
 export const todayISO = () => new Date().toISOString().slice(0, 10)
 
+// Fecha de hoy según el reloj del equipo, no en UTC: con toISOString(), pasadas
+// las 6 p. m. en México ya es "mañana".
+export const hoyLocal = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+// "2026-09-18" → "18 sep 2026". Se arma con sus partes porque new Date("2026-09-18")
+// lo toma como medianoche UTC y en México se muestra un día antes.
+export const fmtFecha = (iso) => {
+  if (!iso) return "—"
+  const [a, m, d] = String(iso).slice(0, 10).split("-").map(Number)
+  if (!a || !m || !d) return iso
+  return new Date(a, m - 1, d).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })
+}
+
 export const fmtDateTime = (ts) => {
   if (!ts) return null
   const d = new Date(ts)

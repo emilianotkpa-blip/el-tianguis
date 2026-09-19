@@ -55,6 +55,11 @@ const T = {
   clientes:         process.env.NOCO_TABLE_CLIENTES,
   equipo:           process.env.NOCO_TABLE_EQUIPO,
   promos:           process.env.NOCO_TABLE_PROMOS,
+  // Con valor por omisión: las tablas ya existen en la base Tianguis y así
+  // no hace falta tocar el entorno del servidor para que funcionen. La
+  // variable sigue mandando si se define.
+  proveedores:      process.env.NOCO_TABLE_PROVEEDORES || "m9h0qmsves61a8n",
+  depositos:        process.env.NOCO_TABLE_DEPOSITOS   || "m1yd40e8ax31pls",
 }
 
 async function nocoGet(tableId, params = "") {
@@ -90,6 +95,16 @@ async function nocoPatch(tableId, body) {
     method: "PATCH",
     headers: { "xc-token": NOCO_TOKEN, "Content-Type": "application/json" },
     body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`NocoDB error ${res.status}`)
+  return res.json()
+}
+
+async function nocoDelete(tableId, id) {
+  const res = await fetch(`${NOCO_URL}/api/v2/tables/${tableId}/records`, {
+    method: "DELETE",
+    headers: { "xc-token": NOCO_TOKEN, "Content-Type": "application/json" },
+    body: JSON.stringify({ Id: id }),
   })
   if (!res.ok) throw new Error(`NocoDB error ${res.status}`)
   return res.json()
@@ -1112,6 +1127,133 @@ app.delete("/api/clientes/:id", async (req, res) => {
     if (!res2.ok) throw new Error(`NocoDB error ${res2.status}`)
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ── Proveedores ────────────────────────────────────────
+// Los campos se nombran uno por uno (no se pasa el cuerpo tal cual a NocoDB):
+// aquí viven la cuenta bancaria y la CLABE de cada proveedor.
+const proveedorDe = (f) => ({
+  id: f.Id,
+  nombre: f.Nombre ?? "", contacto: f.Contacto ?? "", telefono: f.Telefono ?? "",
+  correo: f.Correo ?? "", rfc: f.RFC ?? "", banco: f.Banco ?? "", cuenta: f.Cuenta ?? "",
+  notas: f.Notas ?? "", activo: f.Activo !== false && f.Activo !== 0,
+})
+const camposProveedor = (b) => {
+  const out = {}
+  const mapa = { nombre: "Nombre", contacto: "Contacto", telefono: "Telefono", correo: "Correo",
+                 rfc: "RFC", banco: "Banco", cuenta: "Cuenta", notas: "Notas" }
+  for (const [k, col] of Object.entries(mapa)) if (b[k] !== undefined) out[col] = String(b[k] ?? "").trim()
+  if (b.activo !== undefined) out.Activo = b.activo !== false
+  return out
+}
+
+app.get("/api/proveedores", async (req, res) => {
+  try { res.json((await nocoGet(T.proveedores, "&sort=Nombre")).map(proveedorDe)) }
+  catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.post("/api/proveedores", async (req, res) => {
+  const campos = camposProveedor(req.body ?? {})
+  if (!campos.Nombre) return res.status(400).json({ error: "El nombre del proveedor es obligatorio" })
+  try {
+    const r = await nocoPost(T.proveedores, { Activo: true, ...campos })
+    res.json({ ok: true, id: r.Id })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.patch("/api/proveedores/:id", async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  const campos = camposProveedor(req.body ?? {})
+  if (!id) return res.status(400).json({ error: "Proveedor no válido" })
+  if (campos.Nombre === "") return res.status(400).json({ error: "El nombre del proveedor es obligatorio" })
+  try {
+    await nocoPatch(T.proveedores, { Id: id, ...campos })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Los depósitos guardan el nombre del proveedor al momento de registrarse,
+// así que borrar un proveedor no deja su historial sin nombre
+app.delete("/api/proveedores/:id", async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (!id) return res.status(400).json({ error: "Proveedor no válido" })
+  try { await nocoDelete(T.proveedores, id); res.json({ ok: true }) }
+  catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ── Depósitos a proveedores ────────────────────────────
+const depositoDe = (f) => ({
+  id: f.Id,
+  fecha: (f.Fecha ?? "").slice(0, 10),
+  proveedorId: f.ProveedorId ?? null,
+  proveedor: f.Proveedor ?? "",
+  monto: Number(f.Monto) || 0,
+  llevo: f.Llevo ?? "", referencia: f.Referencia ?? "",
+  notas: f.Notas ?? "", registro: f.Registro ?? "",
+})
+
+// Valida y arma el registro. El nombre del proveedor se toma de su tabla y
+// no del cliente, para que quede escrito como está dado de alta.
+async function camposDeposito(b, parcial = false) {
+  const out = {}
+  if (!parcial || b.fecha !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha ?? "")) throw new Error("La fecha no es válida")
+    out.Fecha = b.fecha
+  }
+  if (!parcial || b.monto !== undefined) {
+    const monto = Math.round(Number(b.monto) * 100) / 100
+    if (!(monto > 0)) throw new Error("El monto debe ser mayor a cero")
+    out.Monto = monto
+  }
+  if (!parcial || b.proveedorId !== undefined) {
+    const pid = parseInt(b.proveedorId, 10)
+    const filas = pid ? await nocoGet(T.proveedores, `&where=(Id,eq,${pid})`) : []
+    if (!filas.length) throw new Error("Elige un proveedor de la lista")
+    out.ProveedorId = pid
+    out.Proveedor = filas[0].Nombre ?? ""
+  }
+  if (!parcial || b.llevo !== undefined) {
+    out.Llevo = String(b.llevo ?? "").trim()
+    if (!out.Llevo) throw new Error("Anota quién llevó el depósito")
+  }
+  if (b.referencia !== undefined) out.Referencia = String(b.referencia ?? "").trim()
+  if (b.notas !== undefined) out.Notas = String(b.notas ?? "").trim()
+  if (!parcial && b.registro !== undefined) out.Registro = String(b.registro ?? "").trim()
+  return out
+}
+
+app.get("/api/depositos", async (req, res) => {
+  try { res.json((await nocoGet(T.depositos, "&sort=-Fecha,-Id")).map(depositoDe)) }
+  catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.post("/api/depositos", async (req, res) => {
+  let campos
+  try { campos = await camposDeposito(req.body ?? {}) }
+  catch (err) { return res.status(400).json({ error: err.message }) }
+  try {
+    const r = await nocoPost(T.depositos, campos)
+    res.json({ ok: true, id: r.Id })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.patch("/api/depositos/:id", async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (!id) return res.status(400).json({ error: "Depósito no válido" })
+  let campos
+  try { campos = await camposDeposito(req.body ?? {}, true) }
+  catch (err) { return res.status(400).json({ error: err.message }) }
+  try {
+    await nocoPatch(T.depositos, { Id: id, ...campos })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.delete("/api/depositos/:id", async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (!id) return res.status(400).json({ error: "Depósito no válido" })
+  try { await nocoDelete(T.depositos, id); res.json({ ok: true }) }
+  catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // ── Notas (POS → Caja) ────────────────────────────────

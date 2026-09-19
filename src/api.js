@@ -96,3 +96,16 @@ export const getClientes    = ()      => apiFetch("/api/clientes")
 export const postCliente    = (b)     => apiFetch("/api/clientes", json(b))
 export const patchCliente   = (id, b) => apiFetch(`/api/clientes/${id}`, patch(b))
 export const deleteCliente  = (id)    => apiFetch(`/api/clientes/${id}`, { method: "DELETE" })
+
+export const getProveedores  = ()      => apiFetch("/api/proveedores")
+export const postProveedor   = (b)     => apiFetch("/api/proveedores", json(b))
+export const patchProveedor  = (id, b) => apiFetch(`/api/proveedores/${id}`, patch(b))
+export const deleteProveedor = (id)    => apiFetch(`/api/proveedores/${id}`, { method: "DELETE" })
+
+export const getDepositos    = ()      => apiFetch("/api/depositos")
+export const postDeposito    = (b)     => apiFetch("/api/depositos", json(b))
+export const patchDeposito   = (id, b) => apiFetch(`/api/depositos/${id}`, patch(b))
+export const deleteDeposito  = (id)    => apiFetch(`/api/depositos/${id}`, { method: "DELETE" })
+
+// Personas del equipo, para sugerir quién llevó un depósito
+export const getEquipoLista  = ()      => apiFetch("/api/equipo/lista")

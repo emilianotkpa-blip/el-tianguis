@@ -14,6 +14,8 @@ import UtilidadesPage from "./pages/Utilidades"
 import TianguisIAPage from "./pages/TianguisIA"
 import ClientesPage from "./pages/Clientes"
 import ReglasPage from "./pages/Reglas"
+import ProveedoresPage from "./pages/Proveedores"
+import DepositosPage from "./pages/Depositos"
 import { ComparadorProvider, ComparadorFlotante } from "./components/Comparador"
 import CajaPage from "./pages/Caja"
 import BásculaPage from "./pages/Balanza"
@@ -190,6 +192,10 @@ const NAV = [
   { id: "pedidos-clientes",  label: "Pedidos Clientes", icon: "users" },
   { id: "clientes",          label: "Clientes",         icon: "user" },
   { id: "inventarios",       label: "Inventarios",      icon: "warehouse" },
+  // Dinero que sale del negocio y datos bancarios: solo dirección
+  { section: "Compras" },
+  { id: "proveedores",       label: "Proveedores",      icon: "building", rolMin: "gerente" },
+  { id: "depositos",         label: "Depósitos",        icon: "money",    rolMin: "gerente" },
   { section: "Reportes" },
   { id: "utilidades",        label: "Utilidades",       icon: "chart" },
   { section: "Inteligencia" },
@@ -206,6 +212,8 @@ const PAGE_INFO = {
   "pedidos-clientes":  { title: "Pedidos Clientes",  parent: "Logística" },
   clientes:          { title: "Clientes",          parent: "Logística" },
   inventarios:       { title: "Inventarios",       parent: "Logística" },
+  proveedores:       { title: "Proveedores",       parent: "Compras" },
+  depositos:         { title: "Depósitos",         parent: "Compras" },
   caja:              { title: "Caja",              parent: "Operación" },
   utilidades:        { title: "Utilidades",       parent: "Reportes" },
   ia:                { title: "Tianguis IA",      parent: "Inteligencia" },
@@ -335,6 +343,12 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
       case "reglas":             return puedeVer(user, "gerente")
                                    ? <ReglasPage addToast={addToast} />
                                    : <SinPermiso />
+      case "proveedores":        return puedeVer(user, "gerente")
+                                   ? <ProveedoresPage addToast={addToast} />
+                                   : <SinPermiso />
+      case "depositos":          return puedeVer(user, "gerente")
+                                   ? <DepositosPage addToast={addToast} user={user} />
+                                   : <SinPermiso />
       case "clientes":           return <ClientesPage addToast={addToast} />
       case "inventarios":        return <InventariosPage addToast={addToast} sucursalActiva={user.sucursal} />
       case "caja":               return <CajaPage addToast={addToast} sucursalActiva={user.sucursal} user={user} />
@@ -382,7 +396,14 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
             aria-hidden="true"
           />
           {NAV.map((item, i) => {
-            if (item.section) return <div key={i} className="sidebar-section">{item.section}</div>
+            if (item.section) {
+              // Una sección sin nada visible para este rol no deja su título suelto
+              const siguientes = NAV.slice(i + 1)
+              const fin = siguientes.findIndex(x => x.section)
+              const suyos = fin < 0 ? siguientes : siguientes.slice(0, fin)
+              if (!suyos.some(x => puedeVer(user, x.rolMin))) return null
+              return <div key={i} className="sidebar-section">{item.section}</div>
+            }
             // Ocultar items que requieren rol mínimo
             if (!puedeVer(user, item.rolMin)) return null
             const dynBadge = item.id === "pedidos-clientes" ? stats.pedidosPendientes
