@@ -1,12 +1,35 @@
 import { TIPOS_CONFIG } from "./data"
 
-async function apiFetch(path, options = {}) {
+// El token de Supabase dura una hora y la jornada es más larga: si caducó a
+// media venta, se renueva sin sacar a nadie. Una sola renovación a la vez, para
+// que diez peticiones en paralelo no pidan diez tokens.
+let renovando = null
+async function renovarSesion() {
+  const refresh = sessionStorage.getItem("elt_refresh")
+  if (!refresh) return null
+  renovando = renovando ?? fetch("/api/auth/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refresh }),
+  }).then(async r => {
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || !d.token) return null
+    sessionStorage.setItem("elt_token", d.token)
+    if (d.refresh_token) sessionStorage.setItem("elt_refresh", d.refresh_token)
+    return d.token
+  }).finally(() => { renovando = null })
+  return renovando
+}
+
+async function apiFetch(path, options = {}, reintentado = false) {
   const token = sessionStorage.getItem("elt_token")
   const headers = { ...(options.headers ?? {}) }
   if (token) headers["Authorization"] = `Bearer ${token}`
   const res = await fetch(path, { ...options, headers })
   if (res.status === 401 && path !== "/api/login") {
+    if (!reintentado && await renovarSesion()) return apiFetch(path, options, true)
     sessionStorage.removeItem("elt_token")
+    sessionStorage.removeItem("elt_refresh")
     sessionStorage.removeItem("elt_user")
     window.location.reload()
     return
@@ -109,3 +132,6 @@ export const deleteDeposito  = (id)    => apiFetch(`/api/depositos/${id}`, { met
 
 // Personas del equipo, para sugerir quién llevó un depósito
 export const getEquipoLista  = ()      => apiFetch("/api/equipo/lista")
+
+export const getPerfil          = ()  => apiFetch("/api/perfil")
+export const cambiarContrasena  = (b) => apiFetch("/api/perfil/contrasena", json(b))

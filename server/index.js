@@ -241,11 +241,99 @@ app.post("/api/chat", async (req, res) => {
 })
 
 // ── Auth ───────────────────────────────────────────────
+// Con Supabase configurado, cada persona recibe su propio token y el servidor
+// sabe quién es. Sin configurar, sigue el login viejo contra NocoDB: así se
+// puede desplegar y comprobar antes de mover a nadie.
 const SESSION_TOKEN = process.env.SESSION_TOKEN || "dev-insecure-token"
+const SUPA_URL     = (process.env.SUPABASE_URL || "").replace(/\/$/, "")
+const SUPA_ANON    = process.env.SUPABASE_ANON_KEY
+const SUPA_SERVICE = process.env.SUPABASE_SERVICE_ROLE
+const conSupabase  = () => Boolean(SUPA_URL && SUPA_ANON)
+
+const supa = (ruta, opts = {}, llave = SUPA_ANON) => fetch(SUPA_URL + ruta, {
+  ...opts,
+  headers: {
+    apikey: llave,
+    authorization: opts.authorization ?? `Bearer ${llave}`,
+    "content-type": "application/json",
+    ...(opts.headers ?? {}),
+  },
+})
+
+// El perfil (rol, sucursal, nombre) sigue viviendo en NocoDB; Supabase solo
+// guarda la identidad y la contraseña
+async function perfilDe(email) {
+  const equipo = await nocoGet(T.equipo, `&where=(Gmail,eq,${encodeURIComponent(email)})&limit=1`)
+  return equipo.find(u => u.Gmail?.toLowerCase() === email) ?? null
+}
+const usuarioPublico = (fila, email) => ({
+  name: fila?.Nombre ?? email,
+  rol: (fila?.Rol ?? "vendedor").toLowerCase(),
+  puesto: fila?.Puesto ?? "",
+  email,
+  sucursalDefault: fila?.Sucursal ?? "",
+})
+
+// Comprobar el token contra Supabase en cada llamada sería una ida y vuelta por
+// petición; se recuerda un minuto, que es poco para un token de una hora.
+const sesiones = new Map()   // token → { email, id, hasta }
+const MS_RECORDAR = 60_000
+
+async function quienEs(token) {
+  const guardado = sesiones.get(token)
+  if (guardado && guardado.hasta > Date.now()) return guardado
+  const r = await supa("/auth/v1/user", { authorization: `Bearer ${token}` })
+  if (!r.ok) { sesiones.delete(token); return null }
+  const u = await r.json()
+  const dato = { email: (u.email ?? "").toLowerCase(), id: u.id, hasta: Date.now() + MS_RECORDAR }
+  if (sesiones.size > 500) sesiones.clear()
+  sesiones.set(token, dato)
+  return dato
+}
+
+// Renovar el token: el de acceso dura una hora y la jornada es más larga
+app.post("/api/auth/refresh", async (req, res) => {
+  if (!conSupabase()) return res.status(400).json({ error: "Sin Supabase configurado" })
+  const { refresh_token } = req.body ?? {}
+  if (!refresh_token) return res.status(400).json({ error: "Falta el refresh token" })
+  const r = await supa("/auth/v1/token?grant_type=refresh_token", {
+    method: "POST", body: JSON.stringify({ refresh_token }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) return res.status(401).json({ error: "La sesión expiró" })
+  res.json({ ok: true, token: d.access_token, refresh_token: d.refresh_token })
+})
 
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body ?? {}
   if (!email || !password) return res.status(400).json({ error: "Faltan credenciales" })
+
+  if (conSupabase()) {
+    const correo = email.trim().toLowerCase()
+    try {
+      const r = await supa("/auth/v1/token?grant_type=password", {
+        method: "POST", body: JSON.stringify({ email: correo, password }),
+      })
+      if (!r.ok) return res.status(401).json({ error: "Credenciales incorrectas" })
+      const d = await r.json()
+
+      // La cuenta existe en Supabase pero quien manda sobre el acceso es Equipo:
+      // dar de baja a alguien ahí lo deja fuera aunque su contraseña sirva
+      const fila = await perfilDe(correo)
+      if (!fila || fila.Activo === false || fila.Activo === 0) {
+        return res.status(403).json({ error: "Tu cuenta no está activa. Habla con dirección." })
+      }
+      return res.json({
+        ok: true,
+        token: d.access_token,
+        refresh_token: d.refresh_token,
+        user: usuarioPublico(fila, correo),
+      })
+    } catch (err) {
+      return res.status(500).json({ error: err.message })
+    }
+  }
+
   try {
     // Buscar en tabla Equipo de NocoDB
     const equipo = await nocoGet(
@@ -412,10 +500,56 @@ app.get("/api/media/producto/:id", async (req, res) => {
   }
 })
 
-app.use("/api", (req, res, next) => {
+app.use("/api", async (req, res, next) => {
   const token = req.headers["authorization"]?.replace("Bearer ", "")
-  if (!token || token !== SESSION_TOKEN) return res.status(401).json({ error: "No autorizado" })
-  next()
+  if (!token) return res.status(401).json({ error: "No autorizado" })
+
+  if (!conSupabase()) {
+    if (token !== SESSION_TOKEN) return res.status(401).json({ error: "No autorizado" })
+    return next()
+  }
+  try {
+    const quien = await quienEs(token)
+    if (!quien) return res.status(401).json({ error: "No autorizado" })
+    req.usuario = quien        // a partir de aquí el servidor sabe de quién es la petición
+    next()
+  } catch (err) {
+    res.status(503).json({ error: "No se pudo verificar la sesión" })
+  }
+})
+
+// ── Perfil de quien entró ──────────────────────────────
+app.get("/api/perfil", async (req, res) => {
+  if (!conSupabase()) return res.json({ gestionable: false })
+  try {
+    const fila = await perfilDe(req.usuario.email)
+    res.json({ gestionable: true, ...usuarioPublico(fila, req.usuario.email) })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Cambiar la propia contraseña. Se comprueba la actual iniciando sesión con
+// ella: sin eso, quien tomara prestada una sesión abierta podría cambiarla.
+app.post("/api/perfil/contrasena", async (req, res) => {
+  if (!conSupabase()) return res.status(400).json({ error: "El cambio de contraseña requiere Supabase" })
+  const { actual, nueva } = req.body ?? {}
+  if (!actual || !nueva) return res.status(400).json({ error: "Faltan la contraseña actual y la nueva" })
+  if (String(nueva).length < 8) return res.status(400).json({ error: "La nueva contraseña debe tener al menos 8 caracteres" })
+  if (actual === nueva) return res.status(400).json({ error: "La nueva contraseña debe ser distinta de la actual" })
+  try {
+    const prueba = await supa("/auth/v1/token?grant_type=password", {
+      method: "POST", body: JSON.stringify({ email: req.usuario.email, password: actual }),
+    })
+    if (!prueba.ok) return res.status(400).json({ error: "La contraseña actual no coincide" })
+
+    const r = await supa(`/auth/v1/admin/users/${req.usuario.id}`, {
+      method: "PUT", body: JSON.stringify({ password: nueva }),
+    }, SUPA_SERVICE)
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}))
+      return res.status(500).json({ error: d.msg || d.error_description || "No se pudo cambiar la contraseña" })
+    }
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
 // ── Stats y alertas ───────────────────────────────────

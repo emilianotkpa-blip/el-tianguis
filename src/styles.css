@@ -639,11 +639,16 @@ input:disabled, select:disabled, textarea:disabled {
   border: 2px solid var(--header-bg);
   border-radius: 50%;
 }
+/* Es un botón (lleva a Mi perfil): sin el fondo ni el borde que el navegador
+   le pone por omisión */
 .header-user {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 4px 8px 4px 4px;
+  border: 0;
+  background: transparent;
+  text-align: left;
   border-radius: var(--radius);
   cursor: pointer;
 }
@@ -1383,6 +1388,64 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 /* Mismo alto con o sin foto: así el nombre y el precio quedan a la misma
    altura en todas las tarjetas */
 .verif-foto.sin-foto { background: var(--bg-sunken); color: var(--text-muted); }
+
+/* ============ MI PERFIL ============ */
+.perfil-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 16px;
+  align-items: start;
+}
+.perfil-identidad { display: flex; align-items: center; gap: 14px; }
+.perfil-avatar {
+  width: 54px; height: 54px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--wine-700); color: #fff;
+  font-weight: 700; font-size: var(--fs-md); letter-spacing: .5px;
+}
+.perfil-nombre { font-weight: 700; font-size: var(--fs-md); }
+.perfil-datos {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.perfil-datos > div {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 9px 12px;
+  font-size: var(--fs-sm);
+  border-bottom: 1px solid var(--border);
+}
+.perfil-datos > div:last-child { border-bottom: 0; }
+.perfil-datos span { color: var(--text-muted); }
+.perfil-nota {
+  margin: 14px 0 0;
+  font-size: var(--fs-2xs); color: var(--text-muted); line-height: 1.55;
+}
+.perfil-titulo { margin: 0 0 14px; font-size: var(--fs-md); font-weight: 700; }
+.perfil-form { display: flex; flex-direction: column; gap: 14px; }
+/* El ojo va dentro del campo, como en el login */
+.perfil-campo { position: relative; }
+.perfil-campo input { width: 100%; padding-right: 40px; }
+.perfil-ojo {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  background: transparent; border: 0; border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+.perfil-aviso {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--err-bg); color: var(--err);
+  font-size: var(--fs-xs);
+}
+.perfil-form .btn { align-self: flex-start; }
+@media (max-width: 900px) {
+  .perfil-grid { grid-template-columns: 1fr; }
+}
 
 /* ============ PROVEEDORES Y DEPÓSITOS ============ */
 /* En la ficha del proveedor, lo que se le ha depositado: fecha, quién lo

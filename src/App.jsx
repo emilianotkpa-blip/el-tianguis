@@ -16,6 +16,7 @@ import ClientesPage from "./pages/Clientes"
 import ReglasPage from "./pages/Reglas"
 import ProveedoresPage from "./pages/Proveedores"
 import DepositosPage from "./pages/Depositos"
+import PerfilPage from "./pages/Perfil"
 import { ComparadorProvider, ComparadorFlotante } from "./components/Comparador"
 import CajaPage from "./pages/Caja"
 import BásculaPage from "./pages/Balanza"
@@ -200,6 +201,8 @@ const NAV = [
   { id: "utilidades",        label: "Utilidades",       icon: "chart" },
   { section: "Inteligencia" },
   { id: "ia",                label: "Tianguis IA",      icon: "sparkle" },
+  { section: "Mi cuenta" },
+  { id: "perfil",            label: "Mi perfil",        icon: "user" },
 ]
 
 const PAGE_INFO = {
@@ -217,6 +220,7 @@ const PAGE_INFO = {
   caja:              { title: "Caja",              parent: "Operación" },
   utilidades:        { title: "Utilidades",       parent: "Reportes" },
   ia:                { title: "Tianguis IA",      parent: "Inteligencia" },
+  perfil:            { title: "Mi perfil",        parent: "Mi cuenta" },
 }
 
 function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloadedData }) {
@@ -349,6 +353,7 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
       case "depositos":          return puedeVer(user, "gerente")
                                    ? <DepositosPage addToast={addToast} user={user} />
                                    : <SinPermiso />
+      case "perfil":             return <PerfilPage addToast={addToast} user={user} />
       case "clientes":           return <ClientesPage addToast={addToast} />
       case "inventarios":        return <InventariosPage addToast={addToast} sucursalActiva={user.sucursal} />
       case "caja":               return <CajaPage addToast={addToast} sucursalActiva={user.sucursal} user={user} />
@@ -542,13 +547,13 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
 
         <div style={{ width: 1, height: 24, background: "var(--border)", margin: "0 4px" }}></div>
 
-        <div className="header-user">
+        <button className="header-user" onClick={() => navTo("perfil")} title="Mi perfil">
           <div className="avatar">{user.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}</div>
           <div className="who">
             <div className="name">{user.name}</div>
             <div className="role">{user.role}</div>
           </div>
-        </div>
+        </button>
         <button className="header-icon-btn" onClick={onLogout} title="Cerrar sesión">
           <Icon name="logout" size={16} />
         </button>

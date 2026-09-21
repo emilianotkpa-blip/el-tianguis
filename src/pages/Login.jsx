@@ -30,6 +30,7 @@ export default function Login({ onLogin }) {
     try {
       const result = await postLogin({ email: email.trim().toLowerCase(), password })
       sessionStorage.setItem("elt_token", result.token)
+      if (result.refresh_token) sessionStorage.setItem("elt_refresh", result.refresh_token)
       sessionStorage.setItem("elt_user", JSON.stringify(result.user))
       onLogin(result.user)
     } catch (err) {
