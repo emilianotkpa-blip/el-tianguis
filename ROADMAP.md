@@ -33,14 +33,18 @@ contrario, y en este orden:
    mapa fijo de cuatro niveles. Para esto hace falta que los roles y quién
    puede autorizar a quién vivan en datos, no en el código.
 
-5. **Login a Supabase Auth.** El login lee la tabla Equipo de NocoDB y compara
-   la contraseña en texto plano (`server/index.js`, `/api/login`). Cualquiera
-   con acceso de lectura a esa tabla ve las contraseñas del equipo. Para pedir
-   la contraseña de un superior en caja, eso no se sostiene: hay que mover la
-   autenticación a Supabase Auth y dejar en NocoDB solo el perfil.
+5. ~~**Login a Supabase Auth.**~~ Hecho. La autenticación vive en el Supabase
+   propio del Tianguis y en NocoDB queda solo el perfil (nombre, rol, sucursal),
+   que es quien decide el acceso: dar de baja a alguien en Equipo lo deja fuera
+   aunque su contraseña sirva. Cada quien recibe su propio token, así que el
+   servidor ya sabe de quién es cada petición. Las 4 cuentas están creadas y
+   cada quien cambia su contraseña desde "Mi perfil".
+
+   **Falta cerrar**: borrar la columna `Contrasena` de Equipo cuando los cuatro
+   hayan entrado en producción.
 
 El orden importa: 1 y 2 sin 3 y 4 sería pedir una contraseña sin saber de
-quién, y sin 5 esa contraseña viaja y se compara en claro.
+quién. El 5 ya está, así que esa contraseña ya no viaja ni se compara en claro.
 
 ---
 
