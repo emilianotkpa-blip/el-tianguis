@@ -55,7 +55,7 @@ export default function NotaImpresa({ folio, fecha, cliente, vendedor, sucursal,
           ))}
           {/* Líneas en blanco hasta completar al menos 8 filas */}
           {Array.from({ length: Math.max(0, 8 - (items?.length ?? 0)) }).map((_, i) => (
-            <tr key={`blank-${i}`}><td>&nbsp;</td><td></td><td></td><td></td></tr>
+            <tr key={`blank-${i}`} className="fila-relleno"><td>&nbsp;</td><td></td><td></td><td></td></tr>
           ))}
         </tbody>
       </table>

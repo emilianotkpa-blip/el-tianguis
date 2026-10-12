@@ -23,6 +23,7 @@ import BásculaPage from "./pages/Balanza"
 import { getStats, getAlertas, getCatalogo, getClientes, getPrinters, printFolio } from "./api"
 import logoUrl from "./assets/logo.jpeg"
 import LogoAnimado from "./components/LogoAnimado"
+import { HOJAS, hojaGuardada, aplicarHoja } from "./impresion"
 
 function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone }) {
   const [fading, setFading] = useState(false)
@@ -634,6 +635,7 @@ function InstallBanner({ installPrompt, installed, onInstall }) {
 }
 
 function SettingsModal({ onClose, addToast }) {
+  const [hoja, setHoja]             = useState(hojaGuardada)
   const [printers, setPrinters]     = useState([])
   const [loading, setLoading]       = useState(true)
   const [selected, setSelected]     = useState(() => localStorage.getItem("elt_printer") ?? "")
@@ -643,7 +645,10 @@ function SettingsModal({ onClose, addToast }) {
   useEffect(() => {
     getPrinters()
       .then(data => {
-        setPrinters(Array.isArray(data) ? data : (data.printers ?? []))
+        // Windows las manda como texto; si alguna llega como objeto nos
+        // quedamos con su nombre, porque un objeto suelto rompe el render.
+        const lista = Array.isArray(data) ? data : (data.printers ?? [])
+        setPrinters(lista.map(p => (typeof p === "string" ? p : (p?.name ?? p?.Name ?? ""))).filter(Boolean))
         setLoading(false)
       })
       .catch(() => { setPrinters([]); setLoading(false) })
@@ -675,6 +680,37 @@ function SettingsModal({ onClose, addToast }) {
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Ajustes del dispositivo</h3>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+
+        <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: "var(--text-muted)" }}>
+          TIPO DE HOJA
+        </div>
+        <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
+          Con qué papel imprime este equipo las notas. Se guarda al elegirlo.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
+          {Object.values(HOJAS).map(h => (
+            <label key={h.valor} style={{
+              display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
+              borderRadius: 8, cursor: "pointer", fontSize: 13,
+              background: hoja === h.valor ? "rgba(240,191,46,.1)" : "var(--bg-sunken)",
+              border: hoja === h.valor ? "1px solid var(--gold-400)" : "1px solid var(--border)",
+              transition: "all .15s",
+            }}>
+              <input
+                type="radio" name="hoja" value={h.valor} checked={hoja === h.valor}
+                onChange={() => {
+                  setHoja(aplicarHoja(h.valor))
+                  addToast({ kind: "ok", msg: `Las notas se imprimirán en ${h.nombre.toLowerCase()}` })
+                }}
+                style={{ accentColor: "var(--gold-500)", marginTop: 2 }}
+              />
+              <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <strong style={{ fontWeight: 600 }}>{h.nombre}</strong>
+                <small style={{ color: "var(--text-muted)", fontSize: 11 }}>{h.detalle}</small>
+              </span>
+            </label>
+          ))}
         </div>
 
         <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: "var(--text-muted)" }}>
@@ -776,6 +812,10 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", theme)
     localStorage.setItem("elt_theme", theme)
   }, [theme])
+
+  // El tipo de hoja debe estar puesto desde el arranque: si alguien imprime
+  // antes de abrir Ajustes, igual sale con el papel que tiene configurado
+  useEffect(() => { aplicarHoja(hojaGuardada()) }, [])
 
   // Cuando splash está activo, arrancar las fetches reales
   useEffect(() => {
