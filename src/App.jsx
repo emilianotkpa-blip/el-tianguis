@@ -27,6 +27,7 @@ import LogoAnimado from "./components/LogoAnimado"
 import { HOJAS, hojaGuardada, aplicarHoja } from "./impresion"
 import { puedeVer, esAdmin, puedeElegirSucursal } from "../shared/roles"
 import VerComo from "./components/VerComo"
+import BarraSucursal from "./components/BarraSucursal"
 
 function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone }) {
   const [fading, setFading] = useState(false)
@@ -241,7 +242,7 @@ const PAGE_INFO = {
   perfil:            { title: "Mi perfil",        parent: "Mi cuenta" },
 }
 
-function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setTheme, onCambiarSucursal, preloadedData }) {
+function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setTheme, onCambiarSucursal, onCambiarSucursalDirecto, preloadedData }) {
   const [page, setPage]         = useState(() => sessionStorage.getItem("elt_page") || "ventas")
   const [sharedCart, setSharedCart] = useState([])
   const [verComoAbierto, setVerComoAbierto] = useState(false)
@@ -609,6 +610,12 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
           onElegir={(quien) => { onVerComo(quien); setVerComoAbierto(false) }}
           onCerrar={() => setVerComoAbierto(false)}
         />
+      )}
+
+      {/* Solo aparece en teléfono (lo decide el CSS) y solo a quien puede
+          cambiar de sucursal: a los demás se la asigna dirección. */}
+      {user.sucursal && puedeElegirSucursal(user) && (
+        <BarraSucursal actual={user.sucursal} onElegir={onCambiarSucursalDirecto} />
       )}
 
       {menuAbierto && <div className="menu-telon" onClick={() => setMenuAbierto(false)} />}
@@ -1006,6 +1013,7 @@ export default function App() {
           onLogout={handleLogout}
           theme={theme} setTheme={setTheme}
           onCambiarSucursal={() => setShowSucPicker(true)}
+          onCambiarSucursalDirecto={handleSucursalSelect}
           preloadedData={preloadedData}
         />
       )}

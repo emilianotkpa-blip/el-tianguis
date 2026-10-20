@@ -191,7 +191,7 @@ export default function ReglasPage({ addToast }) {
               </div>
             </div>
           ) : (
-            <table className="table">
+            <table className="table tarjetas-movil">
               <thead>
                 <tr>
                   <th style={{ width: 70 }}>Orden</th>
@@ -205,26 +205,26 @@ export default function ReglasPage({ addToast }) {
               <tbody>
                 {ordenadas.map(r => (
                   <tr key={r.id} className={r.activo ? "" : "regla-off"}>
-                    <td className="num">{r.prioridad ?? 100}</td>
-                    <td>
+                    <td className="num" data-label="Orden">{r.prioridad ?? 100}</td>
+                    <td className="td-titulo" data-label="Regla">
                       <strong>{r.nombre}</strong>
                       <div className="muted" style={{ fontSize: "var(--fs-xs)" }}>
                         {r.tipo === "proporcion" ? "Proporción" : "Combo"}
                       </div>
                     </td>
-                    <td className="muted">{describirRegla(r, catalogo)}</td>
-                    <td>
+                    <td className="muted" data-label="Qué hace">{describirRegla(r, catalogo)}</td>
+                    <td data-label="Activa">
                       <label className="regla-switch">
                         <input type="checkbox" checked={r.activo !== false} onChange={() => alternarActivo(r)} />
                         <span>{r.activo !== false ? "Sí" : "No"}</span>
                       </label>
                     </td>
-                    <td>
+                    <td data-label="Dónde">
                       {r.visible === false
                         ? <span className="badge" title="No aparece en Paquetes; el descuento entra solo">Solo se aplica</span>
                         : <span className="badge badge-ok">En Paquetes</span>}
                     </td>
-                    <td className="actions-cell">
+                    <td className="actions-cell" data-label="">
                       <button className="btn btn-ghost btn-sm" onClick={() => setEdit(JSON.parse(JSON.stringify({ ...reglaVacia(), ...r, config: { ...reglaVacia().config, ...r.config } })))}>
                         <Icon name="edit" size={12} />
                       </button>

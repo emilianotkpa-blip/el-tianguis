@@ -325,7 +325,9 @@ export default function UtilidadesPage() {
       </div>
 
       {/* ── Facturado vs Sin factura ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+      {/* En el teléfono las dos tarjetas no caben lado a lado: la de la derecha
+          quedaba cortada. La clase las apila. */}
+      <div className="util-dos-columnas">
         {/* Facturado */}
         <div className="card">
           <div className="card-header" style={{ borderBottom: "2px solid var(--ok)" }}>
@@ -335,7 +337,7 @@ export default function UtilidadesPage() {
             </button>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
-            <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: 0, borderRadius: 0 }}>
+            <div className="kpi-grid util-trio" style={{ gap: 0, borderRadius: 0 }}>
               <div className="kpi" style={{ border: "none", borderRight: "1px solid var(--border)", borderRadius: 0 }}>
                 <div className="kpi-accent" style={{ background: "var(--ok)" }}></div>
                 <div className="kpi-label">Ingresos</div>
@@ -365,7 +367,7 @@ export default function UtilidadesPage() {
             <span className="badge badge-neutral">Solo registro interno</span>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
-            <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: 0, borderRadius: 0 }}>
+            <div className="kpi-grid util-trio" style={{ gap: 0, borderRadius: 0 }}>
               <div className="kpi" style={{ border: "none", borderRight: "1px solid var(--border)", borderRadius: 0 }}>
                 <div className="kpi-accent" style={{ background: "var(--text-muted)" }}></div>
                 <div className="kpi-label">Ingresos</div>

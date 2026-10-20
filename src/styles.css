@@ -1116,6 +1116,59 @@ input:disabled, select:disabled, textarea:disabled {
   font-size: var(--fs-xs); color: var(--text-muted);
 }
 
+/* ===== Barra de sucursal (solo teléfono) ===== */
+.barra-suc {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index: 60; display: none; flex-direction: column; gap: 8px;
+  align-items: stretch; width: min(320px, calc(100vw - 32px));
+}
+.barra-suc-actual, .barra-suc-op {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 16px; border-radius: 999px; cursor: pointer; text-align: left;
+  color: var(--text);
+  background: var(--glass-bg, rgba(255,255,255,.72));
+  border: 1px solid var(--glass-border, var(--border));
+  box-shadow: 0 8px 26px rgba(0,0,0,.18);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  backdrop-filter: blur(16px) saturate(1.6);
+}
+.barra-suc-op { animation: bsEntra .18s var(--ease-out) backwards; }
+.barra-suc-op:nth-last-child(2) { animation-delay: .03s; }
+@keyframes bsEntra { from { opacity: 0; transform: translateY(8px) scale(.96); } }
+.bs-icono { font-size: 18px; line-height: 1; flex-shrink: 0; }
+.bs-texto { display: flex; flex-direction: column; min-width: 0; }
+.bs-texto strong { font-size: var(--fs-sm); font-weight: 700; }
+.bs-texto small {
+  font-size: 10px; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.barra-suc.abierta .barra-suc-actual { border-color: var(--gold-400); }
+
+/* El aro que se llena mientras se mantiene presionado: sin esto, mantener
+   presionado se siente como que no pasa nada. */
+.barra-suc-actual.cargando { position: relative; overflow: hidden; }
+.barra-suc-actual.cargando::after {
+  content: ""; position: absolute; inset: 0;
+  background: var(--gold-400); opacity: .28;
+  transform-origin: left;
+  animation: bsMantener .38s linear forwards;
+}
+@keyframes bsMantener { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@media (max-width: 560px) {
+  .barra-suc { display: flex; }
+  /* Que la barra no tape el último renglón de la pantalla */
+  .page { padding-bottom: 104px; }
+}
+
+/* Utilidades: las dos tarjetas de facturación */
+.util-dos-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.util-trio { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 760px) {
+  .util-dos-columnas { grid-template-columns: 1fr; }
+}
+
 /* ===== Sin sucursal asignada ===== */
 .sin-sucursal {
   position: fixed; inset: 0; z-index: 1000; background: var(--bg);
@@ -3819,6 +3872,20 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
     color: var(--text-muted);
     text-align: left;
   }
+  /* En el teléfono la tarjeta se queda con lo esencial: qué producto, cuánto
+     hay en esta sucursal y cómo está. Ver doce datos de cada uno al hilo no
+     deja encontrar nada; el resto sale al tocar, que abre la ficha. */
+  .table.tarjetas-movil td.oculto-movil { display: none; }
+  .table.tarjetas-movil tr { position: relative; }
+  .table.tarjetas-movil tr::after {
+    content: "ver detalle";
+    /* A la izquierda: a la derecha chocaba con el botón de ajustar stock */
+    position: absolute; left: 14px; bottom: 12px;
+    font-size: 10px; color: var(--text-muted); opacity: .7;
+  }
+  .table.tarjetas-movil tr:has(td.oculto-movil) { padding-bottom: 26px; }
+  .table.tarjetas-movil tr:not(:has(td.oculto-movil))::after { content: none; }
+
   /* El nombre manda: va arriba, grande y sin etiqueta */
   .table.tarjetas-movil td.td-titulo {
     justify-content: flex-start;
@@ -3848,7 +3915,16 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   .stepper-label { margin-left: 6px; font-size: var(--fs-xs); }
   .stepper-circle { width: 24px; height: 24px; font-size: 11px; }
   .products-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px; }
-  .kpi-grid { grid-template-columns: 1fr; gap: 10px; }
+  /* De uno en uno, cuatro indicadores ocupaban media pantalla y empujaban el
+     contenido fuera de la vista. De dos en dos se leen igual y se llega antes
+     a lo que de verdad se vino a ver. */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
+  .util-trio { grid-template-columns: repeat(3, 1fr); gap: 0; }
+  .kpi { padding: 10px 12px; }
+  .kpi-label { font-size: 9.5px; letter-spacing: .8px; }
+  .kpi-value { font-size: var(--fs-lg); }
+  .kpi-delta { font-size: 10px; }
+  .kpi-delta .label { white-space: normal; }
   .page { padding: 12px 12px 80px; }
   .page-header { flex-direction: column; align-items: stretch; }
   .page-actions { flex-wrap: wrap; }

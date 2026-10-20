@@ -417,7 +417,7 @@ export default function InventariosPage({ addToast, sucursalActiva, user }) {
                 const fill   = status === "agotado" ? "var(--err)" : status === "bajo" ? "var(--warn)" : "var(--ok)"
                 return (
                   <tr key={p._id} className={cmp?.tiene(p.sku) ? "fila-comparando" : ""} onClick={() => setVista(p)} style={{ cursor: "pointer" }}>
-                    <td className="col-check" data-label="Comparar" onClick={e => e.stopPropagation()}>
+                    <td className="col-check oculto-movil" data-label="Comparar" onClick={e => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         aria-label={`Comparar ${p.name}`}
@@ -425,7 +425,7 @@ export default function InventariosPage({ addToast, sucursalActiva, user }) {
                         onChange={e => e.target.checked ? cmp?.agregar(p) : cmp?.quitar(p.sku)}
                       />
                     </td>
-                    <td className="tnum" data-label="Código" style={{ fontSize: 11, overflow: "hidden" }}>
+                    <td className="tnum oculto-movil" data-label="Código" style={{ fontSize: 11, overflow: "hidden" }}>
                       <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.codigoBarras || p.sku}</div>
                       {p.codigoBarras && p.codigoBarras !== p.sku && (
                         <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{p.sku}</div>
@@ -434,17 +434,17 @@ export default function InventariosPage({ addToast, sucursalActiva, user }) {
                     <td data-label="Producto" className="td-titulo" style={{ overflow: "hidden" }} title={p.name}>
                       <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</strong>
                     </td>
-                    <td className="muted" data-label="Tipo" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tipoLabel(p.tipo, TIPOS_CONFIG)}</td>
+                    <td className="muted oculto-movil" data-label="Tipo" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tipoLabel(p.tipo, TIPOS_CONFIG)}</td>
                     <td className="num" data-label="En sucursal"><strong>{fmtBase(v, p.unidadBase)}</strong></td>
-                    <td className="num muted" data-label="Mínimo">{p.min}</td>
-                    <td data-label="Cobertura">
+                    <td className="num muted oculto-movil" data-label="Mínimo">{p.min}</td>
+                    <td className="oculto-movil" data-label="Cobertura">
                       <div className="cov-track" style={{ width: 90 }}>
                         <div className="cov-fill" style={{ width: pct + "%", background: fill }}></div>
                       </div>
                     </td>
-                    <td className="num" data-label="Centro">{fmtBase(p.stock.centro, p.unidadBase)}</td>
-                    <td className="num" data-label="Repostero">{fmtBase(p.stock.repostero, p.unidadBase)}</td>
-                    <td className="num" data-label="Bodega">{fmtBase(p.stock.bodega, p.unidadBase)}</td>
+                    <td className="num oculto-movil" data-label="Centro">{fmtBase(p.stock.centro, p.unidadBase)}</td>
+                    <td className="num oculto-movil" data-label="Repostero">{fmtBase(p.stock.repostero, p.unidadBase)}</td>
+                    <td className="num oculto-movil" data-label="Bodega">{fmtBase(p.stock.bodega, p.unidadBase)}</td>
                     <td data-label="Estado">
                       {status === "agotado" && <span className="badge badge-err">● Agotado</span>}
                       {status === "bajo"    && <span className="badge badge-warn">● Bajo</span>}
