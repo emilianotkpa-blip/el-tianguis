@@ -1101,6 +1101,47 @@ input:disabled, select:disabled, textarea:disabled {
   background: var(--wine-700);
 }
 
+/* ===== Ver como otra cuenta (solo admin) ===== */
+.header-icon-btn.prestado { color: var(--gold-700); background: rgba(240,191,46,.16); }
+
+.aviso-prestado {
+  position: sticky; top: 0; z-index: 30; flex-shrink: 0;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 16px; font-size: var(--fs-sm);
+  background: var(--gold-100, rgba(240,191,46,.22)); border-bottom: 1px solid var(--gold-400);
+  color: var(--text);
+}
+.aviso-prestado .btn { margin-left: auto; background: var(--wine-700); color: #fff; border: 0; }
+
+.vercomo-telon { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 900; }
+.vercomo-caja {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 901;
+  width: 420px; max-width: 92vw; max-height: 86vh; overflow-y: auto;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
+  padding: 24px; box-shadow: 0 12px 40px rgba(0,0,0,.35);
+}
+.vercomo-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.vercomo-head h3 { margin: 0; font-size: var(--fs-md); font-weight: 700; }
+.vercomo-nota { margin: 0 0 16px; font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.55; }
+.vercomo-vacio { padding: 18px 0; text-align: center; font-size: var(--fs-sm); color: var(--text-muted); }
+.vercomo-lista { display: flex; flex-direction: column; gap: 6px; }
+.vercomo-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  background: var(--bg-sunken); border: 1px solid var(--border); color: var(--text);
+}
+.vercomo-item:hover { border-color: var(--gold-400); }
+.vercomo-item.activo { background: rgba(240,191,46,.12); border-color: var(--gold-400); }
+.vercomo-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--wine-700); color: #fff; font-size: 11px; font-weight: 700;
+}
+.vercomo-datos { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.vercomo-datos strong { font-size: var(--fs-sm); font-weight: 600; }
+.vercomo-datos small { font-size: var(--fs-xs); color: var(--text-muted); }
+.vercomo-volver { width: 100%; margin-top: 14px; justify-content: center; }
+
 /* ============ PRINT ============ */
 .print-folio-only  { display: none; }
 .print-nota-wrapper { display: none; }

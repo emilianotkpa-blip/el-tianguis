@@ -8,6 +8,7 @@ import { ReadlineParser } from "@serialport/parser-readline"
 import { execFile } from "child_process"
 import { writeFileSync, unlinkSync } from "fs"
 import { tmpdir } from "os"
+import { nivelDe, NIVEL_ROL } from "../shared/roles.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -236,6 +237,21 @@ ${pedMer.slice(0, 5).map((p) => `  ${p.Folio} | ${p.Proveedor} | ${p.Estado} | $
 }
 
 app.post("/api/chat", async (req, res) => {
+  // Esta ruta se declara antes del portero general, así que se cuida sola.
+  // La IA cuesta dinero y responde con datos del negocio: pide sesión y, al
+  // menos, nivel de gerencia.
+  const credencial = req.headers["authorization"]?.replace("Bearer ", "")
+  if (!credencial) return res.status(401).json({ error: "No autorizado" })
+  if (conSupabase()) {
+    const quien = await quienEs(credencial).catch(() => null)
+    if (!quien) return res.status(401).json({ error: "No autorizado" })
+    if (nivelDe(quien.rol) < NIVEL_ROL.gerente) {
+      return res.status(403).json({ error: "Tu cuenta no tiene acceso a Tianguis IA" })
+    }
+  } else if (credencial !== SESSION_TOKEN) {
+    return res.status(401).json({ error: "No autorizado" })
+  }
+
   const { messages } = req.body
   res.setHeader("Content-Type", "text/event-stream; charset=utf-8")
   res.setHeader("Cache-Control", "no-cache")
@@ -548,6 +564,16 @@ app.use("/api", async (req, res, next) => {
   }
 })
 
+// Esconder una pantalla en el menú no es impedir el acceso: sin esto,
+// cualquiera con sesión podía pedirle los datos a la API directamente. Si el
+// login todavía es el viejo (sin Supabase), el servidor no sabe de quién es la
+// sesión y no puede decidir nada: en ese caso deja pasar, como hasta ahora.
+const exigeNivel = (rolMin) => (req, res, next) => {
+  if (!req.usuario) return next()
+  if (nivelDe(req.usuario.rol) >= NIVEL_ROL[rolMin]) return next()
+  res.status(403).json({ error: "Tu cuenta no tiene acceso a esta sección" })
+}
+
 // ── Perfil de quien entró ──────────────────────────────
 app.get("/api/perfil", async (req, res) => {
   if (!conSupabase()) return res.json({ gestionable: false })
@@ -667,7 +693,7 @@ app.get("/api/promos", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.post("/api/promos", async (req, res) => {
+app.post("/api/promos", exigeNivel("gerente"), async (req, res) => {
   if (!promosListas()) return res.status(503).json({ error: "Falta configurar la tabla de reglas (NOCO_TABLE_PROMOS)" })
   const { nombre, tipo, activo, visible, prioridad, config } = req.body
   try {
@@ -683,7 +709,7 @@ app.post("/api/promos", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.patch("/api/promos/:id", async (req, res) => {
+app.patch("/api/promos/:id", exigeNivel("gerente"), async (req, res) => {
   if (!promosListas()) return res.status(503).json({ error: "Falta configurar la tabla de reglas (NOCO_TABLE_PROMOS)" })
   const { nombre, tipo, activo, visible, prioridad, config } = req.body
   try {
@@ -699,7 +725,7 @@ app.patch("/api/promos/:id", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.delete("/api/promos/:id", async (req, res) => {
+app.delete("/api/promos/:id", exigeNivel("gerente"), async (req, res) => {
   if (!promosListas()) return res.status(503).json({ error: "Falta configurar la tabla de reglas (NOCO_TABLE_PROMOS)" })
   try {
     await fetch(`${NOCO_URL}/api/v2/tables/${T.promos}/records`, {
@@ -873,7 +899,7 @@ app.delete("/api/catalogo/:id", async (req, res) => {
 })
 
 // ── Ventas ─────────────────────────────────────────────
-app.get("/api/ventas", async (req, res) => {
+app.get("/api/ventas", exigeNivel("directivo"), async (req, res) => {
   try {
     res.json(await nocoGet(T.ventas, "&sort=-Fecha"))
   } catch (err) {
@@ -1311,12 +1337,12 @@ const camposProveedor = (b) => {
   return out
 }
 
-app.get("/api/proveedores", async (req, res) => {
+app.get("/api/proveedores", exigeNivel("gerente"), async (req, res) => {
   try { res.json((await nocoGet(T.proveedores, "&sort=Nombre")).map(proveedorDe)) }
   catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.post("/api/proveedores", async (req, res) => {
+app.post("/api/proveedores", exigeNivel("gerente"), async (req, res) => {
   const campos = camposProveedor(req.body ?? {})
   if (!campos.Nombre) return res.status(400).json({ error: "El nombre del proveedor es obligatorio" })
   try {
@@ -1325,7 +1351,7 @@ app.post("/api/proveedores", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.patch("/api/proveedores/:id", async (req, res) => {
+app.patch("/api/proveedores/:id", exigeNivel("gerente"), async (req, res) => {
   const id = parseInt(req.params.id, 10)
   const campos = camposProveedor(req.body ?? {})
   if (!id) return res.status(400).json({ error: "Proveedor no válido" })
@@ -1338,7 +1364,7 @@ app.patch("/api/proveedores/:id", async (req, res) => {
 
 // Los depósitos guardan el nombre del proveedor al momento de registrarse,
 // así que borrar un proveedor no deja su historial sin nombre
-app.delete("/api/proveedores/:id", async (req, res) => {
+app.delete("/api/proveedores/:id", exigeNivel("gerente"), async (req, res) => {
   const id = parseInt(req.params.id, 10)
   if (!id) return res.status(400).json({ error: "Proveedor no válido" })
   try { await nocoDelete(T.proveedores, id); res.json({ ok: true }) }
@@ -1386,12 +1412,21 @@ async function camposDeposito(b, parcial = false) {
   return out
 }
 
-app.get("/api/depositos", async (req, res) => {
-  try { res.json((await nocoGet(T.depositos, "&sort=-Fecha,-Id")).map(depositoDe)) }
-  catch (err) { res.status(500).json({ error: err.message }) }
+// Dinero que sale del negocio: dirección lo ve todo, de gerente para abajo
+// cada quien ve solo los depósitos que registró. Se recorta aquí y no solo en
+// la pantalla, para que pedirlo a mano a la API tampoco los muestre.
+app.get("/api/depositos", exigeNivel("gerente"), async (req, res) => {
+  try {
+    const todos = (await nocoGet(T.depositos, "&sort=-Fecha,-Id")).map(depositoDe)
+    const quien = req.usuario
+    if (!quien || nivelDe(quien.rol) >= NIVEL_ROL.directivo) return res.json(todos)
+    const fila = await perfilDe(quien.email)
+    const mio  = (fila?.Nombre ?? "").trim().toLowerCase()
+    res.json(todos.filter(d => (d.registro ?? "").trim().toLowerCase() === mio))
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.post("/api/depositos", async (req, res) => {
+app.post("/api/depositos", exigeNivel("gerente"), async (req, res) => {
   let campos
   try { campos = await camposDeposito(req.body ?? {}) }
   catch (err) { return res.status(400).json({ error: err.message }) }
@@ -1401,7 +1436,7 @@ app.post("/api/depositos", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.patch("/api/depositos/:id", async (req, res) => {
+app.patch("/api/depositos/:id", exigeNivel("gerente"), async (req, res) => {
   const id = parseInt(req.params.id, 10)
   if (!id) return res.status(400).json({ error: "Depósito no válido" })
   let campos
@@ -1413,7 +1448,7 @@ app.patch("/api/depositos/:id", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.delete("/api/depositos/:id", async (req, res) => {
+app.delete("/api/depositos/:id", exigeNivel("gerente"), async (req, res) => {
   const id = parseInt(req.params.id, 10)
   if (!id) return res.status(400).json({ error: "Depósito no válido" })
   try { await nocoDelete(T.depositos, id); res.json({ ok: true }) }
@@ -1675,14 +1710,14 @@ app.patch("/api/caja/:id/cancelar", async (req, res) => {
 })
 
 // ── Facturas CFDI ──────────────────────────────────────────
-app.get("/api/facturas", async (req, res) => {
+app.get("/api/facturas", exigeNivel("gerente"), async (req, res) => {
   try {
     const ventas = await nocoGet(T.ventas, "&where=(Estado,eq,pagada)&sort=-Fecha")
     res.json(ventas)
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.patch("/api/facturas/:id/solicitar", async (req, res) => {
+app.patch("/api/facturas/:id/solicitar", exigeNivel("gerente"), async (req, res) => {
   const { rfc, nombreFiscal, usoCfdi, regimenReceptor, email } = req.body
   try {
     await nocoPatch(T.ventas, {
@@ -1697,7 +1732,7 @@ app.patch("/api/facturas/:id/solicitar", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.patch("/api/facturas/:id/cancelar", async (req, res) => {
+app.patch("/api/facturas/:id/cancelar", exigeNivel("gerente"), async (req, res) => {
   try {
     await nocoPatch(T.ventas, { Id: parseInt(req.params.id), Factura_JSON: "" })
     res.json({ ok: true })

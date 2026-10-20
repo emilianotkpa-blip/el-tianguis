@@ -24,6 +24,8 @@ import { getStats, getAlertas, getCatalogo, getClientes, getPrinters, printFolio
 import logoUrl from "./assets/logo.jpeg"
 import LogoAnimado from "./components/LogoAnimado"
 import { HOJAS, hojaGuardada, aplicarHoja } from "./impresion"
+import { puedeVer, esAdmin } from "../shared/roles"
+import VerComo from "./components/VerComo"
 
 function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone }) {
   const [fading, setFading] = useState(false)
@@ -166,20 +168,6 @@ function SucursalPicker({ user, onSelect }) {
   )
 }
 
-// Los roles que de verdad hay en la tabla Equipo son "Directivo" y "Empleado";
-// nadie está guardado como "gerente". Comparar la cadena exacta dejaba Reglas
-// de precio oculta para todos, incluida la dirección. Se compara por nivel.
-const NIVEL_ROL = {
-  vendedor:  1,
-  empleado:  2,
-  cajero:    2,
-  gerente:   3,
-  directivo: 4,
-  direccion: 4,
-  admin:     4,
-}
-const nivelDe = (rol) => NIVEL_ROL[String(rol ?? "").toLowerCase().trim()] ?? 1
-const puedeVer = (user, rolMin) => !rolMin || nivelDe(user?.rol) >= nivelDe(rolMin)
 
 const NAV = [
   { section: "Operación" },
@@ -187,7 +175,7 @@ const NAV = [
   { id: "balanza",           label: "Báscula",          icon: "scale" },
   { id: "caja",              label: "Caja",             icon: "receipt",  rolMin: "cajero" },
   { id: "productos",         label: "Productos",        icon: "box" },
-  { id: "facturas",          label: "Facturas",         icon: "receipt" },
+  { id: "facturas",          label: "Facturas",         icon: "receipt",  rolMin: "gerente" },
   { id: "reglas",            label: "Reglas de precio", icon: "sparkle",  rolMin: "gerente" },
   { section: "Logística" },
   { id: "pedidos-mercancia", label: "Pedidos Mercancía",icon: "truck" },
@@ -198,10 +186,11 @@ const NAV = [
   { section: "Compras" },
   { id: "proveedores",       label: "Proveedores",      icon: "building", rolMin: "gerente" },
   { id: "depositos",         label: "Depósitos",        icon: "money",    rolMin: "gerente" },
+  // Ingresos, costos y margen del negocio: solo dirección
   { section: "Reportes" },
-  { id: "utilidades",        label: "Utilidades",       icon: "chart" },
+  { id: "utilidades",        label: "Utilidades",       icon: "chart",    rolMin: "directivo" },
   { section: "Inteligencia" },
-  { id: "ia",                label: "Tianguis IA",      icon: "sparkle" },
+  { id: "ia",                label: "Tianguis IA",      icon: "sparkle",  rolMin: "gerente" },
   { section: "Mi cuenta" },
   { id: "perfil",            label: "Mi perfil",        icon: "user" },
 ]
@@ -224,9 +213,10 @@ const PAGE_INFO = {
   perfil:            { title: "Mi perfil",        parent: "Mi cuenta" },
 }
 
-function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloadedData }) {
+function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setTheme, onCambiarSucursal, preloadedData }) {
   const [page, setPage]         = useState(() => sessionStorage.getItem("elt_page") || "ventas")
   const [sharedCart, setSharedCart] = useState([])
+  const [verComoAbierto, setVerComoAbierto] = useState(false)
 
   const navTo = (p) => { setPage(p); sessionStorage.setItem("elt_page", p); setMenuAbierto(false) }
 
@@ -342,7 +332,9 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
     switch (page) {
       case "ventas":             return <VentasPage addToast={addToast} user={user} sucursalActiva={user.sucursal} preloadedCatalogo={preloadedData?.catalogo} preloadedClientes={preloadedData?.clientes} sharedCart={sharedCart} clearSharedCart={() => setSharedCart([])} onIrACaja={() => setPage("caja")} />
       case "productos":          return <ProductosPage addToast={addToast} sucursalActiva={user.sucursal} />
-      case "facturas":           return <FacturasPage addToast={addToast} />
+      case "facturas":           return puedeVer(user, "gerente")
+                                   ? <FacturasPage addToast={addToast} />
+                                   : <SinPermiso />
       case "pedidos-mercancia":  return <PedidosMercanciaPage addToast={addToast} user={user} />
       case "pedidos-clientes":   return <PedidosClientesPage addToast={addToast} />
       case "reglas":             return puedeVer(user, "gerente")
@@ -359,8 +351,12 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
       case "inventarios":        return <InventariosPage addToast={addToast} sucursalActiva={user.sucursal} />
       case "caja":               return <CajaPage addToast={addToast} sucursalActiva={user.sucursal} user={user} />
       case "balanza":            return <BásculaPage addToast={addToast} user={user} sucursalActiva={user.sucursal} sharedCartCount={sharedCart.length} onAddToVentas={(item) => { addToSharedCart(item); navTo("ventas") }} />
-      case "utilidades":         return <UtilidadesPage />
-      case "ia":                 return <TianguisIAPage />
+      case "utilidades":         return puedeVer(user, "directivo")
+                                   ? <UtilidadesPage />
+                                   : <SinPermiso />
+      case "ia":                 return puedeVer(user, "gerente")
+                                   ? <TianguisIAPage />
+                                   : <SinPermiso />
       default:                   return <VentasPage addToast={addToast} />
     }
   }
@@ -546,6 +542,13 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
           <Icon name="print" size={16} />
         </button>
 
+        {esAdmin(usuarioReal) && (
+          <button className={"header-icon-btn" + (verComo ? " prestado" : "")}
+            onClick={() => setVerComoAbierto(true)} title="Ver el panel como otra cuenta">
+            <Icon name="eye" size={16} />
+          </button>
+        )}
+
         <div style={{ width: 1, height: 24, background: "var(--border)", margin: "0 4px" }}></div>
 
         <button className="header-user" onClick={() => navTo("perfil")} title="Mi perfil">
@@ -560,9 +563,24 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
         </button>
       </header>
 
+      {verComoAbierto && (
+        <VerComo
+          usuarioReal={usuarioReal} verComo={verComo}
+          onElegir={(quien) => { onVerComo(quien); setVerComoAbierto(false) }}
+          onCerrar={() => setVerComoAbierto(false)}
+        />
+      )}
+
       {menuAbierto && <div className="menu-telon" onClick={() => setMenuAbierto(false)} />}
 
       <main className="app-main" ref={mainRef}>
+        {verComo && (
+          <div className="aviso-prestado">
+            <Icon name="eye" size={14} />
+            <span>Estás viendo el panel como <strong>{verComo.name}</strong> ({verComo.rol || "sin rol"}). Lo que registres queda a tu nombre.</span>
+            <button className="btn btn-sm" onClick={() => onVerComo(null)}>Volver a mi cuenta</button>
+          </div>
+        )}
         <ErrorBoundary key={page} title={PAGE_INFO[page]?.title}>
           {renderPage()}
         </ErrorBoundary>
@@ -814,6 +832,9 @@ function SettingsModal({ onClose, addToast }) {
 export default function App() {
   const _storedUser = (() => { try { return JSON.parse(sessionStorage.getItem("elt_user")) } catch { return null } })()
   const [user, setUser]               = useState(null)
+  // Vista prestada: admin mirando el panel como otra cuenta. Vive aparte de la
+  // sesión para que recargar no deje a nadie atrapado en la piel de otro.
+  const [verComo, setVerComo]         = useState(null)
   const [pendingUser, setPendingUser] = useState(_storedUser)
   const [splash, setSplash]           = useState(!!_storedUser)
   const [splashProgress, setSplashProgress] = useState(0)
@@ -908,11 +929,20 @@ export default function App() {
     setShowSucPicker(false)
   }, [])
 
+  const cambiarVerComo = useCallback((quien) => {
+    setVerComo(quien && esAdmin(user) ? quien : null)
+  }, [user])
+
+  // Solo se presta el nombre y el rol: la sucursal sigue siendo la que está
+  // abierta, para no mandar a nadie de vuelta al selector a media jornada.
+  const userEfectivo = verComo ? { ...user, ...verComo, role: verComo.rol } : user
+
   const handleLogout = () => {
     sessionStorage.removeItem("elt_token")
     sessionStorage.removeItem("elt_user")
     sessionStorage.removeItem("elt_page")
     setUser(null)
+    setVerComo(null)
     setShowSucPicker(false)
   }
 
@@ -925,7 +955,9 @@ export default function App() {
       )}
       {!splash && user && !showSucPicker && (
         <AppShell
-          user={user} onLogout={handleLogout}
+          user={userEfectivo} usuarioReal={user}
+          verComo={verComo} onVerComo={cambiarVerComo}
+          onLogout={handleLogout}
           theme={theme} setTheme={setTheme}
           onCambiarSucursal={() => setShowSucPicker(true)}
           preloadedData={preloadedData}

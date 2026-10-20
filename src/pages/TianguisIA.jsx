@@ -96,7 +96,12 @@ export default function TianguisIAPage() {
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // La respuesta llega en streaming, así que no pasa por apiFetch:
+          // la sesión se manda a mano.
+          Authorization: `Bearer ${sessionStorage.getItem("elt_token") ?? ""}`,
+        },
         body: JSON.stringify({
           messages: history
             .filter((m) => m.content)
