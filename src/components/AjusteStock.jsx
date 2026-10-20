@@ -3,7 +3,7 @@ import Icon from "./Icon"
 import Select from "./Select"
 import { SUCURSALES } from "../data"
 import { puedeOperarEn } from "../../shared/roles"
-import { postMovimiento } from "../api"
+import { postMovimiento, postTraspaso } from "../api"
 import { fmtBase } from "../utils"
 
 const TIPOS_MOV = [
@@ -34,6 +34,13 @@ export default function AjusteStock({
     ? sucursalInicial
     : (sucursalesPropias[0]?.short ?? SUCURSALES[0].short)
   const [suc, setSuc]     = useState(inicial)
+  // Un traspaso tiene dos puntas; el resto de los movimientos, una sola.
+  const [destino, setDestino] = useState("")
+  // Un traspaso necesita dos sucursales: a quien solo puede tocar la suya ni
+  // se le ofrece, en vez de dejarlo llegar a un formulario sin salida.
+  const tiposDisponibles = sucursalesPropias.length > 1
+    ? TIPOS_MOV
+    : TIPOS_MOV.filter(t => t.value !== "Traspaso")
   const [nivel, setNivel] = useState("pieza")
   const [cant, setCant]   = useState("")
   const [obs, setObs]     = useState("")
@@ -89,22 +96,35 @@ export default function AjusteStock({
   const enBase = (parseFloat(cant) || 0) * factorDe(nivel)
   const resta  = tipo !== "Entrada"
 
+  const esTraspaso = tipo === "Traspaso"
+
   const aplicar = async () => {
     const n = parseFloat(cant)
     if (!n || n <= 0) return addToast?.({ kind: "err", msg: "Escribe una cantidad" })
+    if (esTraspaso && !destino) return addToast?.({ kind: "err", msg: "Elige a qué sucursal va" })
+    if (esTraspaso && destino === suc) return addToast?.({ kind: "err", msg: "El origen y el destino son el mismo" })
     setGuardando(true)
     try {
-      await postMovimiento({
-        tipo,
-        producto_codigo: parseInt(producto.sku, 10),
-        sucursal:        suc,
-        cantidad:        n,
-        nivel,
-        factor:          factorDe(nivel),
-        descripcion:     producto.name,
-        observaciones:   obs,
-      })
-      addToast?.({ kind: "ok", msg: "Movimiento registrado" })
+      if (esTraspaso) {
+        await postTraspaso({
+          producto_codigo: parseInt(producto.sku, 10),
+          origen: suc, destino,
+          cantidad: n, nivel, factor: factorDe(nivel),
+          observaciones: obs,
+        })
+      } else {
+        await postMovimiento({
+          tipo,
+          producto_codigo: parseInt(producto.sku, 10),
+          sucursal:        suc,
+          cantidad:        n,
+          nivel,
+          factor:          factorDe(nivel),
+          descripcion:     producto.name,
+          observaciones:   obs,
+        })
+      }
+      addToast?.({ kind: "ok", msg: esTraspaso ? "Mercancía traspasada" : "Movimiento registrado" })
       setCant(""); setObs("")
       onAplicado?.()
     } catch (err) {
@@ -128,16 +148,28 @@ export default function AjusteStock({
       <div className="form-grid cols-2">
         <div className="form-row" style={{ gridColumn: "1/-1" }}>
           <label>Tipo de movimiento</label>
-          <Select value={tipo} onChange={e => setTipo(e.target.value)} options={TIPOS_MOV} />
+          <Select value={tipo} onChange={e => setTipo(e.target.value)} options={tiposDisponibles} />
         </div>
         <div className="form-row">
-          <label>Sucursal</label>
+          <label>{esTraspaso ? "Sale de" : "Sucursal"}</label>
           <Select
             value={suc}
             onChange={e => setSuc(e.target.value)}
             options={sucursalesPropias.map(s => ({ value: s.short, label: s.name, hint: s.desc }))}
           />
         </div>
+        {esTraspaso && (
+          <div className="form-row">
+            <label>Entra en</label>
+            <Select
+              value={destino}
+              onChange={e => setDestino(e.target.value)}
+              placeholder="¿A qué sucursal?"
+              options={sucursalesPropias.filter(s => s.short !== suc)
+                .map(s => ({ value: s.short, label: s.name, hint: s.desc }))}
+            />
+          </div>
+        )}
         <div className="form-row">
           <label>Unidad de entrada</label>
           <Select value={nivel} onChange={e => setNivel(e.target.value)} options={unidades} />

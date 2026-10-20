@@ -1005,8 +1005,59 @@ app.get("/api/movimientos", async (req, res) => {
   }
 })
 
+// Traspaso entre sucursales. Antes era un tipo de movimiento más: restaba de
+// la sucursal elegida y no sumaba en ninguna otra, o sea que la mercancía
+// desaparecía. Ahora pide las dos puntas y mueve de verdad.
+app.post("/api/traspasos", async (req, res) => {
+  const { producto_codigo, origen, destino, cantidad, nivel, factor, observaciones } = req.body ?? {}
+  const org = columnaSucursal(origen)
+  const dst = columnaSucursal(destino)
+  if (!normalizaSucursal(origen) || !normalizaSucursal(destino)) {
+    return res.status(400).json({ error: "Falta decir de dónde sale y a dónde va" })
+  }
+  if (org === dst) return res.status(400).json({ error: "El origen y el destino son la misma sucursal" })
+
+  const qty = Number(cantidad) || 0
+  if (qty <= 0) return res.status(400).json({ error: "La cantidad debe ser mayor a cero" })
+
+  // Un traspaso toca las dos sucursales, así que hay que poder operar en las
+  // dos: quien tiene su sucursal fija no mueve mercancía ajena.
+  if (req.usuario && !(puedeOperarEn(req.usuario, origen) && puedeOperarEn(req.usuario, destino))) {
+    return res.status(403).json({ error: "Tu cuenta no puede mover mercancía entre esas sucursales" })
+  }
+
+  try {
+    const codigo = parseInt(producto_codigo, 10)
+    const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${codigo})`)
+    if (!rows.length) return res.status(404).json({ error: "Producto no encontrado en stock" })
+    const row = rows[0]
+    const f = Number(factor) || 1
+    const base = qty * f
+    const hay = row[org] ?? 0
+    if (base > hay) {
+      return res.status(409).json({
+        error: `${org} solo tiene ${Math.floor(hay / f)} de esa presentación`,
+        hay: Math.floor(hay / f), pide: qty,
+      })
+    }
+    const prod = await nocoGet(T.productos, `&where=(Codigo,eq,${codigo})&limit=1`)
+    await traspasarStock({
+      row, origen: org, destino: dst, qty, factor: f,
+      nivel: nivel || (f > 1 ? "paq" : "pieza"),
+      nombre: prod[0]?.Descripcion ?? String(codigo), codigo,
+      detalle: `Traspaso · ${qty}${observaciones ? ` · ${observaciones}` : ""}`,
+    })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
 app.post("/api/movimientos", exigeSucursal(), async (req, res) => {
   const { tipo, producto_codigo, sucursal, cantidad, descripcion, observaciones, nivel, factor } = req.body
+  // Un traspaso tiene dos puntas y aquí solo llega una: iba a restar de esta
+  // sucursal sin sumar en ninguna otra.
+  if (tipo === "Traspaso") {
+    return res.status(400).json({ error: "Un traspaso se registra en /api/traspasos, con origen y destino" })
+  }
   try {
     await nocoPost(T.movimientos, {
       Fecha: fechaNegocio(),
@@ -1211,6 +1262,52 @@ app.get("/api/equipo", exigeNivel("directivo"), async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+// Mueve mercancía de una sucursal a otra: el stock base, el conteo por
+// presentación y los dos renglones del historial. La usan los pedidos y los
+// traspasos a mano, para que las dos formas de mover cuadren igual y ninguna
+// se quede sin dejar rastro.
+async function traspasarStock({ row, origen, destino, qty, factor, nivel, nombre, codigo, detalle }) {
+  const base = qty * factor
+  const patch = { Id: row.Id }
+  const saldo = { Centro: row.Centro ?? 0, Repostero: row.Repostero ?? 0, Bodega: row.Bodega ?? 0 }
+  if (origen)  saldo[origen]  -= base
+  if (destino) saldo[destino] += base
+  patch.Centro = saldo.Centro
+  patch.Repostero = saldo.Repostero
+  patch.Bodega = saldo.Bodega
+  patch.Total = saldo.Centro + saldo.Repostero + saldo.Bodega
+
+  // El conteo por presentación también se mueve: si no, la pantalla de ventas
+  // sigue creyendo que las cajas están donde ya no están.
+  let niveles = { centro: {}, repostero: {}, bodega: {} }
+  try { if (row.StockNiveles) niveles = JSON.parse(row.StockNiveles) } catch {}
+  const mueveNivel = (campo, delta) => {
+    if (!campo) return
+    const k = campo.toLowerCase()
+    niveles[k] = { ...(niveles[k] ?? {}) }
+    niveles[k][nivel] = Math.max(0, (niveles[k][nivel] ?? 0) + delta)
+  }
+  mueveNivel(origen, -qty)
+  mueveNivel(destino, qty)
+  patch.StockNiveles = JSON.stringify(niveles)
+  await nocoPatch(T.stock, patch)
+
+  if (origen) {
+    await nocoPost(T.movimientos, {
+      Fecha: fechaNegocio(), Tipo: "Salida", Producto_Codigo: codigo,
+      Descripcion: nombre, Sucursal: origen.toLowerCase(), Cantidad: base,
+      Observaciones: `${detalle}${destino ? ` → ${destino}` : ""}`,
+    })
+  }
+  if (destino) {
+    await nocoPost(T.movimientos, {
+      Fecha: fechaNegocio(), Tipo: "Entrada", Producto_Codigo: codigo,
+      Descripcion: nombre, Sucursal: destino.toLowerCase(), Cantidad: base,
+      Observaciones: `${detalle}${origen ? ` ← ${origen}` : ""}`,
+    })
+  }
+}
+
 // "Tianguis Repostero" → la columna Repostero de la tabla de stock.
 const columnaSucursal = (v) => {
   const n = normalizaSucursal(v)
@@ -1339,43 +1436,17 @@ app.post("/api/pedidos-mercancia/:id/avanzar", async (req, res) => {
         return res.status(409).json({ error: "Bodega no tiene todo lo que trae el pedido", faltantes })
       }
 
-      for (const { row, item, factor, base, deBodega, nombreIt } of plan) {
-        const patch = { Id: row.Id }
-        patch[campoDest] = (row[campoDest] ?? 0) + base
-        if (deBodega) patch.Bodega = (row.Bodega ?? 0) - base
-        patch.Total = (campoDest === "Centro"    ? patch[campoDest] : (row.Centro    ?? 0))
-                    + (campoDest === "Repostero" ? patch[campoDest] : (row.Repostero ?? 0))
-                    + (patch.Bodega              ?? (row.Bodega     ?? 0))
-
-        // El conteo por presentación también se mueve: si no, la pantalla de
-        // ventas sigue creyendo que las cajas están en bodega.
-        const nivel = item.nivel ?? (factor > 1 ? "paq" : "pieza")
-        let niveles = { centro: {}, repostero: {}, bodega: {} }
-        try { if (row.StockNiveles) niveles = JSON.parse(row.StockNiveles) } catch {}
-        const destKey = campoDest.toLowerCase()
-        niveles[destKey] = { ...(niveles[destKey] ?? {}) }
-        niveles[destKey][nivel] = (niveles[destKey][nivel] ?? 0) + (Number(item.qty) || 0)
-        if (deBodega) {
-          niveles.bodega = { ...(niveles.bodega ?? {}) }
-          niveles.bodega[nivel] = Math.max(0, (niveles.bodega[nivel] ?? 0) - (Number(item.qty) || 0))
-        }
-        patch.StockNiveles = JSON.stringify(niveles)
-        await nocoPatch(T.stock, patch)
-
-        // Y queda rastro en el historial de inventario, que antes no se
-        // enteraba de los traspasos.
-        const detalle = `Pedido ${pedido.Folio ?? id} · ${item.qty} ${item.presLabel ?? "pza"}`
-        if (deBodega) {
-          await nocoPost(T.movimientos, {
-            Fecha: fechaNegocio(), Tipo: "Salida", Producto_Codigo: parseInt(item.sku, 10),
-            Descripcion: nombreIt, Sucursal: "bodega", Cantidad: base,
-            Observaciones: `${detalle} → ${campoDest}`,
-          })
-        }
-        await nocoPost(T.movimientos, {
-          Fecha: fechaNegocio(), Tipo: "Entrada", Producto_Codigo: parseInt(item.sku, 10),
-          Descripcion: nombreIt, Sucursal: destKey, Cantidad: base,
-          Observaciones: deBodega ? `${detalle} ← bodega` : detalle,
+      for (const { row, item, factor, deBodega, nombreIt } of plan) {
+        await traspasarStock({
+          row,
+          origen:  deBodega ? "Bodega" : null,
+          destino: campoDest,
+          qty:     Number(item.qty) || 0,
+          factor,
+          nivel:   item.nivel ?? (factor > 1 ? "paq" : "pieza"),
+          nombre:  nombreIt,
+          codigo:  parseInt(item.sku, 10),
+          detalle: `Pedido ${pedido.Folio ?? id} · ${item.qty} ${item.presLabel ?? "pza"}`,
         })
       }
 

@@ -102,7 +102,7 @@ export default function EquipoPage({ addToast }) {
                     <td data-label="Sucursal" style={{ minWidth: 190 }}>
                       <Select
                         value={p.sucursal ?? ""}
-                        onChange={(v) => cambiarSucursal(p, v)}
+                        onChange={(e) => cambiarSucursal(p, e.target.value)}
                         options={OPCIONES}
                         disabled={guardando === p.id}
                         ariaLabel={`Sucursal de ${p.nombre}`}

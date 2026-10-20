@@ -76,6 +76,7 @@ export const patchVenta         = (id, b)  => apiFetch(`/api/ventas/${id}`, patc
 
 export const getMovimientos     = ()       => apiFetch("/api/movimientos")
 export const postMovimiento     = (b)      => apiFetch("/api/movimientos", json(b))
+export const postTraspaso       = (b)      => apiFetch("/api/traspasos", json(b))
 export const postAbrirCaja      = (b)      => apiFetch("/api/abrir-caja", json(b))
 
 export const getPedidosClientes  = ()      => apiFetch("/api/pedidos-clientes")
