@@ -31,16 +31,37 @@ app.use(express.static(join(__dirname, "../dist"), {
 // ── OpenAI ─────────────────────────────────────────────
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-const SYSTEM = `Eres el asistente de inteligencia artificial de "El Tianguis", un negocio familiar de bolsas, vasos y desechables con 3 ubicaciones: Sucursal Centro, Sucursal Repostero y Bodega central. El equipo usa este panel administrativo para gestionar ventas, inventario, pedidos a proveedores y pedidos de clientes.
+// El prompt se arma con quién está preguntando: no es lo mismo contestarle a
+// dirección que a alguien de mostrador, y conviene que sepa desde qué sucursal
+// le hablan. Lo que lo hacía inútil era no saber nada concreto del negocio ni
+// de cómo se cuenta la mercancía.
+const promptSistema = (quien) => `Eres "Tianguis IA", el asistente del panel administrativo de EL TIANGUIS, un negocio familiar en Yucatán que vende bolsas, desechables e insumos de repostería, al mayoreo y al menudeo.
 
-Tu rol es ayudar al equipo operativo con:
-- Dudas sobre inventario y stock por sucursal
-- Análisis de ventas y utilidades
-- Gestión de pedidos de mercancía y clientes
-- Operación general del negocio
-- Sugerencias y buenas prácticas comerciales
+## Con quién estás hablando
+${quien?.nombre ? `${quien.nombre}, ${quien.rol ?? "del equipo"}${quien.sucursal ? `, trabajando desde ${quien.sucursal}` : ""}.` : "Alguien del equipo."}
+Háblale de tú y por su nombre de pila cuando venga al caso.
 
-Responde siempre en español, de manera concisa y profesional. Si necesitas datos en tiempo real que no tienes, indícalo y sugiere dónde encontrarlos en el panel.`
+## Cómo está armado el negocio
+- Tres ubicaciones: **Tianguis Centro** y **Tianguis Repostero** son las tiendas; **Bodega** surte a las dos y no vende al público.
+- Cuando una tienda necesita mercancía le hace un pedido a bodega. El inventario se mueve cuando la tienda confirma que el pedido LLEGÓ, no antes.
+- Estados de un pedido: solicitado → preparando → en camino → entregado → regresando → finalizado.
+- Una venta nace como nota (borrador), pasa a caja y se cierra al cobrarse.
+
+## Cómo se cuenta la mercancía (esto importa, no lo confundas)
+- El stock se guarda en **unidad base**: piezas, o gramos en lo que se vende por kilo.
+- Cada producto tiene **presentaciones** con un factor: una "Caja" puede ser 3,000 piezas y un "Paq. 50 pzs" son 50. Una caja NO es una pieza.
+- Si preguntan cuántas cajas hay, divide las piezas entre el factor de esa caja y redondea hacia abajo.
+- El precio "desde" es el más barato por pieza, normalmente el de la presentación más grande.
+
+## Reglas al responder
+1. **Solo cifras del bloque de datos de abajo.** Si algo no está ahí, dilo claro y di en qué pantalla se ve: Inventarios, Ventas, Caja, Pedidos Mercancía, Pedidos Clientes, Utilidades, Equipo, Depósitos o Proveedores.
+2. **No inventes** productos, folios, personas, precios ni cantidades. Si no estás seguro, dilo.
+3. Tú no ejecutas nada: no mueves inventario ni creas pedidos. Cuando la pregunta implique una acción, explica dónde hacerla en el panel.
+4. Dinero en pesos mexicanos, con separador de miles y dos decimales: $1,234.50.
+5. Español de México, directo. Nada de "como modelo de lenguaje" ni rodeos.
+6. **Breve**: de dos a cinco líneas. Lista solo si son tres o más puntos; tabla solo si de verdad comparas varias cosas.
+7. Si en los datos ves algo que huele mal y viene al caso —stock en negativo, algo agotado en las dos tiendas, un producto sin precio— menciónalo aunque no te lo pregunten.
+8. Los datos son una foto del momento, no una consulta en vivo. Si piden algo de hace un rato, sugiere abrir una conversación nueva.`
 
 // ── NocoDB ─────────────────────────────────────────────
 // El negocio está en Yucatán y el servidor corre en UTC: con toISOString(),
@@ -187,52 +208,111 @@ async function faltantesDe(items, campo) {
 }
 
 // ── Contexto IA ────────────────────────────────────────
-async function buildContexto() {
+// Lo que el asistente sabe del negocio. Antes solo recibía un conteo ("120
+// normales, 8 bajos") y por eso no podía contestar nada concreto: ni cuánto
+// hay de un producto, ni quién trabaja ahí. Ahora recibe el catálogo producto
+// por producto, el equipo y las cifras del día, en un formato apretado para
+// que quepa sin costar una fortuna.
+const NL = String.fromCharCode(10)   // salto de línea
+const PRODUCTOS_EN_CONTEXTO = 400
+const num = (n) => Number(n ?? 0).toLocaleString("es-MX")
+const pesos = (n) => "$" + Number(n ?? 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+async function buildContexto(quien) {
   try {
-    const [prods, stocks, ventas, pedCli, pedMer] = await Promise.all([
-      nocoGet(T.productos),
+    const [prods, stocks, ventas, pedCli, pedMer, equipo] = await Promise.all([
+      nocoGet(T.productos, "&where=(Activo,neq,false)"),
       nocoGet(T.stock),
-      nocoGet(T.ventas, "&sort=-Fecha&limit=20"),
+      nocoGet(T.ventas, "&sort=-Fecha&limit=60"),
       nocoGet(T.pedidosClientes, "&sort=-Fecha&limit=10"),
-      nocoGet(T.pedidosMercancia, "&sort=-Fecha&limit=10"),
+      nocoGet(T.pedidosMercancia, "&sort=-Id&limit=12"),
+      nocoGet(T.equipo, "&sort=Nombre"),
     ])
     const stockMap = Object.fromEntries(stocks.map((s) => [s.Producto_Codigo, s]))
+
     const resumen = { centro: { ok: 0, bajo: 0, agotado: 0 }, repostero: { ok: 0, bajo: 0, agotado: 0 }, bodega: { ok: 0, bajo: 0, agotado: 0 } }
-    const alertas = []
-    prods.forEach((p) => {
-      const s = stockMap[p.Codigo] ?? {}
+    const agotadoEnTiendas = []
+    const negativos = []
+    const sinPrecio = []
+    const conStock = []
+    const enCero = []
+
+    for (const p of prods) {
+      const st = stockMap[p.Codigo] ?? {}
       const min = p.Stock_Minimo || 5
-      ;["Centro", "Repostero", "Bodega"].forEach((campo) => {
-        const v = s[campo] ?? 0
-        const key = campo.toLowerCase()
-        if      (v <= 0)  { resumen[key].agotado++; alertas.push(`${p.Descripcion} — ${campo}: AGOTADO`) }
-        else if (v < min) { resumen[key].bajo++;    alertas.push(`${p.Descripcion} — ${campo}: BAJO (${v}, mín ${min})`) }
-        else              { resumen[key].ok++ }
-      })
-    })
-    const totalVentas = ventas.reduce((s, v) => s + (v.Total ?? 0), 0)
-    return `
-=== DATOS EN TIEMPO REAL (${new Date().toLocaleDateString("es-MX")}) ===
+      const c = st.Centro ?? 0, r = st.Repostero ?? 0, b = st.Bodega ?? 0
+      for (const [clave, v] of [["centro", c], ["repostero", r], ["bodega", b]]) {
+        if (v <= 0) resumen[clave].agotado++
+        else if (v < min) resumen[clave].bajo++
+        else resumen[clave].ok++
+        if (v < 0) negativos.push(`${p.Descripcion} — ${clave}: ${v}`)
+      }
+      if (c <= 0 && r <= 0) agotadoEnTiendas.push(`${p.Descripcion} (bodega: ${num(b)})`)
+      if (!(p.Precio > 0)) sinPrecio.push(p.Descripcion ?? String(p.Codigo))
 
-INVENTARIO — ${prods.length} productos totales
-  Centro:    ${resumen.centro.ok} normales, ${resumen.centro.bajo} bajos, ${resumen.centro.agotado} agotados
-  Repostero: ${resumen.repostero.ok} normales, ${resumen.repostero.bajo} bajos, ${resumen.repostero.agotado} agotados
-  Bodega:    ${resumen.bodega.ok} normales, ${resumen.bodega.bajo} bajos, ${resumen.bodega.agotado} agotados
+      // Alguna ficha vieja guarda ahí algo que no es una lista: si se asume
+      // que siempre lo es, el contexto entero se cae y la IA se queda ciega.
+      let pres = []
+      try { pres = JSON.parse(p.Presentaciones || "[]") } catch {}
+      if (!Array.isArray(pres)) pres = []
+      const tamanos = pres.filter(x => x && x.activo !== false)
+        .map(x => `${x.label} ${x.factor ? `x${x.factor}` : ""}${x.precio > 0 ? ` ${pesos(x.precio)}` : ""}`.trim())
+        .join(", ")
+      const linea = `${String(p.Codigo).padStart(4, "0")} ${p.Descripcion} | C ${num(c)} · R ${num(r)} · B ${num(b)}${tamanos ? ` | ${tamanos}` : ""}`
+      // El catálogo no cabe entero, así que primero va lo que de verdad hay:
+      // de nada sirve llenar el contexto con cientos de productos en cero y
+      // dejar fuera los que sí están en el anaquel.
+      ;(c + r + b > 0 ? conStock : enCero).push(linea)
+    }
 
-ALERTAS DE STOCK (primeras 30):
-${alertas.slice(0, 30).map((a) => "  • " + a).join("\n") || "  Sin alertas."}
+    // Ventas: el total del día y del mes, no solo "las últimas 20"
+    const hoy = fechaNegocio()
+    const mes = hoy.slice(0, 7)
+    const delDia = ventas.filter(v => String(v.Fecha ?? "").slice(0, 10) === hoy)
+    const delMes = ventas.filter(v => String(v.Fecha ?? "").slice(0, 7) === mes)
+    const suma = (lista) => lista.reduce((s, v) => s + (v.Total ?? 0), 0)
 
-ÚLTIMAS VENTAS (${ventas.length} registros, total $${totalVentas.toFixed(2)}):
-${ventas.slice(0, 10).map((v) => `  ${v.Fecha} | ${v.Cliente} | ${v.MetodoPago} | $${v.Total} | ${v.Estado ?? "pagada"}`).join("\n") || "  Sin ventas registradas."}
+    const nivelesEquipo = equipo
+      .filter(u => u.Activo !== false && u.Activo !== 0)
+      .map(u => `${u.Nombre} — ${u.Rol ?? "sin rol"} (nivel ${nivelDe(u.Rol)})${u.Puesto ? `, ${u.Puesto}` : ""}${u.Sucursal ? ` · ${u.Sucursal}` : " · sin sucursal asignada"}`)
 
-PEDIDOS DE CLIENTES RECIENTES:
-${pedCli.slice(0, 5).map((p) => `  ${p.Folio} | ${p.Cliente} | ${p.Estado} | $${p.Total}`).join("\n") || "  Sin pedidos."}
-
-PEDIDOS DE MERCANCÍA RECIENTES:
-${pedMer.slice(0, 5).map((p) => `  ${p.Folio} | ${p.Proveedor} | ${p.Estado} | $${p.Total}`).join("\n") || "  Sin pedidos."}
-`
+    return [
+      `=== DATOS DEL NEGOCIO · ${hoy} ${horaNegocio()} ===`,
+      quien?.nombre ? `Quien pregunta: ${quien.nombre} (${quien.rol}).` : "",
+      "",
+      `VENTAS`,
+      `  Hoy: ${delDia.length} nota(s), ${pesos(suma(delDia))}`,
+      `  En lo que va del mes: ${delMes.length} nota(s), ${pesos(suma(delMes))}`,
+      `  Últimas: ${ventas.slice(0, 8).map(v => `${v.Folio ?? "s/f"} ${v.Fecha} ${v.Cliente ?? "Mostrador"} ${pesos(v.Total)}`).join(" | ") || "ninguna"}`,
+      "",
+      `INVENTARIO · ${prods.length} productos activos`,
+      `  Centro:    ${resumen.centro.ok} con stock, ${resumen.centro.bajo} bajos, ${resumen.centro.agotado} agotados`,
+      `  Repostero: ${resumen.repostero.ok} con stock, ${resumen.repostero.bajo} bajos, ${resumen.repostero.agotado} agotados`,
+      `  Bodega:    ${resumen.bodega.ok} con stock, ${resumen.bodega.bajo} bajos, ${resumen.bodega.agotado} agotados`,
+      negativos.length ? `  OJO, stock en negativo (algo se registró mal): ${negativos.slice(0, 10).join(" | ")}` : "",
+      agotadoEnTiendas.length ? `  Agotado en LAS DOS tiendas (${agotadoEnTiendas.length}): ${agotadoEnTiendas.slice(0, 15).join(" | ")}` : "",
+      sinPrecio.length ? `  Sin precio capturado (${sinPrecio.length}): ${sinPrecio.slice(0, 10).join(" | ")}` : "",
+      "",
+      `CATÁLOGO — código, nombre, piezas en cada lugar (C=Centro, R=Repostero, B=Bodega) y tamaños con su precio`,
+      conStock.join(NL) || "  (ningún producto con existencias)",
+      enCero.length ? `  --- sin existencias en ningún lado (${enCero.length}) ---` : "",
+      enCero.slice(0, Math.max(0, PRODUCTOS_EN_CONTEXTO - conStock.length)).join(NL),
+      enCero.length > PRODUCTOS_EN_CONTEXTO - conStock.length
+        ? `  …y ${enCero.length - Math.max(0, PRODUCTOS_EN_CONTEXTO - conStock.length)} productos más, todos en cero; búscalos en Inventarios.`
+        : "",
+      "",
+      `PEDIDOS DE MERCANCÍA (bodega → tienda)`,
+      pedMer.slice(0, 8).map(p => `  ${p.Folio} · ${p.Destino} · ${p.Estado ?? "solicitado"}`).join(NL) || "  ninguno",
+      "",
+      `PEDIDOS DE CLIENTES`,
+      pedCli.slice(0, 6).map(p => `  ${p.Folio} · ${p.Cliente} · ${p.Estado} · ${pesos(p.Total)}`).join(NL) || "  ninguno",
+      "",
+      `EQUIPO (quién puede entrar al panel)`,
+      nivelesEquipo.map(l => "  " + l).join(NL) || "  nadie dado de alta",
+      `  Niveles: 1 vendedor · 2 empleado/cajero · 3 gerente · 4 dirección · 5 admin.`,
+    ].filter(Boolean).join(NL)
   } catch (err) {
-    return `(No se pudieron cargar datos en tiempo real: ${err.message})`
+    return `(No se pudieron cargar los datos del negocio: ${err.message}. Dilo si te preguntan cifras.)`
   }
 }
 
@@ -242,12 +322,14 @@ app.post("/api/chat", async (req, res) => {
   // nivel de dirección.
   const credencial = req.headers["authorization"]?.replace("Bearer ", "")
   if (!credencial) return res.status(401).json({ error: "No autorizado" })
+  let quienPregunta = null
   if (conSupabase()) {
     const quien = await quienEs(credencial).catch(() => null)
     if (!quien) return res.status(401).json({ error: "No autorizado" })
     if (nivelDe(quien.rol) < NIVEL_ROL.directivo) {
       return res.status(403).json({ error: "Tu cuenta no tiene acceso a Tianguis IA" })
     }
+    quienPregunta = quien
   } else if (credencial !== SESSION_TOKEN) {
     return res.status(401).json({ error: "No autorizado" })
   }
@@ -258,11 +340,14 @@ app.post("/api/chat", async (req, res) => {
   res.setHeader("Connection", "keep-alive")
   res.setHeader("Access-Control-Allow-Origin", "*")
   try {
-    const contexto = await buildContexto()
+    const contexto = await buildContexto(quienPregunta)
+    // Útil para vigilar lo que cuesta cada pregunta; VER_CONTEXTO=1 lo vuelca entero.
+    console.log(`IA · contexto ${contexto.length} caracteres · pregunta ${quienPregunta?.nombre ?? "sin identificar"}`)
+    if (process.env.VER_CONTEXTO) console.log(contexto)
     const stream = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: 1024,
-      messages: [{ role: "system", content: SYSTEM + "\n\n" + contexto }, ...messages],
+      messages: [{ role: "system", content: promptSistema(quienPregunta) + "\n\n" + contexto }, ...messages],
       stream: true,
     })
     for await (const chunk of stream) {

@@ -1,7 +1,17 @@
 import { useState, useRef, useEffect } from "react"
 import Icon from "../components/Icon"
 
-const WELCOME = "¡Hola! Soy el asistente de **El Tianguis**. Puedo ayudarte con inventario, ventas, pedidos y cualquier duda sobre la operación del negocio. ¿En qué te puedo ayudar?"
+// El saludo también enseña a usarlo: si no se dice qué sabe, la gente
+// pregunta cualquier cosa, se topa con un "no tengo acceso" y no vuelve.
+const WELCOME = [
+  "¡Hola! Soy **Tianguis IA**. Veo el catálogo con las existencias de cada sucursal, las ventas del día y del mes, los pedidos en curso y quién está en el equipo.",
+  "",
+  "Pruébame con algo así:",
+  "- ¿Cuántas cajas de bolsas poliseda quedan en bodega?",
+  "- ¿Qué se agotó en las dos tiendas?",
+  "- ¿Cuánto llevamos vendido hoy?",
+  "- ¿Qué pedidos están en camino?",
+].join(String.fromCharCode(10))
 
 // El modelo responde en markdown. Se interpreta a JSX (nunca a HTML crudo:
 // el texto viene de fuera, así que no se inyecta al DOM sin pasar por React).
