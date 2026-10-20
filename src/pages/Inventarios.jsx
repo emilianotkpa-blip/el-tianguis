@@ -10,6 +10,7 @@ import { useComparador, MAX_COMPARAR } from "../components/Comparador"
 import Select from "../components/Select"
 import CountUp from "../components/CountUp"
 import AjusteStock from "../components/AjusteStock"
+import PastillaMantener from "../components/PastillaMantener"
 
 // ── Modal Recepción masiva ─────────────────────────────
 function RecepcionModal({ productos, onClose, onDone, addToast }) {
@@ -191,6 +192,12 @@ function RecepcionModal({ productos, onClose, onDone, addToast }) {
   )
 }
 
+// "1 alertas" se lee mal en una pastilla que es justo lo único que se ve.
+const avisosDe = (s) => {
+  const n = s.bajo + s.agotado
+  return n === 0 ? "OK" : n === 1 ? "1 alerta" : `${n} alertas`
+}
+
 export default function InventariosPage({ addToast, sucursalActiva, user }) {
   const initSuc = sucursalActiva ?? "centro"
   const initSucShort = SUCURSALES.find(s => s.id === initSuc)?.short ?? "Centro"
@@ -301,14 +308,30 @@ export default function InventariosPage({ addToast, sucursalActiva, user }) {
         </div>
       </div>
 
+      {/* En pantalla ancha caben las tres pestañas y cambiar es un toque. En el
+          teléfono se salían de la pantalla, así que se vuelven una sola
+          pastilla que despliega las demás al mantenerla presionada. */}
       <div className="sucursal-tabs">
         {stockTotals.map((s) => (
           <button key={s.id} className={"sucursal-tab" + (suc === s.id ? " active" : "")} onClick={() => setSuc(s.id)}>
             <Icon name={s.id === "bodega" ? "warehouse" : "building"} size={14} />
             {s.name}
-            <span className="stock-mini">{s.bajo + s.agotado > 0 ? `${s.bajo + s.agotado} alertas` : "OK"}</span>
+            <span className="stock-mini">{avisosDe(s)}</span>
           </button>
         ))}
+      </div>
+
+      <div className="solo-movil">
+        <PastillaMantener
+          valor={suc}
+          onElegir={(id) => { setSuc(id); setPage(1) }}
+          opciones={stockTotals.map(s => ({
+            id: s.id,
+            titulo: s.name,
+            icono: <Icon name={s.id === "bodega" ? "warehouse" : "building"} size={15} />,
+            insignia: avisosDe(s),
+          }))}
+        />
       </div>
 
       <div className="kpi-grid">
