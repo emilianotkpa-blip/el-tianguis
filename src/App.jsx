@@ -184,7 +184,7 @@ const NAV = [
   { id: "inventarios",       label: "Inventarios",      icon: "warehouse" },
   // Dinero que sale del negocio y datos bancarios: solo dirección
   { section: "Compras" },
-  { id: "proveedores",       label: "Proveedores",      icon: "building", rolMin: "gerente" },
+  { id: "proveedores",       label: "Proveedores",      icon: "building", rolMin: "directivo" },
   { id: "depositos",         label: "Depósitos",        icon: "money",    rolMin: "gerente" },
   // Ingresos, costos y margen del negocio: solo dirección
   { section: "Reportes" },
@@ -340,7 +340,7 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
       case "reglas":             return puedeVer(user, "gerente")
                                    ? <ReglasPage addToast={addToast} />
                                    : <SinPermiso />
-      case "proveedores":        return puedeVer(user, "gerente")
+      case "proveedores":        return puedeVer(user, "directivo")
                                    ? <ProveedoresPage addToast={addToast} />
                                    : <SinPermiso />
       case "depositos":          return puedeVer(user, "gerente")

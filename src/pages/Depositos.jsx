@@ -6,7 +6,7 @@ import Confirm from "../components/Confirm"
 import Select from "../components/Select"
 import { getDepositos, postDeposito, patchDeposito, deleteDeposito, getProveedores, getEquipoLista } from "../api"
 import { exportCSV, fmtMoney, fmtFecha, hoyLocal } from "../utils"
-import { veTodosLosDepositos } from "../../shared/roles"
+import { veTodosLosDepositos, depositoVisible, DIAS_DEPOSITO_VISIBLE } from "../../shared/roles"
 
 const PERIODOS = [
   { value: "mes",      label: "Este mes" },
@@ -52,17 +52,16 @@ export default function DepositosPage({ addToast, user }) {
   const [confirmDel, setConfirmDel]   = useState(null)
 
   // Dirección ve todo el dinero que sale; de gerente para abajo, cada quien ve
-  // solo los depósitos que registró. Se filtra aquí, de una vez, para que los
-  // totales, el buscador y la exportación cuenten lo mismo que la lista.
+  // solo los depósitos que registró y solo unos días. El servidor ya recorta
+  // lo mismo; aquí se repite para que "ver como" muestre de verdad lo que ve
+  // esa persona, y para que totales, buscador y exportación cuenten igual.
   const soloMios = !veTodosLosDepositos(user)
-  const esMio = (d) =>
-    (d.registro ?? "").trim().toLowerCase() === (user?.name ?? "").trim().toLowerCase()
 
   const cargar = async () => {
     setLoading(true)
     try {
       const [d, p] = await Promise.all([getDepositos(), getProveedores()])
-      setDepositos(soloMios ? d.filter(esMio) : d)
+      setDepositos(soloMios ? d.filter(x => depositoVisible(x, user)) : d)
       setProveedores(p)
     } catch (err) { addToast({ kind: "err", msg: err.message }) }
     finally { setLoading(false) }
@@ -139,7 +138,7 @@ export default function DepositosPage({ addToast, user }) {
           <h1 className="page-title">Depósitos a proveedores</h1>
           <p className="page-subtitle">
             A quién se le pagó, cuánto, cuándo y quién lo llevó
-            {soloMios && " · aquí ves solo los que tú registraste"}
+            {soloMios && ` · aquí ves solo los que tú registraste, de los últimos ${DIAS_DEPOSITO_VISIBLE} días`}
           </p>
         </div>
         <div className="page-actions">

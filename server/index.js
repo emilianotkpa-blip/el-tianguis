@@ -8,7 +8,7 @@ import { ReadlineParser } from "@serialport/parser-readline"
 import { execFile } from "child_process"
 import { writeFileSync, unlinkSync } from "fs"
 import { tmpdir } from "os"
-import { nivelDe, NIVEL_ROL } from "../shared/roles.js"
+import { nivelDe, NIVEL_ROL, depositoVisible } from "../shared/roles.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -1349,11 +1349,19 @@ const camposProveedor = (b) => {
 }
 
 app.get("/api/proveedores", exigeNivel("gerente"), async (req, res) => {
-  try { res.json((await nocoGet(T.proveedores, "&sort=Nombre")).map(proveedorDe)) }
-  catch (err) { res.status(500).json({ error: err.message }) }
+  try {
+    const todos = (await nocoGet(T.proveedores, "&sort=Nombre")).map(proveedorDe)
+    // Gerencia no entra a Proveedores, pero sí necesita la lista de nombres
+    // para registrar un depósito: se le manda eso y nada más. El banco, la
+    // cuenta y el RFC son de dirección.
+    if (req.usuario && nivelDe(req.usuario.rol) < NIVEL_ROL.directivo) {
+      return res.json(todos.map(p => ({ id: p.id, nombre: p.nombre, activo: p.activo })))
+    }
+    res.json(todos)
+  } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.post("/api/proveedores", exigeNivel("gerente"), async (req, res) => {
+app.post("/api/proveedores", exigeNivel("directivo"), async (req, res) => {
   const campos = camposProveedor(req.body ?? {})
   if (!campos.Nombre) return res.status(400).json({ error: "El nombre del proveedor es obligatorio" })
   try {
@@ -1362,7 +1370,7 @@ app.post("/api/proveedores", exigeNivel("gerente"), async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
-app.patch("/api/proveedores/:id", exigeNivel("gerente"), async (req, res) => {
+app.patch("/api/proveedores/:id", exigeNivel("directivo"), async (req, res) => {
   const id = parseInt(req.params.id, 10)
   const campos = camposProveedor(req.body ?? {})
   if (!id) return res.status(400).json({ error: "Proveedor no válido" })
@@ -1375,7 +1383,7 @@ app.patch("/api/proveedores/:id", exigeNivel("gerente"), async (req, res) => {
 
 // Los depósitos guardan el nombre del proveedor al momento de registrarse,
 // así que borrar un proveedor no deja su historial sin nombre
-app.delete("/api/proveedores/:id", exigeNivel("gerente"), async (req, res) => {
+app.delete("/api/proveedores/:id", exigeNivel("directivo"), async (req, res) => {
   const id = parseInt(req.params.id, 10)
   if (!id) return res.status(400).json({ error: "Proveedor no válido" })
   try { await nocoDelete(T.proveedores, id); res.json({ ok: true }) }
@@ -1391,6 +1399,7 @@ const depositoDe = (f) => ({
   monto: Number(f.Monto) || 0,
   llevo: f.Llevo ?? "", referencia: f.Referencia ?? "",
   notas: f.Notas ?? "", registro: f.Registro ?? "",
+  creado: f.CreatedAt ?? null,
 })
 
 // Valida y arma el registro. El nombre del proveedor se toma de su tabla y
@@ -1430,9 +1439,8 @@ app.get("/api/depositos", exigeNivel("gerente"), async (req, res) => {
   try {
     const todos = (await nocoGet(T.depositos, "&sort=-Fecha,-Id")).map(depositoDe)
     const quien = req.usuario
-    if (!quien || nivelDe(quien.rol) >= NIVEL_ROL.directivo) return res.json(todos)
-    const mio = (quien.nombre ?? "").trim().toLowerCase()
-    res.json(todos.filter(d => (d.registro ?? "").trim().toLowerCase() === mio))
+    if (!quien) return res.json(todos)
+    res.json(todos.filter(d => depositoVisible(d, quien)))
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 

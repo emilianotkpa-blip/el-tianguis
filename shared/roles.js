@@ -24,6 +24,25 @@ export const puedeVer = (user, rolMin) => !rolMin || nivelDe(user?.rol) >= nivel
 // Admin es el único que puede mirar el sistema con los ojos de otra cuenta.
 export const esAdmin = (user) => nivelDe(user?.rol) >= NIVEL_ROL.admin
 
-// Los depósitos son dinero que sale del negocio: de gerente para abajo cada
-// quien ve solo los que registró. Dirección los ve todos.
+// Dinero que sale del negocio: los proveedores (con sus datos bancarios) y el
+// historial completo de depósitos son de dirección.
 export const veTodosLosDepositos = (user) => puedeVer(user, "directivo")
+export const veProveedores       = (user) => puedeVer(user, "directivo")
+
+// De gerente para abajo, cada quien ve sus propios depósitos y solo unos días:
+// lo justo para revisar o corregir lo que acaba de registrar, no para repasar
+// el movimiento del negocio. La cuenta corre desde que se registró el depósito
+// (no desde su fecha), para que nadie pierda de vista lo que acaba de capturar.
+export const DIAS_DEPOSITO_VISIBLE = 3
+
+const nombreDe = (user) => String(user?.name ?? user?.nombre ?? "").trim().toLowerCase()
+
+export function depositoVisible(dep, user, ahora = Date.now()) {
+  if (veTodosLosDepositos(user)) return true
+  if (String(dep?.registro ?? "").trim().toLowerCase() !== nombreDe(user)) return false
+  const creado = Date.parse(dep?.creado ?? "")
+  // Un registro viejo sin marca de tiempo no se esconde: mejor de más que
+  // hacer desaparecer algo por un dato que falta.
+  if (!Number.isFinite(creado)) return true
+  return ahora - creado <= DIAS_DEPOSITO_VISIBLE * 86_400_000
+}
