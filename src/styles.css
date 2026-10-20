@@ -132,6 +132,30 @@
 }
 html, body { margin: 0; padding: 0; height: 100%; }
 
+/* En el teléfono, cada toque pinta un recuadro azul del navegador. Se ve
+   barato y no aporta nada: el panel ya dice solo cuándo algo se presionó.
+   Aquí se apaga en toda la app; el resaltado de teclado (:focus-visible)
+   sigue intacto, que ese sí hace falta para moverse sin ratón. */
+html { -webkit-tap-highlight-color: transparent; }
+
+/* Lo que se presiona no se selecciona: al mantener el dedo sobre un botón o
+   una pestaña, el navegador seleccionaba su texto y lo pintaba de azul. El
+   texto normal sí se puede seguir seleccionando y copiando — folios, nombres
+   de producto y cantidades se copian todo el tiempo. */
+button,
+.sucursal-tab,
+.kpi,
+.stepper,
+.sidebar-nav a,
+.header-icon-btn,
+.product-tile,
+label.regla-switch,
+.badge {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* ── Scrollbar dorada delgada (Chrome, Edge, Safari) ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -1121,12 +1145,6 @@ input:disabled, select:disabled, textarea:disabled {
 
 .pastilla-mantener { position: relative; margin-bottom: 14px; }
 .pm-op {
-  /* Al mantener presionado, el navegador selecciona el texto y lo pinta de
-     azul, y encima saca su propio resaltado de toque. Aquí estorban las dos
-     cosas: el aviso de que se está manteniendo es el relleno dorado. */
-  user-select: none; -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  -webkit-tap-highlight-color: transparent;
   display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 11px 16px; border-radius: 999px; cursor: pointer; text-align: left;
   color: var(--text);
