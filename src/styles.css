@@ -1125,6 +1125,36 @@ input:disabled, select:disabled, textarea:disabled {
   background: var(--wine-700);
 }
 
+/* ===== Equipo ===== */
+.eq-persona { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.eq-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--wine-700); color: #fff;
+  font-size: 12px; font-weight: 700; letter-spacing: .5px;
+}
+.eq-quien { display: flex; flex-direction: column; min-width: 0; }
+.eq-quien strong { font-size: var(--fs-sm); font-weight: 700; }
+.eq-quien small { font-size: var(--fs-xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
+.eq-inactivo { color: var(--warn) !important; }
+
+.eq-rol { display: flex; align-items: center; gap: 8px; }
+/* El nivel manda sobre el nombre del rol: es lo que de verdad decide qué ve
+   cada quien, y de un vistazo se ordena la lista. */
+.eq-nivel {
+  width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #fff; background: var(--text-muted);
+}
+.eq-nivel.n1 { background: #8d93a1; }
+.eq-nivel.n2 { background: #3b82c4; }
+.eq-nivel.n3 { background: var(--ok); }
+.eq-nivel.n4 { background: var(--wine-700); }
+.eq-nivel.n5 { background: var(--gold-600); color: #241a00; }
+.eq-rol-texto { display: flex; flex-direction: column; min-width: 0; }
+.eq-rol-texto strong { font-size: var(--fs-sm); font-weight: 600; }
+.eq-rol-texto small { font-size: var(--fs-xs); color: var(--text-muted); }
+
 /* ===== Equipo: candado de sucursal ===== */
 .eq-candado {
   display: inline-flex; align-items: center; gap: 6px;
@@ -3920,6 +3950,17 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
      hay en esta sucursal y cómo está. Ver doce datos de cada uno al hilo no
      deja encontrar nada; el resto sale al tocar, que abre la ficha. */
   .table.tarjetas-movil td.oculto-movil { display: none; }
+  /* La casilla de comparar se queda, pero en la esquina y sin su etiqueta:
+     escondida del todo, en el teléfono no se podía comparar nada y el ojo
+     nunca llegaba a aparecer. */
+  .table.tarjetas-movil td.col-check {
+    position: absolute; top: 10px; right: 12px;
+    padding: 0; justify-content: flex-end;
+  }
+  .table.tarjetas-movil td.col-check::before { content: none; }
+  .table.tarjetas-movil td.col-check input { width: 20px; height: 20px; }
+  /* Que el nombre no se meta debajo de la casilla */
+  .table.tarjetas-movil td.td-titulo { padding-right: 34px; }
   .table.tarjetas-movil tr { position: relative; }
   .table.tarjetas-movil tr::after {
     content: "ver detalle";

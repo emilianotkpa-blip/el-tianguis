@@ -440,7 +440,7 @@ export default function InventariosPage({ addToast, sucursalActiva, user }) {
                 const fill   = status === "agotado" ? "var(--err)" : status === "bajo" ? "var(--warn)" : "var(--ok)"
                 return (
                   <tr key={p._id} className={cmp?.tiene(p.sku) ? "fila-comparando" : ""} onClick={() => setVista(p)} style={{ cursor: "pointer" }}>
-                    <td className="col-check oculto-movil" data-label="Comparar" onClick={e => e.stopPropagation()}>
+                    <td className="col-check" data-label="Comparar" onClick={e => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         aria-label={`Comparar ${p.name}`}

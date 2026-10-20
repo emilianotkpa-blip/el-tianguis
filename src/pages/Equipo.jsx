@@ -73,7 +73,7 @@ export default function EquipoPage({ addToast }) {
 
       <div className="card">
         <div className="card-body flush">
-          <table className="table">
+          <table className="table tarjetas-movil tabla-equipo">
             <thead>
               <tr>
                 <th>Nombre</th><th>Rol</th><th>Sucursal</th><th style={{ width: 150 }}>¿Puede cambiarla?</th>
@@ -90,14 +90,26 @@ export default function EquipoPage({ addToast }) {
                 const fijaPorNivel = necesitaSucursalAsignada({ rol: p.rol })  // nivel 1 y 2: siempre asignada
                 return (
                   <tr key={p.id} style={{ opacity: p.activo ? 1 : .5 }}>
-                    <td data-label="Nombre">
-                      <strong>{p.nombre}</strong>
-                      <div className="muted" style={{ fontSize: "var(--fs-xs)" }}>{p.correo}</div>
-                      {!p.activo && <div style={{ fontSize: "var(--fs-xs)", color: "var(--warn)" }}>Inactivo · no puede entrar</div>}
+                    <td data-label="Nombre" className="td-titulo">
+                      <span className="eq-persona">
+                        <span className="eq-avatar" aria-hidden="true">
+                          {(p.nombre || "?").split(" ").map(x => x[0]).slice(0, 2).join("")}
+                        </span>
+                        <span className="eq-quien">
+                          <strong>{p.nombre}</strong>
+                          <small>{p.correo}</small>
+                          {!p.activo && <small className="eq-inactivo">Inactivo · no puede entrar</small>}
+                        </span>
+                      </span>
                     </td>
                     <td data-label="Rol">
-                      {p.rol || "—"} <span className="muted">· nivel {nivel}</span>
-                      {p.puesto && <div className="muted" style={{ fontSize: "var(--fs-xs)" }}>{p.puesto}</div>}
+                      <span className="eq-rol">
+                        <span className={"eq-nivel n" + nivel}>{nivel}</span>
+                        <span className="eq-rol-texto">
+                          <strong>{p.rol || "—"}</strong>
+                          {p.puesto && <small>{p.puesto}</small>}
+                        </span>
+                      </span>
                     </td>
                     <td data-label="Sucursal" style={{ minWidth: 190 }}>
                       <Select
