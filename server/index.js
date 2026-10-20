@@ -1140,21 +1140,11 @@ app.post("/api/pedidos-mercancia", exigeSucursal("destino"), async (req, res) =>
 app.patch("/api/pedidos-mercancia/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id)
-    if (req.body.Estado === "recibido") {
-      const rows = await nocoGet(T.pedidosMercancia, `&where=(Id,eq,${id})`)
-      if (rows.length) {
-        const pedido = rows[0]
-        const items = JSON.parse(pedido.Items_JSON || "[]")
-        const destino = (pedido.Destino ?? "").toLowerCase()
-        const campo = destino.includes("repostero") ? "Repostero" : destino.includes("bodega") ? "Bodega" : "Centro"
-        for (const item of items) {
-          const stockRows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
-          if (!stockRows.length) continue
-          const row = stockRows[0]
-          await nocoPatch(T.stock, { Id: row.Id, [campo]: (row[campo] ?? 0) + item.qty, Total: (row.Total ?? 0) + item.qty })
-        }
-      }
-    }
+    // Aquí vivía un segundo traspaso de stock, el que se disparaba al marcar
+    // el pedido como "recibido": SUMABA en la sucursal destino sin restar en
+    // bodega, o sea inventario salido de la nada. Ninguna pantalla lo usa (el
+    // traspaso bueno lo hace "confirmar_entrega"), pero la ruta estaba abierta
+    // y bastaba un PATCH con Estado "recibido" para inflar el inventario.
     await nocoPatch(T.pedidosMercancia, { Id: id, ...req.body })
     res.json({ ok: true })
   } catch (err) {
