@@ -311,6 +311,8 @@ const usuarioPublico = (fila, email) => ({
   puesto: fila?.Puesto ?? "",
   email,
   sucursalDefault: fila?.Sucursal ?? "",
+  // Candado: aunque su nivel le dejaría elegir, trabaja siempre en la suya
+  sucursalFija: fila?.SucursalFija === true || fila?.SucursalFija === 1,
 })
 
 // Comprobar el token contra Supabase en cada llamada sería una ida y vuelta por
@@ -399,11 +401,7 @@ app.post("/api/login", async (req, res) => {
       res.json({
         ok: true,
         token: SESSION_TOKEN,
-        user: {
-          name: user.Nombre, rol: (user.Rol ?? "vendedor").toLowerCase(),
-          puesto: user.Puesto ?? "", email: email.trim().toLowerCase(),
-          sucursalDefault: user.Sucursal ?? "",
-        }
+        user: usuarioPublico(user, email.trim().toLowerCase())
       })
     } else {
       res.status(401).json({ error: "Credenciales incorrectas" })
@@ -1165,6 +1163,7 @@ app.get("/api/equipo", exigeNivel("directivo"), async (req, res) => {
     res.json(rows.map(u => ({
       id: u.Id, nombre: u.Nombre ?? "", correo: u.Gmail ?? "",
       rol: u.Rol ?? "", puesto: u.Puesto ?? "", sucursal: u.Sucursal ?? "",
+      sucursalFija: u.SucursalFija === true || u.SucursalFija === 1,
       activo: u.Activo !== false && u.Activo !== 0,
     })))
   } catch (err) { res.status(500).json({ error: err.message }) }
@@ -1175,12 +1174,24 @@ const SUCURSALES_VALIDAS = ["centro", "repostero", "bodega"]
 app.patch("/api/equipo/:id", exigeNivel("directivo"), async (req, res) => {
   const id = parseInt(req.params.id, 10)
   if (!id) return res.status(400).json({ error: "Falta el id" })
-  const suc = String(req.body?.sucursal ?? "").trim().toLowerCase()
-  if (suc && !SUCURSALES_VALIDAS.includes(suc)) {
-    return res.status(400).json({ error: "Esa sucursal no existe" })
+  const campos = { Id: id }
+  if (req.body?.sucursal !== undefined) {
+    const suc = String(req.body.sucursal ?? "").trim().toLowerCase()
+    if (suc && !SUCURSALES_VALIDAS.includes(suc)) {
+      return res.status(400).json({ error: "Esa sucursal no existe" })
+    }
+    campos.Sucursal = suc
+  }
+  if (req.body?.sucursalFija !== undefined) campos.SucursalFija = req.body.sucursalFija === true
+
+  // Un candado sin sucursal deja a esa persona sin poder entrar: o se fija a
+  // una sucursal concreta, o no se fija.
+  if (campos.SucursalFija === true) {
+    const actual = campos.Sucursal ?? (await nocoGet(T.equipo, `&where=(Id,eq,${id})&limit=1`))[0]?.Sucursal
+    if (!actual) return res.status(400).json({ error: "Para fijar la sucursal hay que elegir cuál" })
   }
   try {
-    await nocoPatch(T.equipo, { Id: id, Sucursal: suc })
+    await nocoPatch(T.equipo, campos)
     // La sesión recuerda el rol y la sucursal un minuto: se olvida ya, para
     // que el cambio se note al recargar y no diez llamadas después.
     sesiones.clear()

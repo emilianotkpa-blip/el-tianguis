@@ -16,6 +16,8 @@ const PATHS = {
   x: <><path d="M4 4l10 10M14 4L4 14"/></>,
   trash: <><path d="M3 5h12M7 5V3h4v2M5 5l1 10h7l1-10"/></>,
   edit: <><path d="M11 3l3 3-8 8H3v-3l8-8z"/></>,
+  lock: <><rect x="3.5" y="8" width="11" height="7.5" rx="1.5"/><path d="M6 8V5.5a3 3 0 0 1 6 0V8"/></>,
+  lockOpen: <><rect x="3.5" y="8" width="11" height="7.5" rx="1.5"/><path d="M6 8V5.5a3 3 0 0 1 5.8-1"/></>,
   eye: <><path d="M2 9c2-3 4.5-4.5 7-4.5S14 6 16 9c-2 3-4.5 4.5-7 4.5S4 12 2 9z"/><circle cx="9" cy="9" r="2"/></>,
   download: <><path d="M9 2v9m-3-3l3 3 3-3M3 14h12"/></>,
   upload: <><path d="M9 12V3m-3 3l3-3 3 3M3 14h12"/></>,

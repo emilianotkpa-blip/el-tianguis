@@ -1101,6 +1101,21 @@ input:disabled, select:disabled, textarea:disabled {
   background: var(--wine-700);
 }
 
+/* ===== Equipo: candado de sucursal ===== */
+.eq-candado {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 99px; cursor: pointer;
+  font-size: var(--fs-xs); font-weight: 600;
+  background: var(--ok-bg); border: 1px solid transparent; color: var(--ok);
+}
+.eq-candado:hover { border-color: currentColor; }
+.eq-candado.cerrado { background: rgba(240,191,46,.16); color: var(--gold-700); }
+.eq-candado:disabled { opacity: .5; cursor: default; }
+.eq-fijo {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); color: var(--text-muted);
+}
+
 /* ===== Sin sucursal asignada ===== */
 .sin-sucursal {
   position: fixed; inset: 0; z-index: 1000; background: var(--bg);

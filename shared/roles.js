@@ -27,8 +27,17 @@ export const esAdmin = (user) => nivelDe(user?.rol) >= NIVEL_ROL.admin
 // De gerencia para arriba cada quien elige desde qué sucursal trabaja, porque
 // se mueven entre ellas. De ahí para abajo no se elige: quien atiende una caja
 // trabaja donde lo pusieron, y eso lo decide dirección.
-export const puedeElegirSucursal  = (user) => puedeVer(user, "gerente")
+//
+// El candado es la excepción: a quien de gerencia para arriba vaya a estar
+// siempre en la misma sucursal, dirección se la fija y deja de poder cambiarla.
+// Se quita para una ocasión especial y se vuelve a poner.
+export const tieneSucursalFija    = (user) => Boolean(user?.sucursalFija)
+export const puedeElegirSucursal  = (user) => puedeVer(user, "gerente") && !tieneSucursalFija(user)
 export const puedeAsignarSucursal = (user) => puedeVer(user, "directivo")
+
+// A quién hay que asignarle sucursal desde Equipo: a los de nivel bajo
+// siempre, y a los de gerencia solo si les pusieron candado.
+export const necesitaSucursalAsignada = (user) => !puedeElegirSucursal(user)
 
 // Dinero que sale del negocio: los proveedores (con sus datos bancarios) y el
 // historial completo de depósitos son de dirección.
