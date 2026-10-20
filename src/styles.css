@@ -1121,6 +1121,12 @@ input:disabled, select:disabled, textarea:disabled {
 
 .pastilla-mantener { position: relative; margin-bottom: 14px; }
 .pm-op {
+  /* Al mantener presionado, el navegador selecciona el texto y lo pinta de
+     azul, y encima saca su propio resaltado de toque. Aquí estorban las dos
+     cosas: el aviso de que se está manteniendo es el relleno dorado. */
+  user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
   display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 11px 16px; border-radius: 999px; cursor: pointer; text-align: left;
   color: var(--text);
