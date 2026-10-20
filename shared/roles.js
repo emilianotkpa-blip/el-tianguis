@@ -35,6 +35,29 @@ export const tieneSucursalFija    = (user) => Boolean(user?.sucursalFija)
 export const puedeElegirSucursal  = (user) => puedeVer(user, "gerente") && !tieneSucursalFija(user)
 export const puedeAsignarSucursal = (user) => puedeVer(user, "directivo")
 
+// Las sucursales se escriben de varias formas según de dónde venga el dato:
+// "centro", "Centro", "Tianguis Centro"… Se comparan siempre normalizadas.
+export function normalizaSucursal(v) {
+  const s = String(v ?? "").toLowerCase()
+  if (s.includes("repostero")) return "repostero"
+  if (s.includes("bodega"))    return "bodega"
+  if (s.includes("centro"))    return "centro"
+  return ""
+}
+
+// Dónde puede OPERAR cada quien (vender, cobrar, mover inventario). Mirar el
+// inventario de las otras sucursales sigue permitido para todos: lo que se
+// cierra es escribir. Quien elige sucursal al entrar puede trabajar en
+// cualquiera; a quien la tiene asignada o con candado, solo en la suya.
+export function puedeOperarEn(user, sucursal) {
+  if (puedeVer(user, "directivo")) return true
+  if (puedeElegirSucursal(user)) return true
+  const suya = normalizaSucursal(user?.sucursal ?? user?.sucursalDefault)
+  // Sin sucursal asignada no debería ni haber entrado al panel.
+  if (!suya) return false
+  return normalizaSucursal(sucursal) === suya
+}
+
 // A quién hay que asignarle sucursal desde Equipo: a los de nivel bajo
 // siempre, y a los de gerencia solo si les pusieron candado.
 export const necesitaSucursalAsignada = (user) => !puedeElegirSucursal(user)

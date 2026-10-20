@@ -191,7 +191,7 @@ function RecepcionModal({ productos, onClose, onDone, addToast }) {
   )
 }
 
-export default function InventariosPage({ addToast, sucursalActiva }) {
+export default function InventariosPage({ addToast, sucursalActiva, user }) {
   const initSuc = sucursalActiva ?? "centro"
   const initSucShort = SUCURSALES.find(s => s.id === initSuc)?.short ?? "Centro"
 
@@ -474,6 +474,7 @@ export default function InventariosPage({ addToast, sucursalActiva }) {
             key={adjustingP._id}
             producto={adjustingP}
             sucursalInicial={sucObj?.short ?? initSucShort}
+            user={user}
             addToast={addToast}
             onAplicado={() => { setAdjustingP(null); cargar() }}
           />

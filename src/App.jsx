@@ -374,7 +374,7 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
                                    : <SinPermiso />
       case "perfil":             return <PerfilPage addToast={addToast} user={user} />
       case "clientes":           return <ClientesPage addToast={addToast} />
-      case "inventarios":        return <InventariosPage addToast={addToast} sucursalActiva={user.sucursal} />
+      case "inventarios":        return <InventariosPage addToast={addToast} sucursalActiva={user.sucursal} user={user} />
       case "caja":               return <CajaPage addToast={addToast} sucursalActiva={user.sucursal} user={user} />
       case "balanza":            return <BásculaPage addToast={addToast} user={user} sucursalActiva={user.sucursal} sharedCartCount={sharedCart.length} onAddToVentas={(item) => { addToSharedCart(item); navTo("ventas") }} />
       case "utilidades":         return puedeVer(user, "directivo")

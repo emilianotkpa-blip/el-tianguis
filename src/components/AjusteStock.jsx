@@ -2,6 +2,7 @@ import { useState } from "react"
 import Icon from "./Icon"
 import Select from "./Select"
 import { SUCURSALES } from "../data"
+import { puedeOperarEn } from "../../shared/roles"
 import { postMovimiento } from "../api"
 import { fmtBase } from "../utils"
 
@@ -19,13 +20,20 @@ const TIPOS_MOV = [
 export default function AjusteStock({
   producto,
   sucursalInicial,
+  user,
   addToast,
   onAplicado,
   mostrarStock = true,
   notaIdle = "El movimiento se aplica al instante",
 }) {
   const [tipo, setTipo]   = useState("Entrada")
-  const [suc, setSuc]     = useState(sucursalInicial ?? SUCURSALES[0].short)
+  // El inventario de las demás sucursales se puede mirar, pero moverlo solo
+  // donde uno trabaja: aquí solo se ofrecen las que esa persona puede tocar.
+  const sucursalesPropias = SUCURSALES.filter(s => puedeOperarEn(user, s.id))
+  const inicial = sucursalesPropias.some(s => s.short === sucursalInicial)
+    ? sucursalInicial
+    : (sucursalesPropias[0]?.short ?? SUCURSALES[0].short)
+  const [suc, setSuc]     = useState(inicial)
   const [nivel, setNivel] = useState("pieza")
   const [cant, setCant]   = useState("")
   const [obs, setObs]     = useState("")
@@ -127,7 +135,7 @@ export default function AjusteStock({
           <Select
             value={suc}
             onChange={e => setSuc(e.target.value)}
-            options={SUCURSALES.map(s => ({ value: s.short, label: s.name, hint: s.desc }))}
+            options={sucursalesPropias.map(s => ({ value: s.short, label: s.name, hint: s.desc }))}
           />
         </div>
         <div className="form-row">

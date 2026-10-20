@@ -8,7 +8,7 @@ import { ReadlineParser } from "@serialport/parser-readline"
 import { execFile } from "child_process"
 import { writeFileSync, unlinkSync } from "fs"
 import { tmpdir } from "os"
-import { nivelDe, NIVEL_ROL, depositoVisible } from "../shared/roles.js"
+import { nivelDe, NIVEL_ROL, depositoVisible, puedeOperarEn, normalizaSucursal } from "../shared/roles.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -336,6 +336,8 @@ async function quienEs(token) {
     email, id: u.id,
     nombre: fila?.Nombre ?? "",
     rol: (fila?.Rol ?? "vendedor").toLowerCase(),
+    sucursal: fila?.Sucursal ?? "",
+    sucursalFija: fila?.SucursalFija === true || fila?.SucursalFija === 1,
     hasta: Date.now() + MS_RECORDAR,
   }
   if (sesiones.size > 500) sesiones.clear()
@@ -581,6 +583,23 @@ const exigeNivel = (rolMin) => (req, res, next) => {
   if (!req.usuario) return next()
   if (nivelDe(req.usuario.rol) >= NIVEL_ROL[rolMin]) return next()
   res.status(403).json({ error: "Tu cuenta no tiene acceso a esta sección" })
+}
+
+// Mirar el inventario de otra sucursal está bien; escribir en ella no. Quien
+// tiene sucursal asignada (o candado) solo puede vender, cobrar y mover
+// inventario donde trabaja. Dirección y quien elige sucursal al entrar pasan
+// sin más. Sin sesión identificada (login viejo) no se sabe, y se deja pasar.
+const exigeSucursal = (campo = "sucursal") => (req, res, next) => {
+  if (!req.usuario) return next()
+  const pedida = req.body?.[campo]
+  if (pedida === undefined || pedida === null || pedida === "") return next()
+  if (puedeOperarEn(req.usuario, pedida)) return next()
+  const suya = normalizaSucursal(req.usuario.sucursal)
+  res.status(403).json({
+    error: suya
+      ? `Tu cuenta solo puede operar en ${suya}`
+      : "Tu cuenta no tiene sucursal asignada",
+  })
 }
 
 // ── Perfil de quien entró ──────────────────────────────
@@ -916,7 +935,7 @@ app.get("/api/ventas", exigeNivel("directivo"), async (req, res) => {
   }
 })
 
-app.post("/api/ventas", async (req, res) => {
+app.post("/api/ventas", exigeSucursal(), async (req, res) => {
   const { folio, fecha, cliente, metodoPago, sucursal, items, subtotal, iva, total } = req.body
   try {
     await nocoPost(T.ventas, {
@@ -953,7 +972,7 @@ app.get("/api/movimientos", async (req, res) => {
   }
 })
 
-app.post("/api/movimientos", async (req, res) => {
+app.post("/api/movimientos", exigeSucursal(), async (req, res) => {
   const { tipo, producto_codigo, sucursal, cantidad, descripcion, observaciones, nivel, factor } = req.body
   try {
     await nocoPost(T.movimientos, {
@@ -993,7 +1012,7 @@ app.post("/api/movimientos", async (req, res) => {
 })
 
 // Abrir caja: -1 caja + N paquetes en StockNiveles
-app.post("/api/abrir-caja", async (req, res) => {
+app.post("/api/abrir-caja", exigeSucursal(), async (req, res) => {
   const { producto_codigo, sucursal, cajaFactor, paqFactor } = req.body
   try {
     const rows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${producto_codigo})`)
@@ -1045,7 +1064,7 @@ app.get("/api/pedidos-clientes", async (req, res) => {
   }
 })
 
-app.post("/api/pedidos-clientes", async (req, res) => {
+app.post("/api/pedidos-clientes", exigeSucursal(), async (req, res) => {
   const { folio, fecha, cliente, sucursal, estado, fechaEntrega, total, items, observaciones } = req.body
   try {
     await nocoPost(T.pedidosClientes, {
@@ -1102,7 +1121,7 @@ app.get("/api/pedidos-mercancia/next-folio", async (req, res) => {
   }
 })
 
-app.post("/api/pedidos-mercancia", async (req, res) => {
+app.post("/api/pedidos-mercancia", exigeSucursal("destino"), async (req, res) => {
   const { folio, fecha, proveedor, destino, estado, fechaEntrega, total, items, observaciones } = req.body
   try {
     await nocoPost(T.pedidosMercancia, {
@@ -1519,7 +1538,7 @@ app.delete("/api/depositos/:id", exigeNivel("gerente"), async (req, res) => {
 // ── Notas (POS → Caja) ────────────────────────────────
 
 // Crear borrador — reserva folio único; reutiliza cancelados del año actual
-app.post("/api/notas/borrador", async (req, res) => {
+app.post("/api/notas/borrador", exigeSucursal(), async (req, res) => {
   const { sucursal, vendedor } = req.body
   try {
     const anio   = new Date().getFullYear()
@@ -1632,7 +1651,7 @@ app.patch("/api/notas/:id/cancelar-borrador", async (req, res) => {
 })
 
 // Crear nota con estado en_caja — folio = F-YYYY-{Id}
-app.post("/api/notas", async (req, res) => {
+app.post("/api/notas", exigeSucursal(), async (req, res) => {
   const { fecha, cliente, vendedor, sucursal, items, pagos, subtotal, iva, total, observaciones } = req.body
   try {
     const nota = await nocoPost(T.ventas, {
@@ -1700,7 +1719,7 @@ app.patch("/api/caja/:id/editar", async (req, res) => {
 })
 
 // Cobrar nota: marcar como pagada y decrementar stock
-app.patch("/api/caja/:id/cobrar", async (req, res) => {
+app.patch("/api/caja/:id/cobrar", exigeSucursal(), async (req, res) => {
   const { pagos, sucursal, forzar, forzadoPor } = req.body
   try {
     // Fetch the nota to get items
