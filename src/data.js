@@ -232,11 +232,37 @@ export const TIPOS_CONFIG = {
 
 export const TIPOS_LISTA = Object.entries(TIPOS_CONFIG).map(([id, c]) => ({ id, label: c.label }))
 
+// Las direcciones son las de verdad: las de antes eran de relleno y se
+// estaban imprimiendo en los tickets. `maps` solo se pone cuando el negocio
+// tiene su ficha propia en Google Maps; para el resto se arma una búsqueda.
 export const SUCURSALES = [
-  { id: "centro", name: "Tianguis Centro", short: "Centro", desc: "Sucursal principal · Av. Hidalgo 245" },
-  { id: "repostero", name: "Tianguis Repostero", short: "Repostero", desc: "Sucursal repostería · Calle Morelos 88" },
-  { id: "bodega", name: "Bodega", short: "Bodega", desc: "Almacén central · Parque Industrial Norte" },
+  {
+    id: "centro", name: "Tianguis Centro", short: "Centro",
+    desc: "Sucursal principal · frente a Coppel",
+    direccion: "Calle 47 #393-B x 48 y 50, Col. Centro, 97700 Tizimín, Yuc.",
+    maps: "https://maps.app.goo.gl/Ur85YoBe64TLF5b3A",
+  },
+  {
+    id: "repostero", name: "Tianguis Repostero", short: "Repostero",
+    desc: "Sucursal de repostería",
+    direccion: "C. 63 por 60 y 60A, 97700 Tizimín, Yuc.",
+  },
+  {
+    id: "bodega", name: "Bodega", short: "Bodega",
+    desc: "Almacén central · Komichén",
+    direccion: "C. 49 #207, Komichén, 97700 Tizimín, Yuc.",
+  },
 ]
+
+export const sucursalPorId = (id) =>
+  SUCURSALES.find(s => s.id === String(id ?? "").toLowerCase()) ?? null
+
+// Enlace para abrir la sucursal en el mapa: el de su ficha si lo tiene, y si
+// no, una búsqueda por la dirección, que funciona igual de bien.
+export const mapaDe = (suc) =>
+  suc?.maps ?? (suc?.direccion
+    ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(suc.direccion)
+    : null)
 
 export const CATEGORIAS = [
   { id: "all", name: "Todos" },

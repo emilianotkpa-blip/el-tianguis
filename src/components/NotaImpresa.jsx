@@ -1,12 +1,11 @@
 import { fmtMoney, fmtFecha } from "../utils"
+import { sucursalPorId } from "../data"
 
 const EMPRESA = {
   nombre:   '"EL TIANGUIS"',
   titular:  "LORENA BEATRIZ KUYOC KOH",
   rfc:      "RFC: KUKL7908107U9",
   giro:     "Bolsas, Desechables, Insumos de Repostería",
-  dir1:     "Calle 47 # 393-B x 48 y 50",
-  dir2:     "Col. Centro, Frente a Coppel",
   tel:      "Tel. 986 863 28 18  ·  Cel. 986 112 51 24",
 }
 
@@ -23,6 +22,7 @@ export default function NotaImpresa({ folio, fecha, hora, cliente, vendedor, suc
   const descuentoTotal = Number(totals?.descTotal)
     || (totals?.descuentos ?? []).reduce((s, d) => s + (Number(d.monto) || 0), 0)
   const ahorro = ahorroVolumen + descuentoTotal
+  const suc = sucursalPorId(sucursal)
 
   return (
     <div className="nota-copia">
@@ -32,8 +32,10 @@ export default function NotaImpresa({ folio, fecha, hora, cliente, vendedor, suc
         <div className="nh-titular">{EMPRESA.titular}</div>
         <div className="nh-rfc">{EMPRESA.rfc}</div>
         <div className="nh-giro">{EMPRESA.giro}</div>
-        <div className="nh-dir">{EMPRESA.dir1}</div>
-        <div className="nh-dir">{EMPRESA.dir2}</div>
+        {/* La dirección es la de la sucursal que vendió: un ticket del
+            Repostero con la dirección del Centro manda mal al cliente. */}
+        {suc && <div className="nh-suc">{suc.name}</div>}
+        <div className="nh-dir">{suc?.direccion ?? "Tizimín, Yucatán"}</div>
         <div className="nh-tel">{EMPRESA.tel}</div>
       </div>
 
@@ -44,7 +46,7 @@ export default function NotaImpresa({ folio, fecha, hora, cliente, vendedor, suc
       </div>
       <div style={{ fontSize: 8, marginBottom: 3 }}>
         <strong>Cliente:</strong> {cliente ?? "Mostrador"}{vendedor ? `  ·  Vendedor: ${vendedor}` : ""}
-        {sucursal ? `  ·  Suc: ${sucursal}` : ""}
+
       </div>
 
       {/* Tabla de productos */}

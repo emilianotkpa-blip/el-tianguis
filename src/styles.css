@@ -1225,6 +1225,7 @@ input:disabled, select:disabled, textarea:disabled {
   html[data-hoja="rollo"] .nota-header .nh-titular,
   html[data-hoja="rollo"] .nota-header .nh-rfc,
   html[data-hoja="rollo"] .nota-header .nh-giro,
+  html[data-hoja="rollo"] .nota-header .nh-suc,
   html[data-hoja="rollo"] .nota-header .nh-dir,
   html[data-hoja="rollo"] .nota-header .nh-tel { font-size: 7.5px; }
   /* En 5.5 cm la fecha no cabe al lado del folio: va debajo */
@@ -1254,6 +1255,7 @@ input:disabled, select:disabled, textarea:disabled {
   .nota-header .nh-titular  { font-size: 9px; font-weight: 700; }
   .nota-header .nh-rfc      { font-size: 8px; }
   .nota-header .nh-giro     { font-size: 8px; font-style: italic; }
+  .nota-header .nh-suc      { font-size: 8.5px; font-weight: 700; margin-top: 1px; }
   .nota-header .nh-dir      { font-size: 8px; }
   .nota-header .nh-tel      { font-size: 8px; }
   .nota-meta  { font-size: 9px; border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 3px 0; margin-bottom: 4px; display: flex; justify-content: space-between; }

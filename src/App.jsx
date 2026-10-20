@@ -169,6 +169,11 @@ function SucursalPicker({ user, onSelect }) {
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>{s.name}</div>
                 <div style={{ fontSize: 11, opacity: .65, marginTop: 3 }}>{s.desc}</div>
+                {s.direccion && (
+                  <div style={{ fontSize: 10, opacity: .5, marginTop: 4, maxWidth: 180, lineHeight: 1.4 }}>
+                    {s.direccion}
+                  </div>
+                )}
               </div>
               {isDefault && (
                 <span style={{

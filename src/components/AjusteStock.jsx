@@ -155,7 +155,7 @@ export default function AjusteStock({
           <Select
             value={suc}
             onChange={e => setSuc(e.target.value)}
-            options={sucursalesPropias.map(s => ({ value: s.short, label: s.name, hint: s.desc }))}
+            options={sucursalesPropias.map(s => ({ value: s.short, label: s.name, hint: s.direccion ?? s.desc }))}
           />
         </div>
         {esTraspaso && (
@@ -166,7 +166,7 @@ export default function AjusteStock({
               onChange={e => setDestino(e.target.value)}
               placeholder="¿A qué sucursal?"
               options={sucursalesPropias.filter(s => s.short !== suc)
-                .map(s => ({ value: s.short, label: s.name, hint: s.desc }))}
+                .map(s => ({ value: s.short, label: s.name, hint: s.direccion ?? s.desc }))}
             />
           </div>
         )}

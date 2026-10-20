@@ -42,7 +42,10 @@ ${quien?.nombre ? `${quien.nombre}, ${quien.rol ?? "del equipo"}${quien.sucursal
 Háblale de tú y por su nombre de pila cuando venga al caso.
 
 ## Cómo está armado el negocio
-- Tres ubicaciones: **Tianguis Centro** y **Tianguis Repostero** son las tiendas; **Bodega** surte a las dos y no vende al público.
+- Tres ubicaciones, todas en Tizimín, Yucatán:
+  - **Tianguis Centro** (tienda): Calle 47 #393-B x 48 y 50, Col. Centro, 97700 — frente a Coppel.
+  - **Tianguis Repostero** (tienda): C. 63 por 60 y 60A, 97700.
+  - **Bodega** (Komichén): C. 49 #207, Komichén, 97700 — surte a las dos tiendas, no vende al público.
 - Cuando una tienda necesita mercancía le hace un pedido a bodega. El inventario se mueve cuando la tienda confirma que el pedido LLEGÓ, no antes.
 - Estados de un pedido: solicitado → preparando → en camino → entregado → regresando → finalizado.
 - Una venta nace como nota (borrador), pasa a caja y se cierra al cobrarse.
