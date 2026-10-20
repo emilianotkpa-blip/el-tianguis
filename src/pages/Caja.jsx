@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { createPortal } from "react-dom"
 import Icon from "../components/Icon"
 import { TableSkeleton } from "../components/Skeleton"
@@ -376,6 +376,7 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
   const [loading, setLoading]     = useState(true)
   const [selected, setSelected]   = useState(null)
   const [folioInput, setFolioInput] = useState("")
+  const folioRef = useRef(null)
   const [editando, setEditando]   = useState(false)
   const [catalogo, setCatalogo]   = useState([])
   const [addSearch, setAddSearch] = useState("")
@@ -427,41 +428,65 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
     setAddSearch("")
   }
 
-  // Scanner global: acumula teclas cuando ningún input está enfocado y busca en Enter
+  // El lector "teclea" el folio como si fuera un teclado. Antes, si no había
+  // ningún campo enfocado, el folio se rearmaba tecla por tecla — y eso no es
+  // lo mismo que escribirlo: según cómo esté configurado el lector, el guion
+  // viaja como Alt + números del teclado numérico, y el navegador solo lo
+  // convierte en "-" cuando cae dentro de un campo. Rearmándolo a mano
+  // quedaban esos números sueltos y se buscaba un folio que no existe.
+  // Ahora el escaneo SIEMPRE termina en el campo de búsqueda, que es el
+  // camino que ya funcionaba: se mete la primera tecla y se le pasa el foco,
+  // y el resto lo escribe el navegador.
+  const alCampoDeFolio = useCallback(() => {
+    const activo = document.activeElement
+    if (activo && activo !== document.body && activo !== document.documentElement) return
+    folioRef.current?.focus()
+  }, [])
+
   useEffect(() => {
-    let buffer = ""
-    let timer = null
+    if (vista !== "cola" || wizardNota || previewNota || editando) return
+    alCampoDeFolio()
+    const alSalir = () => setTimeout(alCampoDeFolio, 0)
+    document.addEventListener("focusout", alSalir)
+    return () => document.removeEventListener("focusout", alSalir)
+  }, [vista, wizardNota, previewNota, editando, alCampoDeFolio])
+
+  useEffect(() => {
+    // Con el asistente de cobro o una nota abierta, lo que se teclea es de
+    // esa pantalla: desviarlo al buscador dejaría al cajero escribiendo en
+    // un campo que no ve.
+    if (vista !== "cola" || wizardNota || previewNota || editando) return
     const onKey = (e) => {
-      const active = document.activeElement
-      const tag = active?.tagName
+      const tag = document.activeElement?.tagName
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return
-      if (e.key === "Enter") {
-        clearTimeout(timer)
-        if (buffer.length > 2) {
-          const folio = buffer.replace(/\//g, "-").toUpperCase()
-          buffer = ""
-          getCajaPorFolio(folio)
-            .then(nota => setPreviewNota(nota))
-            .catch(() => addToast({ kind: "err", msg: `Folio ${folio} no encontrado` }))
-        }
-      } else if (e.key.length === 1) {
-        buffer += e.key
-        clearTimeout(timer)
-        timer = setTimeout(() => { buffer = "" }, 400)
-      }
+      if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return
+      const campo = folioRef.current
+      if (!campo) return
+      e.preventDefault()
+      // Se escribe por el camino del navegador para que React se entere.
+      const ponerValor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set
+      ponerValor.call(campo, e.key)
+      campo.dispatchEvent(new Event("input", { bubbles: true }))
+      campo.focus()
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [addToast])
+  }, [vista, wizardNota, previewNota, editando])
 
   const buscarPorFolio = async () => {
-    if (!folioInput.trim()) return
-    const folio = folioInput.trim().replace(/\//g, "-").toUpperCase()
+    // El lector puede agregar espacios o mandar "/" en lugar del guion.
+    const folio = folioInput.replace(/\s+/g, "").replace(/\//g, "-").toUpperCase()
+    if (!folio) return
     try {
       const nota = await getCajaPorFolio(folio)
       setFolioInput("")
       setPreviewNota(nota)
-    } catch { addToast({ kind: "err", msg: `Folio ${folio} no encontrado` }) }
+    } catch {
+      // Se limpia aunque falle: si no, el siguiente escaneo se pega al
+      // anterior y se busca un folio doble que tampoco existe.
+      setFolioInput("")
+      addToast({ kind: "err", msg: `Folio ${folio} no encontrado` })
+    }
   }
 
   // Los items de una nota traen productos y, al final, las líneas de
@@ -701,8 +726,9 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
 
             {vista === "cola" && (
               <div style={{ display: "flex", gap: 6 }}>
-                <input placeholder="Buscar folio…" value={folioInput} onChange={e => setFolioInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && buscarPorFolio()} style={{ width: 160 }} />
+                <input ref={folioRef} placeholder="Escanea o escribe el folio…" value={folioInput}
+                  onChange={e => setFolioInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && buscarPorFolio()} style={{ width: 200 }} />
                 <button className="btn btn-wine btn-sm" onClick={buscarPorFolio}><Icon name="search" size={13} /></button>
               </div>
             )}
