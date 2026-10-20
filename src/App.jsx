@@ -542,8 +542,8 @@ function AppShell({ user, onLogout, theme, setTheme, onCambiarSucursal, preloade
           )}
         </div>
 
-        <button className="header-icon-btn" onClick={() => setSettingsOpen(true)} title="Ajustes">
-          <Icon name="settings" size={16} />
+        <button className="header-icon-btn" onClick={() => setSettingsOpen(true)} title="Ajustes de impresión">
+          <Icon name="print" size={16} />
         </button>
 
         <div style={{ width: 1, height: 24, background: "var(--border)", margin: "0 4px" }}></div>
@@ -637,6 +637,7 @@ function InstallBanner({ installPrompt, installed, onInstall }) {
 function SettingsModal({ onClose, addToast }) {
   const [hoja, setHoja]             = useState(hojaGuardada)
   const [printers, setPrinters]     = useState([])
+  const [motivo, setMotivo]         = useState(null)
   const [loading, setLoading]       = useState(true)
   const [selected, setSelected]     = useState(() => localStorage.getItem("elt_printer") ?? "")
   const [saving, setSaving]         = useState(false)
@@ -649,9 +650,10 @@ function SettingsModal({ onClose, addToast }) {
         // quedamos con su nombre, porque un objeto suelto rompe el render.
         const lista = Array.isArray(data) ? data : (data.printers ?? [])
         setPrinters(lista.map(p => (typeof p === "string" ? p : (p?.name ?? p?.Name ?? ""))).filter(Boolean))
+        setMotivo(Array.isArray(data) ? null : (data.motivo ?? null))
         setLoading(false)
       })
-      .catch(() => { setPrinters([]); setLoading(false) })
+      .catch(() => { setPrinters([]); setMotivo("error"); setLoading(false) })
   }, [])
 
   const save = () => {
@@ -676,7 +678,7 @@ function SettingsModal({ onClose, addToast }) {
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Icon name="settings" size={18} style={{ color: "var(--gold-500)" }} />
+            <Icon name="print" size={18} style={{ color: "var(--gold-500)" }} />
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Ajustes del dispositivo</h3>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
@@ -716,17 +718,29 @@ function SettingsModal({ onClose, addToast }) {
         <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: "var(--text-muted)" }}>
           IMPRESORA DE TICKETS
         </div>
-        <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
-          Selecciona la impresora de este dispositivo. Se guarda localmente y no afecta a otros equipos.
-        </p>
+        {printers.length > 0 && (
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
+            Selecciona la impresora de este dispositivo. Se guarda localmente y no afecta a otros equipos.
+          </p>
+        )}
 
         {loading ? (
           <div style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)", fontSize: 13 }}>
             Cargando impresoras…
           </div>
         ) : printers.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-muted)", fontSize: 13 }}>
-            No se encontraron impresoras instaladas en el servidor.
+          <div style={{ padding: "14px 16px", background: "var(--bg-sunken)", borderRadius: 8, fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.6 }}>
+            {motivo === "remoto" ? (
+              <>
+                <strong style={{ color: "var(--text)" }}>Este panel no corre en esta computadora</strong>, sino en el
+                servidor, así que no alcanza a ver tus impresoras. Tu impresora sí sirve: al imprimir una nota o un
+                folio se abre el cuadro de Windows y ahí la eliges.
+              </>
+            ) : motivo === "error" ? (
+              <>Windows no devolvió la lista de impresoras. Se imprime igual con el cuadro de Windows al mandar una nota.</>
+            ) : (
+              <>No hay ninguna impresora instalada en el equipo donde corre el panel.</>
+            )}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16, maxHeight: 220, overflowY: "auto" }}>
@@ -763,7 +777,7 @@ function SettingsModal({ onClose, addToast }) {
         )}
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-ghost" onClick={onClose}>{printers.length > 0 ? "Cancelar" : "Cerrar"}</button>
           {selected && (
             <button
               className="btn btn-default"
@@ -781,14 +795,16 @@ function SettingsModal({ onClose, addToast }) {
               <Icon name="print" size={13} /> {testing ? "Probando…" : "Prueba de impresión"}
             </button>
           )}
-          <button
-            className="btn btn-primary"
-            onClick={save}
-            disabled={!selected || saving}
-            style={{ minWidth: 120 }}
-          >
-            {saving ? "Guardando…" : "Guardar impresora"}
-          </button>
+          {printers.length > 0 && (
+            <button
+              className="btn btn-primary"
+              onClick={save}
+              disabled={!selected || saving}
+              style={{ minWidth: 120 }}
+            >
+              {saving ? "Guardando…" : "Guardar impresora"}
+            </button>
+          )}
         </div>
       </div>
     </>

@@ -411,17 +411,24 @@ function rawPrint(printerName, data) {
   })
 }
 
+// Solo Windows sabe de impresoras, y nada mas de las suyas: si el panel corre
+// en un contenedor Linux no hay nada que listar. Devolvemos el motivo, porque
+// una lista vacia a secas se lee como "no tienes impresoras" y no es eso.
+const SERVIDOR_IMPRIME = process.platform === "win32"
+
 // Listar impresoras disponibles (sin auth, solo lectura)
 app.get("/api/print/printers", (req, res) => {
+  if (!SERVIDOR_IMPRIME) return res.json({ printers: [], motivo: "remoto" })
   execFile("powershell", [
     "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
     "-Command", "Get-Printer | Select-Object -ExpandProperty Name | ConvertTo-Json -Compress",
   ], (err, stdout) => {
-    if (err) return res.status(500).json({ error: err.message })
+    if (err) return res.json({ printers: [], motivo: "error", detalle: err.message })
     try {
       const raw = JSON.parse(stdout.trim())
-      res.json(Array.isArray(raw) ? raw : [raw])
-    } catch { res.json([]) }
+      const lista = (Array.isArray(raw) ? raw : [raw]).filter(Boolean)
+      res.json({ printers: lista, motivo: lista.length ? null : "ninguna" })
+    } catch { res.json({ printers: [], motivo: "error", detalle: "Windows no devolvio la lista" }) }
   })
 })
 
@@ -1625,8 +1632,9 @@ app.patch("/api/caja/:id/cobrar", async (req, res) => {
 app.post("/api/print/folio", async (req, res) => {
   const { folio, printerName: bodyPrinter } = req.body
   if (!folio) return res.status(400).json({ error: "Falta folio" })
+  if (!SERVIDOR_IMPRIME) return res.status(501).json({ error: "El servidor no manda a imprimir directo", motivo: "remoto" })
   const printerName = bodyPrinter || process.env.PRINTER_NAME
-  if (!printerName) return res.status(500).json({ error: "No hay impresora configurada. Selecciónala en Ajustes." })
+  if (!printerName) return res.status(400).json({ error: "No hay impresora configurada. Selecciónala en Ajustes.", motivo: "sin-impresora" })
   try {
     await rawPrint(printerName, buildFolioEscPos(folio))
     res.json({ ok: true })

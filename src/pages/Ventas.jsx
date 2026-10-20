@@ -10,12 +10,26 @@ import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio, getPromos, guardarItemsBorrador, getStockComprometido } from "../api"
 import { fmtMoney, fmtBase, todayISO, tipoLabel } from "../utils"
 import { evaluarPromos, sugerenciasPromos, describirRegla, simularRegla, soloProductos } from "../promos"
+import JsBarcode from "jsbarcode"
 
 const STEPS = ["Llenar carrito", "Verificar pedido", "Enviar a caja"]
 
+// El folio se dibuja como Code 128 de verdad (con su arranque, su fin y su
+// digito de control). Una tipografia de barras se ve igual pero ningun lector
+// la reconoce, y este codigo existe justamente para escanearse en caja.
 function FolioBarcode({ value }) {
+  const svg = useRef(null)
+  useEffect(() => {
+    if (!svg.current || !value) return
+    try {
+      JsBarcode(svg.current, value, {
+        format: "CODE128", displayValue: false,
+        width: 2, height: 60, margin: 0, background: "#fff", lineColor: "#000",
+      })
+    } catch { /* un folio raro no debe tumbar la pantalla de venta */ }
+  }, [value])
   if (!value) return null
-  return <span className="pf-barcode">{value}</span>
+  return <svg ref={svg} className="pf-barcode" />
 }
 
 
@@ -558,12 +572,27 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
 
   // ── Enter avanza el flujo (teclado de PC/laptop) ─────
   // Tres Enter seguidos: verificar → enviar a caja → imprimir folio.
+  // La impresión directa (sin cuadro de diálogo) solo puede hacerla el servidor
+  // si corre en la misma computadora que la impresora. Cuando no es así, el
+  // folio no se pierde: lo imprime el navegador, que sí ve las impresoras de
+  // quien está en la caja.
+  const imprimirFolioAqui = () => {
+    document.body.classList.add("print-folio")
+    window.print()
+    document.body.classList.remove("print-folio")
+  }
+
   const imprimirFolio = async () => {
     try {
       await printFolio(notaEnviada.folio, localStorage.getItem("elt_printer") || undefined)
       addToast({ kind: "ok", msg: "Folio enviado a impresora" })
     } catch (e) {
-      addToast({ kind: "err", msg: `Error al imprimir: ${e.message}` })
+      imprimirFolioAqui()
+      // Si el servidor avisó que no le toca imprimir, esto es lo normal y no
+      // hay nada que reportar; cualquier otro fallo sí vale la pena contarlo.
+      addToast(e?.datos?.motivo
+        ? { kind: "ok", msg: "Elige la impresora en el cuadro de Windows" }
+        : { kind: "err", msg: `La impresora directa falló (${e.message}). Se abrió el cuadro de Windows.` })
     }
     setFolioImpreso(true)
   }
