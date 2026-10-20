@@ -132,6 +132,8 @@ export const deleteDeposito  = (id)    => apiFetch(`/api/depositos/${id}`, { met
 
 // Personas del equipo, para sugerir quién llevó un depósito
 export const getEquipoLista  = ()      => apiFetch("/api/equipo/lista")
+export const getEquipo       = ()      => apiFetch("/api/equipo")
+export const asignarSucursal = (id, sucursal) => apiFetch(`/api/equipo/${id}`, patch({ sucursal }))
 
 export const getPerfil          = ()  => apiFetch("/api/perfil")
 export const cambiarContrasena  = (b) => apiFetch("/api/perfil/contrasena", json(b))

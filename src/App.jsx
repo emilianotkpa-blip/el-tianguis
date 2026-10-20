@@ -16,6 +16,7 @@ import ClientesPage from "./pages/Clientes"
 import ReglasPage from "./pages/Reglas"
 import ProveedoresPage from "./pages/Proveedores"
 import DepositosPage from "./pages/Depositos"
+import EquipoPage from "./pages/Equipo"
 import PerfilPage from "./pages/Perfil"
 import { ComparadorProvider, ComparadorFlotante } from "./components/Comparador"
 import CajaPage from "./pages/Caja"
@@ -24,7 +25,7 @@ import { getStats, getAlertas, getCatalogo, getClientes, getPrinters, printFolio
 import logoUrl from "./assets/logo.jpeg"
 import LogoAnimado from "./components/LogoAnimado"
 import { HOJAS, hojaGuardada, aplicarHoja } from "./impresion"
-import { puedeVer, esAdmin } from "../shared/roles"
+import { puedeVer, esAdmin, puedeElegirSucursal } from "../shared/roles"
 import VerComo from "./components/VerComo"
 
 function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone }) {
@@ -110,6 +111,25 @@ function SinPermiso() {
 
 const SUC_ICONS = { centro: "🏪", repostero: "🍰", bodega: "📦" }
 
+// Sin sucursal asignada no se puede vender ni cobrar: todo se registraría
+// en el aire. Se dice qué falta y a quién pedírselo, en vez de dejar entrar
+// a un panel que va a fallar en la primera venta.
+function SinSucursal({ user, onSalir }) {
+  return (
+    <div className="sin-sucursal">
+      <div className="ss-caja">
+        <h2>Falta asignarte una sucursal</h2>
+        <p>
+          Hola, <strong>{user.name}</strong>. Tu cuenta funciona, pero todavía no tiene
+          sucursal, y sin ella no se puede registrar una venta ni un cobro.
+        </p>
+        <p className="ss-pide">Pídele a dirección que te la asigne desde <strong>Equipo</strong>.</p>
+        <button className="btn btn-default" onClick={onSalir}>Cerrar sesión</button>
+      </div>
+    </div>
+  )
+}
+
 function SucursalPicker({ user, onSelect }) {
   return (
     <div style={{
@@ -186,11 +206,13 @@ const NAV = [
   { section: "Compras" },
   { id: "proveedores",       label: "Proveedores",      icon: "building", rolMin: "directivo" },
   { id: "depositos",         label: "Depósitos",        icon: "money",    rolMin: "gerente" },
+  { section: "Administración" },
+  { id: "equipo",            label: "Equipo",           icon: "users",    rolMin: "directivo" },
   // Ingresos, costos y margen del negocio: solo dirección
   { section: "Reportes" },
   { id: "utilidades",        label: "Utilidades",       icon: "chart",    rolMin: "directivo" },
   { section: "Inteligencia" },
-  { id: "ia",                label: "Tianguis IA",      icon: "sparkle",  rolMin: "gerente" },
+  { id: "ia",                label: "Tianguis IA",      icon: "sparkle",  rolMin: "directivo" },
   { section: "Mi cuenta" },
   { id: "perfil",            label: "Mi perfil",        icon: "user" },
 ]
@@ -207,6 +229,7 @@ const PAGE_INFO = {
   inventarios:       { title: "Inventarios",       parent: "Logística" },
   proveedores:       { title: "Proveedores",       parent: "Compras" },
   depositos:         { title: "Depósitos",         parent: "Compras" },
+  equipo:            { title: "Equipo",            parent: "Administración" },
   caja:              { title: "Caja",              parent: "Operación" },
   utilidades:        { title: "Utilidades",       parent: "Reportes" },
   ia:                { title: "Tianguis IA",      parent: "Inteligencia" },
@@ -346,6 +369,9 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
       case "depositos":          return puedeVer(user, "gerente")
                                    ? <DepositosPage addToast={addToast} user={user} />
                                    : <SinPermiso />
+      case "equipo":             return puedeVer(user, "directivo")
+                                   ? <EquipoPage addToast={addToast} />
+                                   : <SinPermiso />
       case "perfil":             return <PerfilPage addToast={addToast} user={user} />
       case "clientes":           return <ClientesPage addToast={addToast} />
       case "inventarios":        return <InventariosPage addToast={addToast} sucursalActiva={user.sucursal} />
@@ -354,7 +380,7 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
       case "utilidades":         return puedeVer(user, "directivo")
                                    ? <UtilidadesPage />
                                    : <SinPermiso />
-      case "ia":                 return puedeVer(user, "gerente")
+      case "ia":                 return puedeVer(user, "directivo")
                                    ? <TianguisIAPage />
                                    : <SinPermiso />
       default:                   return <VentasPage addToast={addToast} />
@@ -370,26 +396,35 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
           <div className="name">El <span className="gold">Tianguis</span></div>
         </div>
 
-        {user.sucursal && (
-          <button
-            onClick={onCambiarSucursal}
-            title="Cambiar sucursal"
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              margin: "0 10px 4px", padding: "7px 10px",
-              background: "rgba(240,191,46,.12)", border: "1px solid rgba(240,191,46,.3)",
-              borderRadius: 8, cursor: "pointer", width: "calc(100% - 20px)",
-            }}
-          >
-            <span style={{ fontSize: 16 }}>{SUC_ICONS[user.sucursal] ?? "🏬"}</span>
-            <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--gold-500)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {SUCURSALES.find(s => s.id === user.sucursal)?.name ?? user.sucursal}
+        {/* Quien no puede elegir sucursal igual necesita saber en cuál está
+            trabajando: se muestra, pero sin ser un botón. */}
+        {user.sucursal && (() => {
+          const puedeCambiar = puedeElegirSucursal(user)
+          const Caja = puedeCambiar ? "button" : "div"
+          return (
+            <Caja
+              onClick={puedeCambiar ? onCambiarSucursal : undefined}
+              title={puedeCambiar ? "Cambiar sucursal" : "Tu sucursal la asigna dirección"}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                margin: "0 10px 4px", padding: "7px 10px",
+                background: "rgba(240,191,46,.12)", border: "1px solid rgba(240,191,46,.3)",
+                borderRadius: 8, cursor: puedeCambiar ? "pointer" : "default",
+                width: "calc(100% - 20px)",
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{SUC_ICONS[user.sucursal] ?? "🏬"}</span>
+              <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--gold-500)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {SUCURSALES.find(s => s.id === user.sucursal)?.name ?? user.sucursal}
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,.4)", marginTop: 1 }}>
+                  {puedeCambiar ? "toca para cambiar" : "asignada por dirección"}
+                </div>
               </div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,.4)", marginTop: 1 }}>toca para cambiar</div>
-            </div>
-          </button>
-        )}
+            </Caja>
+          )
+        })()}
 
         <nav className="sidebar-nav" ref={navRef}>
           <span
@@ -912,12 +947,15 @@ export default function App() {
     const u = pendingUser
     setSplash(false)
     setPendingUser(null)
-    if (u?.sucursal) {
-      setUser(u)
-    } else {
-      setShowSucPicker(true)
-      setUser(u)
+    // De gerencia para arriba se elige sucursal al entrar. Para abajo se
+    // trabaja en la que dirección haya asignado en Equipo; si no le pusieron
+    // ninguna, se avisa en vez de dejar pasar sin sucursal.
+    if (!puedeElegirSucursal(u)) {
+      setUser({ ...u, sucursal: u?.sucursalDefault || null })
+      return
     }
+    setUser(u)
+    if (!u?.sucursal) setShowSucPicker(true)
   }
 
   const handleSucursalSelect = useCallback((sucId) => {
@@ -950,10 +988,13 @@ export default function App() {
     <>
       {splash && <SplashScreen progress={splashProgress} statusText={splashStatus} onDone={handleSplashDone} />}
       {!splash && !user && <Login onLogin={handleLogin} />}
-      {!splash && user && showSucPicker && (
+      {!splash && user && showSucPicker && puedeElegirSucursal(user) && (
         <SucursalPicker user={user} onSelect={handleSucursalSelect} />
       )}
-      {!splash && user && !showSucPicker && (
+      {!splash && user && !user.sucursal && !puedeElegirSucursal(user) && (
+        <SinSucursal user={user} onSalir={handleLogout} />
+      )}
+      {!splash && user && !showSucPicker && (user.sucursal || puedeElegirSucursal(user)) && (
         <AppShell
           user={userEfectivo} usuarioReal={user}
           verComo={verComo} onVerComo={cambiarVerComo}

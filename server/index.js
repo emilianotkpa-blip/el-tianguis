@@ -238,14 +238,14 @@ ${pedMer.slice(0, 5).map((p) => `  ${p.Folio} | ${p.Proveedor} | ${p.Estado} | $
 
 app.post("/api/chat", async (req, res) => {
   // Esta ruta se declara antes del portero general, así que se cuida sola.
-  // La IA cuesta dinero y responde con datos del negocio: pide sesión y, al
-  // menos, nivel de gerencia.
+  // La IA cuesta dinero y responde con cifras del negocio: pide sesión y
+  // nivel de dirección.
   const credencial = req.headers["authorization"]?.replace("Bearer ", "")
   if (!credencial) return res.status(401).json({ error: "No autorizado" })
   if (conSupabase()) {
     const quien = await quienEs(credencial).catch(() => null)
     if (!quien) return res.status(401).json({ error: "No autorizado" })
-    if (nivelDe(quien.rol) < NIVEL_ROL.gerente) {
+    if (nivelDe(quien.rol) < NIVEL_ROL.directivo) {
       return res.status(403).json({ error: "Tu cuenta no tiene acceso a Tianguis IA" })
     }
   } else if (credencial !== SESSION_TOKEN) {
@@ -1153,6 +1153,38 @@ app.get("/api/equipo/lista", async (req, res) => {
       .filter(u => u.Activo !== false && u.Activo !== 0)
       .map(u => ({ nombre: u.Nombre, sucursal: u.Sucursal, rol: u.Rol }))
     )
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Equipo completo, para que dirección vea quién es quién y le asigne sucursal.
+// El rol se sigue tocando en NocoDB a propósito: desde aquí cualquiera con
+// nivel de dirección podría ascenderse solo.
+app.get("/api/equipo", exigeNivel("directivo"), async (req, res) => {
+  try {
+    const rows = await nocoGet(T.equipo, "&sort=Nombre")
+    res.json(rows.map(u => ({
+      id: u.Id, nombre: u.Nombre ?? "", correo: u.Gmail ?? "",
+      rol: u.Rol ?? "", puesto: u.Puesto ?? "", sucursal: u.Sucursal ?? "",
+      activo: u.Activo !== false && u.Activo !== 0,
+    })))
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+const SUCURSALES_VALIDAS = ["centro", "repostero", "bodega"]
+
+app.patch("/api/equipo/:id", exigeNivel("directivo"), async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (!id) return res.status(400).json({ error: "Falta el id" })
+  const suc = String(req.body?.sucursal ?? "").trim().toLowerCase()
+  if (suc && !SUCURSALES_VALIDAS.includes(suc)) {
+    return res.status(400).json({ error: "Esa sucursal no existe" })
+  }
+  try {
+    await nocoPatch(T.equipo, { Id: id, Sucursal: suc })
+    // La sesión recuerda el rol y la sucursal un minuto: se olvida ya, para
+    // que el cambio se note al recargar y no diez llamadas después.
+    sesiones.clear()
+    res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 

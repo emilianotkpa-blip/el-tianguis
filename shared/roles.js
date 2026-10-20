@@ -24,6 +24,12 @@ export const puedeVer = (user, rolMin) => !rolMin || nivelDe(user?.rol) >= nivel
 // Admin es el único que puede mirar el sistema con los ojos de otra cuenta.
 export const esAdmin = (user) => nivelDe(user?.rol) >= NIVEL_ROL.admin
 
+// De gerencia para arriba cada quien elige desde qué sucursal trabaja, porque
+// se mueven entre ellas. De ahí para abajo no se elige: quien atiende una caja
+// trabaja donde lo pusieron, y eso lo decide dirección.
+export const puedeElegirSucursal  = (user) => puedeVer(user, "gerente")
+export const puedeAsignarSucursal = (user) => puedeVer(user, "directivo")
+
 // Dinero que sale del negocio: los proveedores (con sus datos bancarios) y el
 // historial completo de depósitos son de dirección.
 export const veTodosLosDepositos = (user) => puedeVer(user, "directivo")
