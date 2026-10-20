@@ -1,17 +1,17 @@
 import { useState, useRef, useEffect } from "react"
 import Icon from "../components/Icon"
 
-// El saludo también enseña a usarlo: si no se dice qué sabe, la gente
-// pregunta cualquier cosa, se topa con un "no tengo acceso" y no vuelve.
-const WELCOME = [
-  "¡Hola! Soy **Tianguis IA**. Veo el catálogo con las existencias de cada sucursal, las ventas del día y del mes, los pedidos en curso y quién está en el equipo.",
-  "",
-  "Pruébame con algo así:",
-  "- ¿Cuántas cajas de bolsas poliseda quedan en bodega?",
-  "- ¿Qué se agotó en las dos tiendas?",
-  "- ¿Cuánto llevamos vendido hoy?",
-  "- ¿Qué pedidos están en camino?",
-].join(String.fromCharCode(10))
+const WELCOME = "¡Hola! Soy **Tianguis IA**. Veo el catálogo con las existencias de cada sucursal, las ventas del día y del mes, los pedidos en curso y quién está en el equipo."
+
+// Ejemplos para arrancar. Van aparte del mensaje y se pulsan: si no se dice
+// qué sabe, la gente pregunta cualquier cosa, se topa con un "no tengo acceso"
+// y no vuelve. Desaparecen en cuanto la conversación empieza.
+const SUGERENCIAS = [
+  "¿Cuántas cajas de bolsas poliseda quedan en bodega?",
+  "¿Qué se agotó en las dos tiendas?",
+  "¿Cuánto llevamos vendido hoy?",
+  "¿Qué pedidos están en camino?",
+]
 
 // El modelo responde en markdown. Se interpreta a JSX (nunca a HTML crudo:
 // el texto viene de fuera, así que no se inyecta al DOM sin pasar por React).
@@ -90,8 +90,10 @@ export default function TianguisIAPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const send = async () => {
-    const text = input.trim()
+  // Acepta el texto ya hecho (de un botón de ejemplo) o lo toma del cuadro.
+  // Pasar por setInput y luego leerlo no sirve: el estado aún no se actualiza.
+  const send = async (textoDirecto) => {
+    const text = String(textoDirecto ?? input).trim()
     if (!text || loading) return
 
     setInput("")
@@ -201,6 +203,16 @@ export default function TianguisIAPage() {
             />
           ))}
 
+          {messages.length === 1 && !loading && (
+            <div className="ia-sugerencias">
+              {SUGERENCIAS.map(q => (
+                <button key={q} className="ia-sugerencia" onClick={() => send(q)}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+
           {error && (
             <div className="ia-error">
               <Icon name="alert" size={14} />
@@ -224,7 +236,7 @@ export default function TianguisIAPage() {
           />
           <button
             className="btn btn-wine"
-            onClick={send}
+            onClick={() => send()}
             disabled={!input.trim() || loading}
             title="Enviar"
           >

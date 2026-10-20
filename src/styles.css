@@ -3296,6 +3296,25 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   0%, 80%, 100% { transform: scale(.7); opacity: .5; }
   40% { transform: scale(1); opacity: 1; }
 }
+/* Ejemplos para arrancar la conversación: se pulsan y preguntan solos */
+.ia-sugerencias {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin: 4px 0 8px 40px;
+}
+.ia-sugerencia {
+  padding: 9px 14px; border-radius: 99px; cursor: pointer;
+  font-size: var(--fs-sm); text-align: left;
+  background: var(--bg-elev); color: var(--text);
+  border: 1px solid var(--border);
+  transition: border-color .15s, transform .15s;
+}
+.ia-sugerencia:hover { border-color: var(--gold-400); transform: translateY(-1px); }
+.ia-sugerencia:active { transform: none; }
+@media (max-width: 640px) {
+  .ia-sugerencias { margin-left: 0; flex-direction: column; }
+  .ia-sugerencia { width: 100%; }
+}
+
 .ia-error {
   display: flex;
   align-items: center;
