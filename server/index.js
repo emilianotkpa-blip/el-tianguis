@@ -42,6 +42,29 @@ Tu rol es ayudar al equipo operativo con:
 Responde siempre en español, de manera concisa y profesional. Si necesitas datos en tiempo real que no tienes, indícalo y sugiere dónde encontrarlos en el panel.`
 
 // ── NocoDB ─────────────────────────────────────────────
+// El negocio está en Yucatán y el servidor corre en UTC: con toISOString(),
+// toda venta después de las 6 de la tarde quedaba fechada al día siguiente.
+// La fecha y la hora del negocio salen siempre de su propio huso.
+const TZ_NEGOCIO = process.env.TZ_NEGOCIO || "America/Merida"
+
+// Si la imagen viniera sin los datos de husos horarios, Intl devuelve UTC en
+// silencio: por eso se comprueba una vez al arrancar y, si falla, se usa el
+// desfase fijo de Yucatán (-6, sin horario de verano desde 2022).
+const HAY_HUSOS = (() => {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: TZ_NEGOCIO }).format(new Date(Date.UTC(2026, 0, 1, 3))) === "2025-12-31"
+  } catch { return false }
+})()
+if (!HAY_HUSOS) console.warn(`Sin datos del huso ${TZ_NEGOCIO}: las fechas se calculan con -6 fijo`)
+
+const enNegocio = () => HAY_HUSOS ? new Date() : new Date(Date.now() - 6 * 3600e3)
+const fechaNegocio = () => HAY_HUSOS
+  ? new Intl.DateTimeFormat("en-CA", { timeZone: TZ_NEGOCIO, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
+  : enNegocio().toISOString().slice(0, 10)
+const horaNegocio = () => HAY_HUSOS
+  ? new Intl.DateTimeFormat("es-MX", { timeZone: TZ_NEGOCIO, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date())
+  : enNegocio().toISOString().slice(11, 16)
+
 const NOCO_URL   = process.env.NOCO_URL
 const NOCO_TOKEN = process.env.NOCO_TOKEN
 
@@ -899,7 +922,7 @@ app.post("/api/movimientos", async (req, res) => {
   const { tipo, producto_codigo, sucursal, cantidad, descripcion, observaciones, nivel, factor } = req.body
   try {
     await nocoPost(T.movimientos, {
-      Fecha: new Date().toISOString().slice(0, 10),
+      Fecha: fechaNegocio(),
       Tipo: tipo, Producto_Codigo: producto_codigo,
       Descripcion: descripcion ?? "", Sucursal: sucursal,
       Cantidad: Math.abs(cantidad), Observaciones: observaciones ?? "",
@@ -963,7 +986,7 @@ app.post("/api/abrir-caja", async (req, res) => {
     })
 
     await nocoPost(T.movimientos, {
-      Fecha: new Date().toISOString().slice(0, 10),
+      Fecha: fechaNegocio(),
       Tipo: "Apertura de caja",
       Producto_Codigo: producto_codigo,
       Descripcion: `Apertura de caja → ${paqsNuevos} paquetes`,
@@ -1146,8 +1169,8 @@ app.post("/api/pedidos-mercancia/:id/avanzar", async (req, res) => {
       meta.timers = { ...(meta.timers ?? {}), fin_curso: Date.now() }
       meta.confirmacion_entrega = {
         nombre,
-        hora: new Date().toTimeString().slice(0, 5),
-        fecha: new Date().toISOString().slice(0, 10),
+        hora: horaNegocio(),
+        fecha: fechaNegocio(),
       }
       // Transferir stock bodega → sucursal destino
       const destStr    = (pedido.Destino ?? "").toLowerCase()
@@ -1188,8 +1211,8 @@ app.post("/api/pedidos-mercancia/:id/avanzar", async (req, res) => {
       meta.timers = { ...(meta.timers ?? {}), fin_regreso: Date.now() }
       meta.confirmacion_regreso = {
         nombre,
-        hora: new Date().toTimeString().slice(0, 5),
-        fecha: new Date().toISOString().slice(0, 10),
+        hora: horaNegocio(),
+        fecha: fechaNegocio(),
       }
 
     } else if (accion === "checklist") {
@@ -1413,7 +1436,7 @@ app.post("/api/notas/borrador", async (req, res) => {
       await nocoPatch(T.ventas, {
         Id: nota.Id, EstadoNota: "borrador", Estado: "borrador",
         Sucursal: sucursal, Vendedor: vendedor ?? "",
-        Fecha: new Date().toISOString().slice(0, 10),
+        Fecha: fechaNegocio(),
         Cliente: "Mostrador", Observaciones: "",
         Items_JSON: "[]", Pagos_JSON: "[]",
         Subtotal: 0, IVA: 0, Total: 0,
@@ -1422,7 +1445,7 @@ app.post("/api/notas/borrador", async (req, res) => {
     }
     // Sin cancelados — crear nuevo
     const nota   = await nocoPost(T.ventas, {
-      Fecha: new Date().toISOString().slice(0, 10),
+      Fecha: fechaNegocio(),
       Sucursal: sucursal, Vendedor: vendedor ?? "",
       EstadoNota: "borrador", Estado: "borrador",
       Subtotal: 0, IVA: 0, Total: 0, Items_JSON: "[]", Pagos_JSON: "[]",

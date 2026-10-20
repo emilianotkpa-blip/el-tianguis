@@ -1,4 +1,4 @@
-import { fmtMoney } from "../utils"
+import { fmtMoney, fmtFecha } from "../utils"
 
 const EMPRESA = {
   nombre:   '"EL TIANGUIS"',
@@ -10,7 +10,20 @@ const EMPRESA = {
   tel:      "Tel. 986 863 28 18  ·  Cel. 986 112 51 24",
 }
 
-export default function NotaImpresa({ folio, fecha, cliente, vendedor, sucursal, items, pagos, totals, cambio }) {
+export default function NotaImpresa({ folio, fecha, hora, cliente, vendedor, sucursal, items, pagos, totals, cambio }) {
+  // Lo que el cliente se ahorró: por llevar paquete o caja en lugar de piezas
+  // sueltas, más lo que le quitaron las reglas de precio. Solo se presume si
+  // de verdad hubo ahorro; un "$0.00" en el ticket se ve peor que nada.
+  const ahorroVolumen = (items ?? []).reduce((s, it) => {
+    const ref = Number(it.precioRef) || 0
+    const pagado = Number(it.precio) || 0
+    return s + (ref > pagado ? (ref - pagado) * (Number(it.qty) || 1) : 0)
+  }, 0)
+  // Venta rápida no precalcula descTotal, así que se suma de las líneas.
+  const descuentoTotal = Number(totals?.descTotal)
+    || (totals?.descuentos ?? []).reduce((s, d) => s + (Number(d.monto) || 0), 0)
+  const ahorro = ahorroVolumen + descuentoTotal
+
   return (
     <div className="nota-copia">
       {/* Encabezado */}
@@ -27,7 +40,7 @@ export default function NotaImpresa({ folio, fecha, cliente, vendedor, sucursal,
       {/* Meta */}
       <div className="nota-meta">
         <span><strong>Folio:</strong> {folio}</span>
-        <span><strong>Fecha:</strong> {fecha}</span>
+        <span><strong>Fecha:</strong> {fmtFecha(fecha)}{hora ? ` · ${hora}` : ""}</span>
       </div>
       <div style={{ fontSize: 8, marginBottom: 3 }}>
         <strong>Cliente:</strong> {cliente ?? "Mostrador"}{vendedor ? `  ·  Vendedor: ${vendedor}` : ""}
@@ -48,7 +61,7 @@ export default function NotaImpresa({ folio, fecha, cliente, vendedor, sucursal,
           {(items ?? []).map((it, i) => (
             <tr key={i}>
               <td className="num">{it.qty}</td>
-              <td>{it.nombre ?? it.name} <span style={{ opacity: .7 }}>({it.presLabel})</span></td>
+              <td>{it.nombre ?? it.name} <span className="nota-pres">({it.presLabel})</span></td>
               <td className="num">{fmtMoney(it.precio ?? 0)}</td>
               <td className="num">{fmtMoney((it.precio ?? 0) * (it.qty ?? 1))}</td>
             </tr>
@@ -62,12 +75,6 @@ export default function NotaImpresa({ folio, fecha, cliente, vendedor, sucursal,
 
       {/* Totales */}
       <div className="nota-totales">
-        {totals?.subtotalNoFact > 0 && (
-          <div className="nt-row"><span>Sin factura</span><span>{fmtMoney(totals.subtotalNoFact)}</span></div>
-        )}
-        {totals?.subtotalFact > 0 && (
-          <div className="nt-row"><span>Facturable</span><span>{fmtMoney(totals.subtotalFact)}</span></div>
-        )}
         {(totals?.descuentos ?? []).map((d, i) => (
           <div className="nt-row" key={i}>
             <span>{d.nombre}{d.veces > 1 ? ` x${d.veces}` : ""}</span>
@@ -95,6 +102,10 @@ export default function NotaImpresa({ folio, fecha, cliente, vendedor, sucursal,
             </div>
           )}
         </div>
+      )}
+
+      {ahorro > 0 && (
+        <div className="nota-ahorro">¡Usted ahorró {fmtMoney(ahorro)} en esta compra!</div>
       )}
 
       <div className="nota-pie">¡Gracias por su compra!</div>

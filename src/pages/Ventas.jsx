@@ -8,7 +8,7 @@ import { TilesSkeleton } from "../components/Skeleton"
 import Select from "../components/Select"
 import { SUCURSALES, TIPOS_CONFIG } from "../data"
 import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, getClientes, postAbrirCaja, printFolio, getPromos, guardarItemsBorrador, getStockComprometido } from "../api"
-import { fmtMoney, fmtBase, todayISO, tipoLabel } from "../utils"
+import { fmtMoney, fmtBase, todayISO, tipoLabel, precioMenudeo } from "../utils"
 import { evaluarPromos, sugerenciasPromos, describirRegla, simularRegla, soloProductos } from "../promos"
 import JsBarcode from "jsbarcode"
 
@@ -255,6 +255,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       return [...c, {
         key, sku: p.sku, name: p.name,
         presId, presLabel: label, precio, factor,
+        precioRef: precioMenudeo(p, factor),
         nivel: pres?.nivel ?? "pieza",
         facturable: p.facturable !== false,
         esMayoreo,
@@ -502,6 +503,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       return [...c, {
         key, sku: producto.sku, name: producto.name,
         presId, presLabel: label, precio, factor,
+        precioRef: precioMenudeo(producto, factor),
         nivel: nuevaPres?.nivel ?? "pieza",
         facturable: producto.facturable !== false,
         esMayoreo, qty,
@@ -533,6 +535,7 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
     sku: it.sku, name: it.name, nombre: it.name,
     presId: it.presId, presLabel: it.presLabel,
     precio: it.precio, factor: it.factor,
+    precioRef: it.precioRef ?? null,
     nivel: it.nivel ?? "pieza",
     facturable: it.facturable, qty: it.qty,
     iva: conIva && it.facturable !== false,

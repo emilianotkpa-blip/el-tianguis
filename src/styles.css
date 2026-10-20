@@ -1161,11 +1161,15 @@ input:disabled, select:disabled, textarea:disabled {
   html[data-hoja="rollo"] .nota-meta span { display: block; }
   /* Sin renglones vacíos: en el rollo cada uno es papel de más */
   html[data-hoja="rollo"] .nota-table .fila-relleno { display: none; }
+  /* En 51 mm la columna de descripción es angosta: la presentación va en su
+     propio renglón para que no se parta a media palabra. */
+  html[data-hoja="rollo"] .nota-pres { display: block; }
   html[data-hoja="rollo"] .nota-table th,
   html[data-hoja="rollo"] .nota-table td { font-size: 7.5px; }
   html[data-hoja="rollo"] .nota-totales { font-size: 8.5px; }
   html[data-hoja="rollo"] .nota-totales .nt-total { font-size: 10px; }
   html[data-hoja="rollo"] .nota-pie { font-size: 7px; color: #000; }
+  html[data-hoja="rollo"] .nota-ahorro { font-size: 8.5px; padding: 2px; }
   .nota-copia {
     padding: 8mm 6mm;
     font-size: 10px;
@@ -1186,9 +1190,14 @@ input:disabled, select:disabled, textarea:disabled {
   .nota-table th { font-size: 8px; border-bottom: 1px solid #000; padding: 2px 1px; text-align: left; }
   .nota-table td { font-size: 8px; padding: 1px; vertical-align: top; }
   .nota-table .num { text-align: right; }
+  .nota-pres { opacity: .7; }
   .nota-totales { margin-top: 4px; border-top: 1px solid #000; padding-top: 3px; font-size: 9px; }
   .nota-totales .nt-row { display: flex; justify-content: space-between; }
   .nota-totales .nt-total { font-weight: 700; font-size: 11px; }
+  .nota-ahorro {
+    margin-top: 5px; padding: 3px 4px; text-align: center;
+    border: 1px dashed #000; font-size: 9.5px; font-weight: 700; color: #000;
+  }
   .nota-pie { text-align: center; font-size: 8px; margin-top: 6px; color: #555; }
 
   /* Fallback: si no se agrega clase al body */

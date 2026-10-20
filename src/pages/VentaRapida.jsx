@@ -5,7 +5,7 @@ import PresPicker from "../components/PresPicker"
 import NotaImpresa from "../components/NotaImpresa"
 import Select from "../components/Select"
 import { getCatalogo, postNota, cobrarNota, getPromos } from "../api"
-import { fmtMoney, todayISO } from "../utils"
+import { fmtMoney, todayISO, precioMenudeo, horaLocal } from "../utils"
 import { evaluarPromos } from "../promos"
 
 const METODOS = ["Efectivo", "Tarjeta", "Transferencia"]
@@ -82,7 +82,8 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
       if (ex) return c.map(it => it.key === key ? { ...it, qty: it.qty + 1 } : it)
       return [...c, {
         key, sku: p.sku, name: p.name, presId, presLabel: label,
-        precio, factor, nivel: pres?.nivel ?? "pieza",
+        precio, factor, precioRef: precioMenudeo(p, factor),
+        nivel: pres?.nivel ?? "pieza",
         facturable: p.facturable !== false, qty: 1,
       }]
     })
@@ -137,6 +138,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
         sku: it.sku, name: it.name, nombre: it.name,
         presId: it.presId, presLabel: it.presLabel,
         precio: it.precio, factor: it.factor, nivel: it.nivel,
+        precioRef: it.precioRef ?? null,
         facturable: it.facturable, qty: it.qty,
         iva: conIva && it.facturable !== false,
       }))
@@ -167,6 +169,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
 
       setCobrada({
         folio: nota.folio,
+        fecha: todayISO(), hora: horaLocal(),
         pagos: pagosPayload,
         totals: { subtotal, iva, total, subtotalFact, subtotalNoFact, descuentos: promo.descuentos },
         cambio,
@@ -213,7 +216,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
   })
 
   const notaProps = cobrada ? {
-    folio: cobrada.folio, fecha: todayISO(), cliente: "Mostrador",
+    folio: cobrada.folio, fecha: cobrada.fecha ?? todayISO(), hora: cobrada.hora, cliente: "Mostrador",
     vendedor: user?.name ?? "Caja", sucursal: suc,
     items: cobrada.items, pagos: cobrada.pagos, totals: cobrada.totals, cambio: cobrada.cambio,
   } : null

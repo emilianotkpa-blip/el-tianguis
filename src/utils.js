@@ -31,7 +31,22 @@ export function tipoLabel(tipoId, TIPOS_CONFIG) {
   return limpio.charAt(0).toUpperCase() + limpio.slice(1)
 }
 
-export const todayISO = () => new Date().toISOString().slice(0, 10)
+// Lo que costaría esa misma mercancía comprada en la presentación más chica,
+// que es la más cara por pieza. Es el punto de comparación honesto para decirle
+// al cliente cuánto se ahorró por llevar paquete o caja: no se inventa un
+// "precio de lista", se usa el que de verdad pagaría al menudeo en el mostrador.
+export function precioMenudeo(producto, factor) {
+  const f = Number(factor) || 1
+  const pres = (producto?.presentaciones ?? [])
+    .filter(x => x.activo !== false && Number(x.precio) > 0)
+    .map(x => Number(x.precio) / (Number(x.factor) || 1))
+  if (!pres.length) return null
+  return Math.max(...pres) * f
+}
+
+// Hora del reloj del equipo, para el ticket: "14:35".
+export const horaLocal = (d = new Date()) =>
+  d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false })
 
 // Fecha de hoy según el reloj del equipo, no en UTC: con toISOString(), pasadas
 // las 6 p. m. en México ya es "mañana".
@@ -39,6 +54,10 @@ export const hoyLocal = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
+
+// Mismo día, nombre viejo: lo usan varias pantallas. Antes salía de
+// toISOString() y por eso las ventas de la tarde se fechaban al día siguiente.
+export const todayISO = () => hoyLocal()
 
 // "2026-09-18" → "18 sep 2026". Se arma con sus partes porque new Date("2026-09-18")
 // lo toma como medianoche UTC y en México se muestra un día antes.

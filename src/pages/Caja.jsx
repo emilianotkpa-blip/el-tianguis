@@ -7,7 +7,7 @@ import Select from "../components/Select"
 import Stepper from "../components/Stepper"
 import NotaImpresa from "../components/NotaImpresa"
 import { getCaja, getCajaPorFolio, editarNotaCaja, cobrarNota, cancelarNota, getCatalogo, getHistorialCaja } from "../api"
-import { fmtMoney, todayISO } from "../utils"
+import { fmtMoney, todayISO, horaLocal, precioMenudeo } from "../utils"
 import { soloProductos, soloDescuentos, sumaDescuentos } from "../promos"
 
 const RANGOS = [
@@ -29,7 +29,7 @@ function RelativeTime({ fecha }) {
 }
 
 // ── Wizard de cobro (overlay pantalla completa) ─────────
-function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCancelar, addToast, user }) {
+function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCancelar, addToast, user, catalogo = [] }) {
   const [step, setStep] = useState(0)
   const [pagos, setPagos] = useState(() => {
     try {
@@ -42,7 +42,17 @@ function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCa
   const [cobradaLocal, setCobradaLocal] = useState(null)
   const [notaImpresa, setNotaImpresa] = useState(false)
 
-  const items  = getItems(nota)
+  // Las notas hechas antes de que se guardara el precio de referencia no traen
+  // con qué comparar: se rescata del catálogo para que el ticket igual pueda
+  // decirle al cliente cuánto se ahorró. Las más viejas tampoco guardaban el
+  // factor, así que se busca por la presentación que se vendió.
+  const refDeItem = (it) => {
+    const prod = catalogo.find(p => p.sku === it.sku)
+    if (!prod) return null
+    const pres = (prod.presentaciones ?? []).find(x => x.id === it.presId || x.label === it.presLabel)
+    return precioMenudeo(prod, Number(it.factor) || Number(pres?.factor) || 1)
+  }
+  const items = getItems(nota).map(it => it.precioRef != null ? it : { ...it, precioRef: refDeItem(it) })
   const descuentosNota = getDescuentos(nota)
   const totals = calcTotals(items, descuentosNota)
   const totalPagado = pagos.reduce((s, p) => s + (parseFloat(p.monto) || 0), 0)
@@ -71,7 +81,7 @@ function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCa
         forzadoPor: forzar ? (user?.name ?? "sin identificar") : undefined,
       })
       setFaltantes(null)
-      setCobradaLocal({ pagos, cambio, totals })
+      setCobradaLocal({ pagos, cambio, totals, hora: horaLocal() })
       setStep(3)
     } catch (err) {
       if (err.status === 409 && err.datos?.faltantes?.length) {
@@ -85,7 +95,7 @@ function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCa
   }
 
   const notaImpresaProps = cobradaLocal ? {
-    folio: nota.Folio, fecha: nota.Fecha ?? todayISO(),
+    folio: nota.Folio, fecha: nota.Fecha ?? todayISO(), hora: cobradaLocal.hora,
     cliente: nota.Cliente, vendedor: nota.Vendedor, sucursal: nota.Sucursal,
     items, pagos: cobradaLocal.pagos, totals: cobradaLocal.totals, cambio: cobradaLocal.cambio,
   } : null
@@ -536,6 +546,7 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
       return [...it, {
         key, sku: p.sku, nombre: p.name, name: p.name, presId,
         presLabel: label, precio, precioNormal, precioMayoreo: precioMayData,
+        precioRef: precioMenudeo(p, factor),
         mayoreoDisp: !!precioMayData, esMayoreo: usarMayoreo && !!precioMayData,
         factor, facturable: p.facturable, qty: 1,
       }]
@@ -632,6 +643,7 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
         <CobrarWizard
           user={user}
           nota={wizardNota}
+          catalogo={catalogo}
           getItems={getItems}
           getDescuentos={getDescuentos}
           calcTotals={calcTotals}
