@@ -3915,7 +3915,11 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   .table.tarjetas-movil thead { display: none; }
   .table.tarjetas-movil tbody { display: block; }
   .table.tarjetas-movil tr {
-    display: block;
+    /* En columna para poder subir el título: en Productos el código iba antes
+       del nombre, así que la tarjeta abría con "Código 0026" y la casilla de
+       comparar le caía encima. El nombre siempre manda. */
+    display: flex;
+    flex-direction: column;
     padding: 12px 14px;
     margin-bottom: 10px;
     background: var(--bg-elev);
@@ -3954,7 +3958,7 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
      escondida del todo, en el teléfono no se podía comparar nada y el ojo
      nunca llegaba a aparecer. */
   .table.tarjetas-movil td.col-check {
-    position: absolute; top: 10px; right: 12px;
+    position: absolute; top: 12px; right: 12px; z-index: 1;
     padding: 0; justify-content: flex-end;
   }
   .table.tarjetas-movil td.col-check::before { content: none; }
@@ -3973,6 +3977,7 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 
   /* El nombre manda: va arriba, grande y sin etiqueta */
   .table.tarjetas-movil td.td-titulo {
+    order: -1;
     justify-content: flex-start;
     font-size: var(--fs-md);
     padding-bottom: 8px;
