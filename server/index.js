@@ -315,7 +315,7 @@ const usuarioPublico = (fila, email) => ({
 
 // Comprobar el token contra Supabase en cada llamada sería una ida y vuelta por
 // petición; se recuerda un minuto, que es poco para un token de una hora.
-const sesiones = new Map()   // token → { email, id, hasta }
+const sesiones = new Map()   // token → { email, id, nombre, rol, hasta }
 const MS_RECORDAR = 60_000
 
 async function quienEs(token) {
@@ -324,7 +324,18 @@ async function quienEs(token) {
   const r = await supa("/auth/v1/user", { authorization: `Bearer ${token}` })
   if (!r.ok) { sesiones.delete(token); return null }
   const u = await r.json()
-  const dato = { email: (u.email ?? "").toLowerCase(), id: u.id, hasta: Date.now() + MS_RECORDAR }
+  const email = (u.email ?? "").toLowerCase()
+  // Supabase sabe quién es, pero no qué puede hacer: el rol vive en Equipo.
+  // Sin traerlo aquí, el servidor veía a todo el mundo como el nivel más bajo
+  // y cerraba la puerta hasta a dirección. Se recuerda junto con la sesión,
+  // así que es una consulta por minuto, no una por petición.
+  const fila = await perfilDe(email).catch(() => null)
+  const dato = {
+    email, id: u.id,
+    nombre: fila?.Nombre ?? "",
+    rol: (fila?.Rol ?? "vendedor").toLowerCase(),
+    hasta: Date.now() + MS_RECORDAR,
+  }
   if (sesiones.size > 500) sesiones.clear()
   sesiones.set(token, dato)
   return dato
@@ -1420,8 +1431,7 @@ app.get("/api/depositos", exigeNivel("gerente"), async (req, res) => {
     const todos = (await nocoGet(T.depositos, "&sort=-Fecha,-Id")).map(depositoDe)
     const quien = req.usuario
     if (!quien || nivelDe(quien.rol) >= NIVEL_ROL.directivo) return res.json(todos)
-    const fila = await perfilDe(quien.email)
-    const mio  = (fila?.Nombre ?? "").trim().toLowerCase()
+    const mio = (quien.nombre ?? "").trim().toLowerCase()
     res.json(todos.filter(d => (d.registro ?? "").trim().toLowerCase() === mio))
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
