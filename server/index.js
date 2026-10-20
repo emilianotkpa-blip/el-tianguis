@@ -315,6 +315,39 @@ const usuarioPublico = (fila, email) => ({
   sucursalFija: fila?.SucursalFija === true || fila?.SucursalFija === 1,
 })
 
+// Una entrega la firma quien la recibe, que no es necesariamente quien tiene
+// la sesión abierta: hay que comprobar SU contraseña. Con Supabase encendido
+// se comprueba contra él; si no, contra la columna vieja de NocoDB, que es lo
+// único que había antes.
+// Devuelve { ok } y, si falla, por qué: una contraseña equivocada y un
+// tropiezo de red no son lo mismo, y quien está en el mostrador con la
+// mercancía enfrente merece saber cuál de las dos le pasó.
+async function verificarPersona(nombre, contrasena) {
+  if (!nombre || !contrasena) return { ok: false, motivo: "credenciales" }
+  const equipo = await nocoGet(T.equipo, "")
+  const fila = equipo.find(u =>
+    (u.Nombre ?? "").trim() === String(nombre).trim() && u.Activo !== false && u.Activo !== 0)
+  if (!fila) return { ok: false, motivo: "credenciales" }
+  if (!conSupabase()) {
+    return fila.Contrasena === contrasena ? { ok: true, fila } : { ok: false, motivo: "credenciales" }
+  }
+  const correo = (fila.Gmail ?? "").trim().toLowerCase()
+  if (!correo) return { ok: false, motivo: "credenciales" }
+  try {
+    const r = await supa("/auth/v1/token?grant_type=password", {
+      method: "POST",
+      body: JSON.stringify({ email: correo, password: contrasena }),
+    })
+    return r.ok ? { ok: true, fila } : { ok: false, motivo: "credenciales" }
+  } catch {
+    return { ok: false, motivo: "red" }
+  }
+}
+
+const rechazoDeVerificacion = (res, v) => v.motivo === "red"
+  ? res.status(503).json({ error: "No se pudo comprobar la contraseña ahora mismo. Inténtalo de nuevo." })
+  : res.status(401).json({ error: "Nombre o contraseña incorrectos" })
+
 // Comprobar el token contra Supabase en cada llamada sería una ida y vuelta por
 // petición; se recuerda un minuto, que es poco para un token de una hora.
 const sesiones = new Map()   // token → { email, id, nombre, rol, hasta }
@@ -1178,6 +1211,12 @@ app.get("/api/equipo", exigeNivel("directivo"), async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+// "Tianguis Repostero" → la columna Repostero de la tabla de stock.
+const columnaSucursal = (v) => {
+  const n = normalizaSucursal(v)
+  return n === "repostero" ? "Repostero" : n === "bodega" ? "Bodega" : "Centro"
+}
+
 const SUCURSALES_VALIDAS = ["centro", "repostero", "bodega"]
 
 app.patch("/api/equipo/:id", exigeNivel("directivo"), async (req, res) => {
@@ -1251,9 +1290,8 @@ app.post("/api/pedidos-mercancia/:id/avanzar", async (req, res) => {
         return res.status(400).json({ error: "El pedido no está en camino" })
       if (!nombre || !contrasena)
         return res.status(400).json({ error: "Se requiere nombre y contraseña" })
-      const equipo = await nocoGet(T.equipo, "")
-      const usu = equipo.find(u => u.Nombre === nombre && u.Contrasena === contrasena && u.Activo !== false && u.Activo !== 0)
-      if (!usu) return res.status(401).json({ error: "Nombre o contraseña incorrectos" })
+      const usu = await verificarPersona(nombre, contrasena)
+      if (!usu.ok) return rechazoDeVerificacion(res, usu)
       nuevoEstado = "entregado"
       meta.timers = { ...(meta.timers ?? {}), fin_curso: Date.now() }
       meta.confirmacion_entrega = {
@@ -1261,23 +1299,84 @@ app.post("/api/pedidos-mercancia/:id/avanzar", async (req, res) => {
         hora: horaNegocio(),
         fecha: fechaNegocio(),
       }
-      // Transferir stock bodega → sucursal destino
-      const destStr    = (pedido.Destino ?? "").toLowerCase()
-      const campoDest  = destStr.includes("repostero") ? "Repostero" : destStr.includes("bodega") ? "Bodega" : "Centro"
+      // Traspaso bodega → sucursal destino.
+      //
+      // La cantidad del pedido viene en unidades de SU presentación ("3
+      // cajas"), y el stock se guarda en unidades base: hay que multiplicar
+      // por el factor. Antes se movían 3 piezas cuando se habían pedido 3
+      // cajas, y el inventario quedaba mal en las dos sucursales.
+      const campoDest = columnaSucursal(pedido.Destino)
+      const plan = []
+      const faltantes = []
       for (const item of items) {
-        const stockRows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${parseInt(item.sku, 10)})`)
-        if (!stockRows.length) continue
-        const row       = stockRows[0]
-        const patch     = { Id: row.Id }
-        patch[campoDest] = (row[campoDest] ?? 0) + item.qty
-        if (campoDest !== "Bodega") {
-          patch.Bodega = Math.max(0, (row.Bodega ?? 0) - item.qty)
+        const codigo = parseInt(item.sku, 10)
+        if (!codigo) continue
+        const stockRows = await nocoGet(T.stock, `&where=(Producto_Codigo,eq,${codigo})`)
+        const nombreIt  = item.name ?? item.nombre ?? String(item.sku)
+        if (!stockRows.length) {
+          faltantes.push({ sku: item.sku, nombre: nombreIt, pide: 0, hay: 0, unidad: "", motivo: "sin registro de stock" })
+          continue
         }
-        // Total = suma real de las 3 ubicaciones
+        const row    = stockRows[0]
+        const factor = Number(item.factor) || 1
+        const base   = (Number(item.qty) || 0) * factor
+        if (base <= 0) continue
+        // Restar de bodega solo si el destino no es la propia bodega
+        const deBodega = campoDest !== "Bodega"
+        if (deBodega && base > (row.Bodega ?? 0)) {
+          faltantes.push({
+            sku: item.sku, nombre: nombreIt,
+            pide: Number(item.qty) || 0, unidad: item.presLabel ?? item.unidad ?? "",
+            hay: Math.floor((row.Bodega ?? 0) / factor), base, enBodega: row.Bodega ?? 0,
+          })
+        }
+        plan.push({ row, item, factor, base, deBodega, nombreIt })
+      }
+
+      // Si bodega no alcanza no se inventa inventario: se avisa qué falta y
+      // quien recibe decide si la mercancía llegó de todos modos.
+      if (faltantes.length && req.body?.forzar !== true) {
+        return res.status(409).json({ error: "Bodega no tiene todo lo que trae el pedido", faltantes })
+      }
+
+      for (const { row, item, factor, base, deBodega, nombreIt } of plan) {
+        const patch = { Id: row.Id }
+        patch[campoDest] = (row[campoDest] ?? 0) + base
+        if (deBodega) patch.Bodega = (row.Bodega ?? 0) - base
         patch.Total = (campoDest === "Centro"    ? patch[campoDest] : (row.Centro    ?? 0))
                     + (campoDest === "Repostero" ? patch[campoDest] : (row.Repostero ?? 0))
                     + (patch.Bodega              ?? (row.Bodega     ?? 0))
+
+        // El conteo por presentación también se mueve: si no, la pantalla de
+        // ventas sigue creyendo que las cajas están en bodega.
+        const nivel = item.nivel ?? (factor > 1 ? "paq" : "pieza")
+        let niveles = { centro: {}, repostero: {}, bodega: {} }
+        try { if (row.StockNiveles) niveles = JSON.parse(row.StockNiveles) } catch {}
+        const destKey = campoDest.toLowerCase()
+        niveles[destKey] = { ...(niveles[destKey] ?? {}) }
+        niveles[destKey][nivel] = (niveles[destKey][nivel] ?? 0) + (Number(item.qty) || 0)
+        if (deBodega) {
+          niveles.bodega = { ...(niveles.bodega ?? {}) }
+          niveles.bodega[nivel] = Math.max(0, (niveles.bodega[nivel] ?? 0) - (Number(item.qty) || 0))
+        }
+        patch.StockNiveles = JSON.stringify(niveles)
         await nocoPatch(T.stock, patch)
+
+        // Y queda rastro en el historial de inventario, que antes no se
+        // enteraba de los traspasos.
+        const detalle = `Pedido ${pedido.Folio ?? id} · ${item.qty} ${item.presLabel ?? "pza"}`
+        if (deBodega) {
+          await nocoPost(T.movimientos, {
+            Fecha: fechaNegocio(), Tipo: "Salida", Producto_Codigo: parseInt(item.sku, 10),
+            Descripcion: nombreIt, Sucursal: "bodega", Cantidad: base,
+            Observaciones: `${detalle} → ${campoDest}`,
+          })
+        }
+        await nocoPost(T.movimientos, {
+          Fecha: fechaNegocio(), Tipo: "Entrada", Producto_Codigo: parseInt(item.sku, 10),
+          Descripcion: nombreIt, Sucursal: destKey, Cantidad: base,
+          Observaciones: deBodega ? `${detalle} ← bodega` : detalle,
+        })
       }
 
     } else if (accion === "iniciar_regreso") {
@@ -1293,9 +1392,8 @@ app.post("/api/pedidos-mercancia/:id/avanzar", async (req, res) => {
         return res.status(400).json({ error: "El pedido no está en camino de regreso" })
       if (!nombre || !contrasena)
         return res.status(400).json({ error: "Se requiere nombre y contraseña" })
-      const equipo = await nocoGet(T.equipo, "")
-      const usu = equipo.find(u => u.Nombre === nombre && u.Contrasena === contrasena && u.Activo !== false && u.Activo !== 0)
-      if (!usu) return res.status(401).json({ error: "Nombre o contraseña incorrectos" })
+      const usu = await verificarPersona(nombre, contrasena)
+      if (!usu.ok) return rechazoDeVerificacion(res, usu)
       nuevoEstado = "finalizado"
       meta.timers = { ...(meta.timers ?? {}), fin_regreso: Date.now() }
       meta.confirmacion_regreso = {

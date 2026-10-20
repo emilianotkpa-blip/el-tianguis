@@ -247,13 +247,19 @@ function ConfirmModal({ titulo, descripcion, usuarios, onConfirm, onCancel }) {
   const [nombre,  setNombre]  = useState("")
   const [pass,    setPass]    = useState("")
   const [err,     setErr]     = useState("")
+  const [faltan,  setFaltan]  = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const submit = async () => {
+  // Si bodega no tenía todo, el servidor no inventa inventario: devuelve qué
+  // falta y quien recibe decide, porque la mercancía ya está en el mostrador.
+  const submit = async (forzar = false) => {
     if (!nombre) { setErr("Selecciona quién confirma"); return }
     if (!pass)   { setErr("Ingresa tu contraseña"); return }
     setErr(""); setLoading(true)
-    const res = await onConfirm({ nombre, contrasena: pass })
+    const res = await onConfirm({ nombre, contrasena: pass, forzar })
+    if (res?.faltantes?.length) {
+      setFaltan(res.faltantes); setErr(res.error ?? ""); setLoading(false); return
+    }
     if (res?.error) { setErr(res.error); setLoading(false) }
   }
 
@@ -308,11 +314,31 @@ function ConfirmModal({ titulo, descripcion, usuarios, onConfirm, onCancel }) {
           </div>
         )}
 
+        {faltan && (
+          <div className="pm-faltan">
+            <strong>Bodega tenía menos de lo que viene en el pedido:</strong>
+            <ul>
+              {faltan.map((f, i) => (
+                <li key={i}>
+                  {f.nombre}: se piden <strong>{f.pide} {f.unidad}</strong>, en bodega quedan <strong>{f.hay}</strong>
+                </li>
+              ))}
+            </ul>
+            <span>Si la mercancía sí llegó, confírmala y bodega quedará en negativo para que se revise.</span>
+          </div>
+        )}
+
         <div className="pm-modal-actions">
           <button className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
-          <button className="btn btn-wine" onClick={submit} disabled={loading}>
-            {loading ? "Verificando…" : "Confirmar"}
-          </button>
+          {faltan ? (
+            <button className="btn btn-wine" onClick={() => submit(true)} disabled={loading}>
+              {loading ? "Verificando…" : "Llegó de todos modos"}
+            </button>
+          ) : (
+            <button className="btn btn-wine" onClick={() => submit()} disabled={loading}>
+              {loading ? "Verificando…" : "Confirmar"}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -560,6 +586,26 @@ function BodegaView({ user, usuarios, pedidos, onRefresh, addToast }) {
   )
 }
 
+// Lo que de verdad hay en bodega, contado en cada presentación del producto.
+// El stock se guarda en unidades base, así que una caja de 500 existe solo si
+// hay 500 piezas; pedir "3 cajas" sin mirar esto es como pedir al aire.
+function presentacionesDeBodega(p) {
+  const enBodega = p?.stock?.bodega ?? 0
+  const lista = (p?.presentaciones ?? [])
+    .filter(x => x.activo !== false)
+    .map(x => {
+      const factor = Number(x.factor) || 1
+      return {
+        id: x.id, label: x.label ?? x.presLabel ?? "Pieza", factor,
+        nivel: x.nivel ?? (factor > 1 ? "paq" : "pieza"),
+        disponibles: Math.floor(enBodega / factor),
+      }
+    })
+  // Un producto sin presentaciones se pide por pieza suelta
+  if (!lista.length) lista.push({ id: "pieza", label: "Pieza", factor: 1, nivel: "pieza", disponibles: enBodega })
+  return lista.sort((a, b) => b.factor - a.factor)
+}
+
 // ── SUCURSAL VIEW ─────────────────────────────────────
 function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }) {
   const [mode,     setMode]     = useState("active")
@@ -569,6 +615,7 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
   const [obs,      setObs]      = useState("")
   const [saving,   setSaving]   = useState(false)
   const [loadProds, setLoadProds] = useState(false)
+  const [eligiendo, setEligiendo] = useState(null)   // producto cuyo tamaño se está eligiendo
 
   const sucObj = SUCURSALES.find(s => s.id === sucursal)
   // Match by sucursal id OR by any part of the name (e.g. "centro" matches "Tianguis Centro")
@@ -592,19 +639,29 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
     !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.includes(search)
   )
 
-  const addToCart = (p) =>
+  // Cada línea del pedido lleva su presentación: sin eso, bodega no sabe si
+  // "3" son tres piezas o tres cajas, y el traspaso movía piezas sueltas.
+  const agregar = (p, pres) => {
+    const key = p.sku + "__" + pres.id
     setCart(c => {
-      const ex = c.find(i => i.sku === p.sku)
-      if (ex) return c.map(i => i.sku === p.sku ? { ...i, qty: i.qty + 1 } : i)
-      return [...c, { sku: p.sku, name: p.name, unidad: p.unidad, qty: 1 }]
+      const ex = c.find(i => i.key === key)
+      if (ex) return c.map(i => i.key === key ? { ...i, qty: i.qty + 1 } : i)
+      return [...c, {
+        key, sku: p.sku, name: p.name,
+        presId: pres.id, presLabel: pres.label, factor: pres.factor, nivel: pres.nivel,
+        disponibles: pres.disponibles, qty: 1,
+      }]
     })
+    setEligiendo(null)
+  }
 
-  const setQty = (sku, qty) => {
-    if (qty <= 0) return setCart(c => c.filter(i => i.sku !== sku))
-    setCart(c => c.map(i => i.sku === sku ? { ...i, qty } : i))
+  const setQty = (key, qty) => {
+    if (qty <= 0) return setCart(c => c.filter(i => i.key !== key))
+    setCart(c => c.map(i => i.key === key ? { ...i, qty } : i))
   }
 
   const numItems = cart.reduce((s, i) => s + i.qty, 0)
+  const dePlano = cart.filter(i => i.qty > i.disponibles)
 
   const enviar = async () => {
     if (!cart.length) return
@@ -619,7 +676,7 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
         estado: "solicitado",
         fechaEntrega: null,
         total: 0,
-        items: cart,
+        items: cart.map(({ key, disponibles, ...it }) => it),
         observaciones: obs,
       })
       addToast({ kind: "ok", msg: "Solicitud enviada a bodega" })
@@ -658,13 +715,31 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
             </div>
             <div className="products-grid">
               {loadProds && <div style={{ gridColumn: "1/-1", padding: 48, textAlign: "center", color: "var(--text-muted)" }}>Cargando…</div>}
-              {filtered.map(p => (
-                <button key={p.sku} className="product-tile" onClick={() => addToCart(p)}>
-                  <div className="sku">{p.sku}</div>
-                  <div className="name">{p.name}</div>
-                  <div className="meta"><span>{p.unidad}</span></div>
-                </button>
-              ))}
+              {filtered.map(p => {
+                const pres    = presentacionesDeBodega(p)
+                // Se enseña el tamaño más grande del que SÍ queda algo: decir
+                // "0 cajas" en algo que todavía se puede pedir por paquete
+                // hace creer que no hay nada.
+                const mayor   = pres.find(x => x.disponibles > 0) ?? pres[0]
+                const sinNada = !pres.some(x => x.disponibles > 0)
+                return (
+                  <button
+                    key={p.sku}
+                    className={"product-tile" + (sinNada ? " sin-bodega" : "")}
+                    disabled={sinNada}
+                    onClick={() => !sinNada && setEligiendo(p)}
+                    title={sinNada ? "Bodega no tiene nada de este producto" : "Elegir tamaño"}
+                  >
+                    <div className="sku">{p.sku}</div>
+                    <div className="name">{p.name}</div>
+                    <div className="meta">
+                      {sinNada
+                        ? <span className="pm-agotado">Sin existencia en bodega</span>
+                        : <span className="pm-hay">Bodega: {mayor.disponibles} × {mayor.label}</span>}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -680,22 +755,28 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
                     <div className="big"><Icon name="box" size={28} /></div>
                     <div>Agrega los productos<br />que necesitas</div>
                   </div>
-                ) : cart.map(it => (
-                  <div key={it.sku} className="cart-item">
-                    <div style={{ flex: 1 }}>
-                      <div className="name">{it.name}</div>
-                      <div className="sku">{it.sku}</div>
-                      <div className="line2">
-                        <div className="qty-stepper">
-                          <button onClick={() => setQty(it.sku, it.qty - 1)}>−</button>
-                          <input type="number" min="1" value={it.qty} onChange={e => setQty(it.sku, parseInt(e.target.value) || 0)} />
-                          <button onClick={() => setQty(it.sku, it.qty + 1)}>+</button>
+                ) : cart.map(it => {
+                  const pasado = it.qty > it.disponibles
+                  return (
+                    <div key={it.key} className="cart-item">
+                      <div style={{ flex: 1 }}>
+                        <div className="name">{it.name}</div>
+                        <div className="sku">{it.sku} · {it.presLabel}</div>
+                        <div className="line2">
+                          <div className="qty-stepper">
+                            <button onClick={() => setQty(it.key, it.qty - 1)}>−</button>
+                            <input type="number" min="1" value={it.qty} onChange={e => setQty(it.key, parseInt(e.target.value) || 0)} />
+                            <button onClick={() => setQty(it.key, it.qty + 1)}>+</button>
+                          </div>
+                          <span className={pasado ? "pm-agotado" : "pm-hay"}>
+                            {pasado ? `bodega solo tiene ${it.disponibles}` : `de ${it.disponibles} en bodega`}
+                          </span>
                         </div>
                       </div>
+                      <button className="remove" onClick={() => setQty(it.key, 0)}><Icon name="x" size={12} /></button>
                     </div>
-                    <button className="remove" onClick={() => setQty(it.sku, 0)}><Icon name="x" size={12} /></button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
               {obs !== undefined && (
                 <div style={{ padding: "0 12px 10px" }}>
@@ -708,17 +789,53 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
                   />
                 </div>
               )}
+              {dePlano.length > 0 && (
+                <div className="pm-cl-warning" style={{ margin: "0 12px 8px" }}>
+                  <Icon name="alert" size={12} />
+                  Estás pidiendo más de lo que hay en bodega: {dePlano.map(i => i.name).join(", ")}
+                </div>
+              )}
               <div className="cart-actions">
                 <button className="btn btn-default" onClick={() => setCart([])} disabled={!cart.length}>
                   <Icon name="trash" size={13} /> Vaciar
                 </button>
-                <button className="btn btn-wine" onClick={enviar} disabled={!cart.length || saving}>
+                <button className="btn btn-wine" onClick={enviar} disabled={!cart.length || saving || dePlano.length > 0}>
                   {saving ? "Enviando…" : <><Icon name="upload" size={13} /> Enviar a bodega</>}
                 </button>
               </div>
             </div>
           </div>
         </div>
+
+        {eligiendo && (
+          <div className="pm-overlay" onClick={e => e.target === e.currentTarget && setEligiendo(null)}>
+            <div className="pm-modal">
+              <h3 className="pm-modal-title">¿De qué tamaño?</h3>
+              <p className="pm-modal-desc">{eligiendo.name} · lo que queda en bodega</p>
+              <div className="pm-tamanos">
+                {presentacionesDeBodega(eligiendo).map(pr => (
+                  <button
+                    key={pr.id}
+                    className={"pm-tamano" + (pr.disponibles === 0 ? " agotado" : "")}
+                    disabled={pr.disponibles === 0}
+                    onClick={() => agregar(eligiendo, pr)}
+                  >
+                    <span className="pm-tamano-label">
+                      {pr.label}
+                      {pr.factor > 1 && <small> · {pr.factor} pzs</small>}
+                    </span>
+                    <span className={pr.disponibles === 0 ? "pm-agotado" : "pm-hay"}>
+                      {pr.disponibles === 0 ? "No hay" : `Quedan ${pr.disponibles}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="pm-modal-actions">
+                <button className="btn btn-default" onClick={() => setEligiendo(null)}>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

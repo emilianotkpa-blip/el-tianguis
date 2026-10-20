@@ -3558,6 +3558,32 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 .pm-modal-err { display: flex; align-items: center; gap: 6px; color: var(--wine-600); font-size: 12.5px; margin-bottom: 10px; }
 .pm-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
+.pm-faltan {
+  margin-top: 12px; padding: 10px 12px; border-radius: 8px;
+  background: var(--warn-bg, rgba(240,191,46,.14)); border: 1px solid var(--gold-400);
+  font-size: var(--fs-xs); line-height: 1.55;
+}
+.pm-faltan ul { margin: 6px 0; padding-left: 18px; }
+.pm-faltan span { color: var(--text-muted); }
+
+/* Pedidos: elegir el tamaño y ver qué queda en bodega */
+.pm-tamanos { display: flex; flex-direction: column; gap: 6px; }
+.pm-tamano {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; padding: 11px 13px; cursor: pointer; text-align: left;
+  background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: var(--fs-sm);
+}
+.pm-tamano:hover:not(:disabled) { border-color: var(--gold-400); }
+.pm-tamano.agotado { opacity: .55; cursor: not-allowed; }
+.pm-tamano-label { font-weight: 600; }
+.pm-tamano-label small { font-weight: 400; color: var(--text-muted); }
+.pm-hay     { font-size: var(--fs-xs); color: var(--ok); font-weight: 600; }
+.pm-agotado { font-size: var(--fs-xs); color: var(--err); font-weight: 700; }
+.product-tile.sin-bodega { opacity: .6; cursor: not-allowed; border-color: var(--err); }
+.product-tile.sin-bodega:hover { transform: none; box-shadow: none; }
+
+
 /* History accordion */
 .pm-history { margin-top: 20px; }
 .pm-history > summary {
