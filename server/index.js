@@ -29,7 +29,16 @@ app.use(express.static(join(__dirname, "../dist"), {
 }))
 
 // ── OpenAI ─────────────────────────────────────────────
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// La IA es UNA pantalla; el punto de venta es el negocio. Creando el cliente
+// aquí arriba, un despliegue sin la llave de OpenAI no arrancaba: ni vender,
+// ni cobrar, ni inventario. Ahora se crea cuando hace falta y, si no hay
+// llave, lo único que falla es el chat, que además lo dice.
+let _openai = null
+const clienteIA = () => {
+  if (!process.env.OPENAI_API_KEY) return null
+  _openai = _openai ?? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  return _openai
+}
 
 // El prompt se arma con quién está preguntando: no es lo mismo contestarle a
 // dirección que a alguien de mostrador, y conviene que sepa desde qué sucursal
@@ -347,7 +356,13 @@ app.post("/api/chat", async (req, res) => {
     // Útil para vigilar lo que cuesta cada pregunta; VER_CONTEXTO=1 lo vuelca entero.
     console.log(`IA · contexto ${contexto.length} caracteres · pregunta ${quienPregunta?.nombre ?? "sin identificar"}`)
     if (process.env.VER_CONTEXTO) console.log(contexto)
-    const stream = await openai.chat.completions.create({
+    const ia = clienteIA()
+    if (!ia) {
+      res.write(`data: ${JSON.stringify({ error: "Falta configurar OPENAI_API_KEY en el servidor." })}` + NL + NL)
+      res.write("data: [DONE]" + NL + NL)
+      return res.end()
+    }
+    const stream = await ia.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: 1024,
       messages: [{ role: "system", content: promptSistema(quienPregunta) + "\n\n" + contexto }, ...messages],
@@ -2073,6 +2088,8 @@ app.get("/{*splat}", (req, res) => {
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en :${PORT}`)
-  console.log(`OpenAI:  ${process.env.OPENAI_API_KEY ? "OK" : "FALTA clave"}`)
   console.log(`NocoDB:  ${NOCO_URL ? "OK" : "FALTA NOCO_URL"}`)
+  console.log(`Supabase: ${conSupabase() ? "OK" : "sin configurar — login viejo y SIN candados de rol"}`)
+  console.log(`OpenAI:  ${process.env.OPENAI_API_KEY ? "OK" : "sin llave — solo falla Tianguis IA"}`)
+  if (SESSION_TOKEN === "dev-insecure-token") console.warn("SESSION_TOKEN sin definir: se está usando el de ejemplo, que es público")
 })
