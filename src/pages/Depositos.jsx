@@ -213,7 +213,7 @@ export default function DepositosPage({ addToast, user }) {
                     <tr key={d.id} onClick={() => openEdit(d)} style={{ cursor: "pointer" }}>
                       <td data-label="Fecha" style={{ whiteSpace: "nowrap" }}>{fmtFecha(d.fecha)}</td>
                       <td className="td-titulo" data-label="Proveedor"><strong>{d.proveedor}</strong></td>
-                      <td className="num" data-label="Monto"><strong>{fmtMoney(d.monto)}</strong></td>
+                      <td className="num td-importe" data-label="Monto"><strong>{fmtMoney(d.monto)}</strong></td>
                       <td data-label="Quién lo llevó">{d.llevo}</td>
                       <td className="muted tnum" data-label="Referencia">{d.referencia || "—"}</td>
                       <td className="muted" data-label="Registró" style={{ fontSize: "var(--fs-xs)" }}>{d.registro || "—"}</td>

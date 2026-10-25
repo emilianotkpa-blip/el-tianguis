@@ -129,18 +129,18 @@ export default function ClientesPage({ addToast }) {
         <div className="card-body flush">
           {loading
             ? <TableSkeleton rows={6} cols={5} />
-            : <table className="table">
+            : <table className="table tarjetas-movil">
                 <thead>
-                  <tr><th>Nombre</th><th>RFC</th><th>Tipo</th><th>Teléfono</th><th>Email</th><th></th></tr>
+                  <tr><th>Nombre</th><th>Tipo</th><th>Teléfono</th><th>Email</th><th>RFC</th><th></th></tr>
                 </thead>
                 <tbody>
                   {filtered.map((c) => (
                     <tr key={c.Id}>
-                      <td><strong>{c.Nombre}</strong></td>
-                      <td className="tnum" style={{ fontSize: 11.5 }}>{c.RFC || "—"}</td>
-                      <td><span className="badge badge-neutral">{c.Tipo || "General"}</span></td>
-                      <td className="muted">{c.Telefono || "—"}</td>
-                      <td className="muted">{c.Email || "—"}</td>
+                      <td className="td-titulo" data-label="Nombre"><strong>{c.Nombre}</strong></td>
+                      <td data-label="Tipo"><span className="badge badge-neutral">{c.Tipo || "General"}</span></td>
+                      <td className="muted" data-label="Teléfono">{c.Telefono || "—"}</td>
+                      <td className="muted" data-label="Correo">{c.Email || "—"}</td>
+                      <td className="tnum" data-label="RFC" style={{ fontSize: 11.5 }}>{c.RFC || "—"}</td>
                       <td className="actions-cell">
                         <button className="btn btn-ghost btn-sm" title="Editar" onClick={() => openEdit(c)}><Icon name="edit" size={12} /></button>
                         <button className="btn btn-ghost btn-sm" title="Eliminar" onClick={() => setConfirmDel(c)} style={{ color: "var(--err)" }}><Icon name="trash" size={12} /></button>

@@ -166,7 +166,7 @@ export default function ProveedoresPage({ addToast }) {
                         <td className="muted" data-label="Banco">
                           {p.banco || p.cuenta ? <>{p.banco}{p.cuenta && <span className="tnum"> {cuentaCorta(p.cuenta)}</span>}</> : "—"}
                         </td>
-                        <td className="num" data-label="Depositado">
+                        <td className="num td-importe" data-label="Depositado">
                           {r ? <><strong>{fmtMoney(r.total)}</strong><div className="muted" style={{ fontSize: "var(--fs-2xs)" }}>{r.n} depósito{r.n !== 1 ? "s" : ""}</div></> : <span className="muted">—</span>}
                         </td>
                         <td className="muted" data-label="Último depósito">{r ? fmtFecha(r.ultimo) : "—"}</td>

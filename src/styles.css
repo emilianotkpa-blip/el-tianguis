@@ -3975,6 +3975,24 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   .table.tarjetas-movil tr:has(td.oculto-movil) { padding-bottom: 26px; }
   .table.tarjetas-movil tr:not(:has(td.oculto-movil))::after { content: none; }
 
+  /* Tabla de concepto / cifra / aclaración (el resumen de Utilidades). En
+     390 px medía 620 y había que arrastrar de lado para leer la cifra; ahora
+     cada renglón es concepto arriba, cifra a la derecha y la aclaración
+     debajo en chiquito — porque "Margen 36%" sin el "Agregar costos" al lado
+     se lee como un dato firme, y es una estimación. */
+  .table.tabla-resumen { min-width: 0 !important; width: 100%; display: block; }
+  .table.tabla-resumen tbody { display: block; }
+  .table.tabla-resumen tr {
+    display: grid; grid-template-columns: 1fr auto;
+    gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .table.tabla-resumen td { border: 0; padding: 0; white-space: normal; }
+  .table.tabla-resumen td:nth-child(2) { text-align: right; font-size: var(--fs-md); }
+  .table.tabla-resumen td:nth-child(3) {
+    grid-column: 1 / -1; text-align: left;
+    font-size: var(--fs-xs); color: var(--text-muted);
+  }
+
   /* El importe es lo que se busca de un vistazo en una lista de cobros:
      grande y sin competencia. */
   .table.tarjetas-movil td.td-importe strong { font-size: var(--fs-lg); font-weight: 800; }

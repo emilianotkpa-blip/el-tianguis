@@ -492,7 +492,7 @@ export default function UtilidadesPage() {
             <h3 className="card-title">Resumen ejecutivo</h3>
           </div>
           <div className="card-body">
-            <table className="table" style={{ fontSize: 12 }}>
+            <table className="table tabla-resumen" style={{ fontSize: 12 }}>
               <tbody>
                 <tr><td className="muted">Ticket promedio</td><td className="num"><strong>{fmtMoney(ticketProm)}</strong></td><td className="num" style={{ color: "var(--ok)" }}>Real</td></tr>
                 <tr><td className="muted">Total ingresos</td><td className="num"><strong>{fmtMoney(totalIngresos)}</strong></td><td className="num" style={{ color: "var(--ok)" }}>Sin IVA</td></tr>
