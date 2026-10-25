@@ -85,6 +85,16 @@ export default function TianguisIAPage() {
   const [error, setError] = useState(null)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
+  // En un teléfono, "Enter para enviar" no significa nada y encima no cabía:
+  // el texto del campo quedaba cortado a media frase.
+  const [anchoDeTelefono, setAnchoDeTelefono] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= 560
+  )
+  useEffect(() => {
+    const medir = () => setAnchoDeTelefono(window.innerWidth <= 560)
+    window.addEventListener("resize", medir)
+    return () => window.removeEventListener("resize", medir)
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -227,7 +237,7 @@ export default function TianguisIAPage() {
           <textarea
             ref={inputRef}
             className="ia-input"
-            placeholder="Escribe tu pregunta… (Enter para enviar, Shift+Enter para nueva línea)"
+            placeholder={anchoDeTelefono ? "Escribe tu pregunta…" : "Escribe tu pregunta… (Enter para enviar, Shift+Enter para nueva línea)"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}

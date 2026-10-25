@@ -3352,7 +3352,9 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 }
 .ia-msg {
   display: flex;
-  align-items: flex-end;
+  /* Arriba y no abajo: con respuestas de varios renglones el avatar quedaba
+     descolgado al pie de la burbuja. */
+  align-items: flex-start;
   gap: 10px;
   max-width: 78%;
 }
@@ -4288,4 +4290,33 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
   /* En celular la foto va arriba y la ficha debajo */
   .pv-caja.con-foto .pv-cuerpo { grid-template-columns: 1fr; }
   .pv-foto { min-height: 210px; }
+}
+
+/* Va al FINAL del archivo a propósito: una @media no suma especificidad, y
+   las reglas base de .ia-* viven más abajo que la sección de impresión.
+   Puesto antes, lo pisaban. */
+/* ===== Tianguis IA en el teléfono ===== */
+@media (max-width: 560px) {
+  /* Burbujas de 224 px en una pantalla de 412: la mitad desperdiciada y el
+     texto cortándose cada cuatro palabras. */
+  .ia-msg { max-width: 92%; gap: 8px; }
+  .ia-bubble { font-size: 15px; line-height: 1.5; padding: 11px 14px; border-radius: 16px; }
+  .ia-messages { padding: 14px 12px; gap: 14px; }
+  .ia-avatar { width: 26px; height: 26px; }
+
+  /* El campo de escribir: dedo, no teclado. El aviso de "Enter para enviar"
+     no significa nada en un teléfono y encima no cabía. */
+  .ia-input-bar { padding: 10px 12px; gap: 10px; align-items: center; }
+  .ia-input { font-size: 16px; padding: 12px 14px; border-radius: 22px; }
+  .ia-input-bar .btn {
+    width: 46px; height: 46px; padding: 0; border-radius: 50%;
+    flex-shrink: 0; justify-content: center;
+  }
+
+  /* Los ejemplos: a todo lo ancho y tocables */
+  .ia-sugerencias { margin-left: 0; }
+  .ia-sugerencia { width: 100%; padding: 13px 16px; font-size: 14.5px; }
+
+  /* El subtítulo de la pantalla se comía dos renglones */
+  .ia-page .page-subtitle { display: none; }
 }
