@@ -362,8 +362,8 @@ export default function PedidosClientesPage({ addToast }) {
                       <td className="tnum" data-label="Folio">{p.Folio}</td>
                       <td className="muted" data-label="Fecha">{fmtDateTime(parseMeta(p.Meta_JSON).ts_creado) ?? p.Fecha}</td>
                       <td data-label="Cliente" className="td-titulo"><strong>{p.Cliente}</strong></td>
-                      <td data-label="Sucursal">{p.Sucursal}</td>
-                      <td className="num" data-label="Total"><strong>{fmtMoney(p.Total ?? 0)}</strong></td>
+                      <td data-label="Sucursal"><span className="badge badge-neutral">{p.Sucursal}</span></td>
+                      <td className="num td-importe" data-label="Total"><strong>{fmtMoney(p.Total ?? 0)}</strong></td>
                       <td className="muted" data-label="Entrega">{p.FechaEntrega ?? "—"}</td>
                       <td data-label="Estado">{badge((p.Estado ?? "").toLowerCase())}</td>
                       <td className="actions-cell">

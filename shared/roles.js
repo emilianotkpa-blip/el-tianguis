@@ -24,6 +24,15 @@ export const puedeVer = (user, rolMin) => !rolMin || nivelDe(user?.rol) >= nivel
 // Admin es el único que puede mirar el sistema con los ojos de otra cuenta.
 export const esAdmin = (user) => nivelDe(user?.rol) >= NIVEL_ROL.admin
 
+// Dirección no trabaja "desde" una sucursal: ve el negocio completo. Entra sin
+// que se le pregunte nada y las listas le salen de las tres. Para OPERAR
+// —vender, cobrar, mover inventario— sí hace falta una concreta, y ahí cada
+// pantalla la elige.
+export const TODAS = "todas"
+export const esTodas = (s) => String(s ?? "").toLowerCase() === TODAS
+export const entraSinElegirSucursal = (user) => puedeVer(user, "directivo")
+export const sucursalParaOperar = (s) => (!s || esTodas(s)) ? "centro" : s
+
 // De gerencia para arriba cada quien elige desde qué sucursal trabaja, porque
 // se mueven entre ellas. De ahí para abajo no se elige: quien atiende una caja
 // trabaja donde lo pusieron, y eso lo decide dirección.
@@ -32,7 +41,8 @@ export const esAdmin = (user) => nivelDe(user?.rol) >= NIVEL_ROL.admin
 // siempre en la misma sucursal, dirección se la fija y deja de poder cambiarla.
 // Se quita para una ocasión especial y se vuelve a poner.
 export const tieneSucursalFija    = (user) => Boolean(user?.sucursalFija)
-export const puedeElegirSucursal  = (user) => puedeVer(user, "gerente") && !tieneSucursalFija(user)
+export const puedeElegirSucursal  = (user) =>
+  puedeVer(user, "gerente") && !tieneSucursalFija(user) && !entraSinElegirSucursal(user)
 export const puedeAsignarSucursal = (user) => puedeVer(user, "directivo")
 
 // Las sucursales se escriben de varias formas según de dónde venga el dato:
@@ -50,6 +60,8 @@ export function normalizaSucursal(v) {
 // cierra es escribir. Quien elige sucursal al entrar puede trabajar en
 // cualquiera; a quien la tiene asignada o con candado, solo en la suya.
 export function puedeOperarEn(user, sucursal) {
+  // "todas" es una vista, no un lugar: nada se registra ahí.
+  if (esTodas(sucursal)) return false
   if (puedeVer(user, "directivo")) return true
   if (puedeElegirSucursal(user)) return true
   const suya = normalizaSucursal(user?.sucursal ?? user?.sucursalDefault)

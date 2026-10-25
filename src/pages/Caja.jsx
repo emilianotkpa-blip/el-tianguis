@@ -9,6 +9,7 @@ import NotaImpresa from "../components/NotaImpresa"
 import { getCaja, getCajaPorFolio, editarNotaCaja, cobrarNota, cancelarNota, getCatalogo, getHistorialCaja } from "../api"
 import { fmtMoney, todayISO, horaLocal, precioMenudeo } from "../utils"
 import { soloProductos, soloDescuentos, sumaDescuentos } from "../promos"
+import { SUCURSALES } from "../data"
 
 const RANGOS = [
   { id: "1h",  label: "Última hora" },
@@ -21,7 +22,9 @@ const RANGOS = [
 const METODOS = ["Efectivo", "Tarjeta", "Transferencia", "Crédito 8d", "Crédito 15d"]
 
 function RelativeTime({ fecha }) {
-  if (!fecha) return null
+  // Un guion y no nada: en la tarjeta del teléfono, una etiqueta "Hora" sin
+  // nada al lado parece que la pantalla se rompió.
+  if (!fecha) return <span className="muted">—</span>
   const diff = Math.round((Date.now() - new Date(fecha)) / 60000)
   if (diff < 1)  return <span>Ahora</span>
   if (diff < 60) return <span>Hace {diff} min</span>
@@ -370,6 +373,9 @@ function CobrarWizard({ nota, getItems, getDescuentos, calcTotals, onExito, onCa
     </div>
   )
 }
+
+// "centro" se lee mal en una lista donde se mezclan las tres.
+const nombreSucursal = (s) => SUCURSALES.find(x => x.id === String(s ?? "").toLowerCase())?.name ?? (s || "—")
 
 export default function CajaPage({ addToast, sucursalActiva, user }) {
   const [notas, setNotas]         = useState([])
@@ -746,17 +752,18 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
                     ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-muted)" }}>Sin cobros en este período</div>
                     : <table className="table">
                         <thead>
-                          <tr><th>Folio</th><th>Cobrada</th><th>Vendedor</th><th>Cliente</th><th>Método</th><th className="num">Total</th><th></th></tr>
+                          <tr><th>Cliente</th><th>Sucursal</th><th>Folio</th><th>Cobrada</th><th>Vendedor</th><th>Método</th><th className="num">Total</th><th></th></tr>
                         </thead>
                         <tbody>
                           {historial.map(n => (
                             <tr key={n.Id} style={{ cursor: "pointer" }} onClick={() => setSelectedHist(selectedHist?.Id === n.Id ? null : n)}>
-                              <td className="tnum td-titulo" data-label="Folio" style={{ fontWeight: 700 }}>{n.Folio}</td>
-                              <td className="muted" style={{ fontSize: 12 }}>{n.UpdatedAt ? new Date(n.UpdatedAt).toLocaleString("es-MX", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" }) : "—"}</td>
+                              <td className="td-titulo" data-label="Cliente">{n.Cliente}</td>
+                              <td data-label="Sucursal"><span className="badge badge-neutral">{nombreSucursal(n.Sucursal)}</span></td>
+                              <td className="tnum" data-label="Folio" style={{ fontWeight: 700 }}>{n.Folio}</td>
+                              <td className="muted" data-label="Cobrada" style={{ fontSize: 12 }}>{n.UpdatedAt ? new Date(n.UpdatedAt).toLocaleString("es-MX", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" }) : "—"}</td>
                               <td data-label="Vendedor">{n.Vendedor || "—"}</td>
-                              <td data-label="Cliente">{n.Cliente}</td>
-                              <td><span className="badge badge-neutral">{n.MetodoPago}</span></td>
-                              <td className="num" data-label="Total"><strong>{fmtMoney(n.Total ?? 0)}</strong></td>
+                              <td data-label="Método"><span className="badge badge-neutral">{n.MetodoPago}</span></td>
+                              <td className="num td-importe" data-label="Total"><strong>{fmtMoney(n.Total ?? 0)}</strong></td>
                               <td className="actions-cell"><span className="badge badge-ok">● Cobrado</span></td>
                             </tr>
                           ))}
@@ -825,19 +832,23 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
                       </div>
                     : <table className="table tarjetas-movil">
                         <thead>
-                          <tr><th>Folio</th><th>Hora</th><th>Vendedor</th><th>Cliente</th><th>Items</th><th className="num">Total</th><th></th></tr>
+                          <tr><th>Cliente</th><th>Sucursal</th><th>Folio</th><th>Hora</th><th>Vendedor</th><th>Items</th><th className="num">Total</th><th></th></tr>
                         </thead>
                         <tbody>
                           {notas.map(n => {
                             const its = getItems(n)
                             return (
                               <tr key={n.Id} className={selected?.Id === n.Id ? "selected" : ""} style={{ cursor: "pointer" }} onClick={() => abrirNota(n)}>
-                                <td className="tnum" style={{ fontWeight: 700 }}>{n.Folio}</td>
+                                {/* En el teléfono la tarjeta la encabeza el CLIENTE, que es
+                                    como se reconoce una nota, y lleva su sucursal: dirección
+                                    ve las tres mezcladas y si no, no sabe de dónde es cuál. */}
+                                <td className="td-titulo" data-label="Cliente">{n.Cliente}</td>
+                                <td data-label="Sucursal"><span className="badge badge-neutral">{nombreSucursal(n.Sucursal)}</span></td>
+                                <td className="tnum" data-label="Folio" style={{ fontWeight: 700 }}>{n.Folio}</td>
                                 <td className="muted" data-label="Hora" style={{ fontSize: 12 }}><RelativeTime fecha={n.CreatedAt} /></td>
-                                <td>{n.Vendedor || "—"}</td>
-                                <td>{n.Cliente}</td>
+                                <td data-label="Vendedor">{n.Vendedor || "—"}</td>
                                 <td className="muted" data-label="Items">{its.length} prod.</td>
-                                <td className="num"><strong>{fmtMoney(n.Total ?? 0)}</strong></td>
+                                <td className="num td-importe" data-label="Total"><strong>{fmtMoney(n.Total ?? 0)}</strong></td>
                                 <td className="actions-cell">
                                   <button className="btn btn-wine btn-sm" onClick={e => { e.stopPropagation(); setWizardNota(n) }}>
                                     Cobrar

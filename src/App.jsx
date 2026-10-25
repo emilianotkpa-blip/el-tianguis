@@ -25,7 +25,7 @@ import { getStats, getAlertas, getCatalogo, getClientes, getPrinters, printFolio
 import logoUrl from "./assets/logo.jpeg"
 import LogoAnimado from "./components/LogoAnimado"
 import { HOJAS, hojaGuardada, aplicarHoja } from "./impresion"
-import { puedeVer, esAdmin, puedeElegirSucursal } from "../shared/roles"
+import { puedeVer, esAdmin, puedeElegirSucursal, entraSinElegirSucursal, sucursalParaOperar, TODAS, esTodas } from "../shared/roles"
 import VerComo from "./components/VerComo"
 
 function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone }) {
@@ -358,8 +358,8 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
 
   const renderPage = () => {
     switch (page) {
-      case "ventas":             return <VentasPage addToast={addToast} user={user} sucursalActiva={user.sucursal} preloadedCatalogo={preloadedData?.catalogo} preloadedClientes={preloadedData?.clientes} sharedCart={sharedCart} clearSharedCart={() => setSharedCart([])} onIrACaja={() => setPage("caja")} />
-      case "productos":          return <ProductosPage addToast={addToast} sucursalActiva={user.sucursal} />
+      case "ventas":             return <VentasPage addToast={addToast} user={user} sucursalActiva={sucursalParaOperar(user.sucursal)} preloadedCatalogo={preloadedData?.catalogo} preloadedClientes={preloadedData?.clientes} sharedCart={sharedCart} clearSharedCart={() => setSharedCart([])} onIrACaja={() => setPage("caja")} />
+      case "productos":          return <ProductosPage addToast={addToast} sucursalActiva={sucursalParaOperar(user.sucursal)} />
       case "facturas":           return puedeVer(user, "gerente")
                                    ? <FacturasPage addToast={addToast} />
                                    : <SinPermiso />
@@ -379,9 +379,9 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
                                    : <SinPermiso />
       case "perfil":             return <PerfilPage addToast={addToast} user={user} />
       case "clientes":           return <ClientesPage addToast={addToast} />
-      case "inventarios":        return <InventariosPage addToast={addToast} sucursalActiva={user.sucursal} user={user} />
-      case "caja":               return <CajaPage addToast={addToast} sucursalActiva={user.sucursal} user={user} />
-      case "balanza":            return <BásculaPage addToast={addToast} user={user} sucursalActiva={user.sucursal} sharedCartCount={sharedCart.length} onAddToVentas={(item) => { addToSharedCart(item); navTo("ventas") }} />
+      case "inventarios":        return <InventariosPage addToast={addToast} sucursalActiva={sucursalParaOperar(user.sucursal)} user={user} />
+      case "caja":               return <CajaPage addToast={addToast} sucursalActiva={sucursalParaOperar(user.sucursal)} user={user} />
+      case "balanza":            return <BásculaPage addToast={addToast} user={user} sucursalActiva={sucursalParaOperar(user.sucursal)} sharedCartCount={sharedCart.length} onAddToVentas={(item) => { addToSharedCart(item); navTo("ventas") }} />
       case "utilidades":         return puedeVer(user, "directivo")
                                    ? <UtilidadesPage />
                                    : <SinPermiso />
@@ -418,13 +418,16 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
                 width: "calc(100% - 20px)",
               }}
             >
-              <span style={{ fontSize: 16 }}>{SUC_ICONS[user.sucursal] ?? "🏬"}</span>
+              <span style={{ fontSize: 16 }}>{esTodas(user.sucursal) ? "🏙️" : (SUC_ICONS[user.sucursal] ?? "🏬")}</span>
               <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--gold-500)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {SUCURSALES.find(s => s.id === user.sucursal)?.name ?? user.sucursal}
+                  {esTodas(user.sucursal)
+                    ? "Todas las sucursales"
+                    : (SUCURSALES.find(s => s.id === user.sucursal)?.name ?? user.sucursal)}
                 </div>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,.4)", marginTop: 1 }}>
-                  {puedeCambiar ? "toca para cambiar" : "asignada por dirección"}
+                  {esTodas(user.sucursal) ? "vista de dirección"
+                    : puedeCambiar ? "toca para cambiar" : "asignada por dirección"}
                 </div>
               </div>
             </Caja>
@@ -955,6 +958,11 @@ export default function App() {
     // De gerencia para arriba se elige sucursal al entrar. Para abajo se
     // trabaja en la que dirección haya asignado en Equipo; si no le pusieron
     // ninguna, se avisa en vez de dejar pasar sin sucursal.
+    // Dirección no elige: entra viendo el negocio completo.
+    if (entraSinElegirSucursal(u)) {
+      setUser({ ...u, sucursal: TODAS })
+      return
+    }
     if (!puedeElegirSucursal(u)) {
       setUser({ ...u, sucursal: u?.sucursalDefault || null })
       return

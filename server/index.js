@@ -729,6 +729,11 @@ const exigeSucursal = (campo = "sucursal") => (req, res, next) => {
   if (!req.usuario) return next()
   const pedida = req.body?.[campo]
   if (pedida === undefined || pedida === null || pedida === "") return next()
+  // "todas" es la vista de dirección, no un lugar: nada se registra ahí. Si
+  // llegara, sería una pantalla que olvidó elegir sucursal concreta.
+  if (!normalizaSucursal(pedida)) {
+    return res.status(400).json({ error: "Elige una sucursal concreta para registrar esto" })
+  }
   if (puedeOperarEn(req.usuario, pedida)) return next()
   const suya = normalizaSucursal(req.usuario.sucursal)
   res.status(403).json({
