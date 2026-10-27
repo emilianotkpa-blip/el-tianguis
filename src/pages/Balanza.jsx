@@ -4,6 +4,7 @@ import Select from "../components/Select"
 import { getCatalogo } from "../api"
 import { fmtMoney } from "../utils"
 import { SUCURSALES } from "../data"
+import { coincide } from "../buscar"
 
 export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCartCount, onAddToVentas }) {
   const [bolsas, setBolsas]       = useState([])
@@ -80,7 +81,7 @@ export default function BalanzaPage({ addToast, user, sucursalActiva, sharedCart
   }
 
   const bolsasFiltradas = bolsas.filter(b =>
-    !busqueda || b.name.toLowerCase().includes(busqueda.toLowerCase())
+    coincide(busqueda, b.name, b.sku)
   )
 
   const agregar = () => {

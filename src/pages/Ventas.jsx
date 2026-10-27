@@ -11,6 +11,7 @@ import { getCatalogo, postNota, crearBorrador, confirmarNota, cancelarBorrador, 
 import { fmtMoney, fmtBase, todayISO, tipoLabel, precioMenudeo } from "../utils"
 import { evaluarPromos, sugerenciasPromos, describirRegla, simularRegla, soloProductos } from "../promos"
 import JsBarcode from "jsbarcode"
+import { coincide } from "../buscar"
 
 const STEPS = ["Llenar carrito", "Verificar pedido", "Enviar a caja"]
 
@@ -192,13 +193,12 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
     productos.filter(p => {
       if (cat !== "all" && p.tipo !== cat) return false
       if (search) {
-        const q   = search.toLowerCase()
+        // El escáner manda el código tal cual y debe acertar exacto; lo que
+        // se teclea a mano se busca por palabras.
         const raw = search.trim()
-        const matchName        = (p.name ?? "").toLowerCase().includes(q)
-        const matchSku         = (p.sku ?? "").includes(raw)
-        const matchBarcode     = p.codigoBarras && p.codigoBarras === raw
-        const matchPresBarcode = Array.isArray(p.presentaciones) && p.presentaciones.some(pr => pr.codigoBarras && pr.codigoBarras === raw)
-        if (!matchName && !matchSku && !matchBarcode && !matchPresBarcode) return false
+        const porCodigo = (p.codigoBarras && p.codigoBarras === raw)
+          || (Array.isArray(p.presentaciones) && p.presentaciones.some(pr => pr.codigoBarras && pr.codigoBarras === raw))
+        if (!porCodigo && !coincide(search, p.name, p.sku)) return false
       }
       return true
     }), [productos, search, cat])

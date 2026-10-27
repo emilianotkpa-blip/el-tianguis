@@ -10,6 +10,7 @@ import { useComparador, MAX_COMPARAR } from "../components/Comparador"
 import Select from "../components/Select"
 import AjusteStock from "../components/AjusteStock"
 import CampoImagen from "../components/CampoImagen"
+import { coincide } from "../buscar"
 
 const emptyForm = {
   sku: "", tipo: "", name: "", marca: "", min: 5,
@@ -165,9 +166,7 @@ export default function ProductosPage({ addToast, sucursalActiva }) {
       if (factF === "no" && p.facturable) return false
       if (search) {
         const q = search.toLowerCase()
-        const match = (p.name ?? "").toLowerCase().includes(q)
-          || (p.sku ?? "").toLowerCase().includes(q)
-          || (p.tipo ?? "").toLowerCase().includes(q)
+        const match = coincide(q, p.name, p.sku, p.tipo, p.codigoBarras, p.marca)
           || (p.codigoBarras ?? "").includes(search)
         if (!match) return false
       }

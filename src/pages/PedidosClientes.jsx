@@ -6,6 +6,7 @@ import Modal from "../components/Modal"
 import Confirm from "../components/Confirm"
 import { getPedidosClientes, postPedidoCliente, patchPedidoCliente, getCatalogo, getClientes, postCliente } from "../api"
 import { fmtMoney, todayISO, fmtDateTime } from "../utils"
+import { coincide } from "../buscar"
 
 const SUCURSALES = ["Centro", "Repostero", "Bodega"]
 const TIPOS_CLIENTE = ["Mayorista", "Frecuente", "Público", "General"]
@@ -70,12 +71,12 @@ export default function PedidosClientesPage({ addToast }) {
 
   const filtered = pedidos.filter((p) => {
     if (estado !== "todos" && (p.Estado ?? "").toLowerCase() !== estado) return false
-    if (search && !(p.Cliente ?? "").toLowerCase().includes(search.toLowerCase()) && !(p.Folio ?? "").toLowerCase().includes(search.toLowerCase())) return false
+    if (!coincide(search, p.Cliente, p.Folio, p.Sucursal)) return false
     return true
   })
 
   const prodFiltered = useMemo(
-    () => catalogo.filter((p) => !prodSearch || (p.name ?? "").toLowerCase().includes(prodSearch.toLowerCase())),
+    () => catalogo.filter((p) => coincide(prodSearch, p.name, p.sku)),
     [catalogo, prodSearch]
   )
 

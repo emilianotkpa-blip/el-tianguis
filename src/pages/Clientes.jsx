@@ -6,6 +6,7 @@ import Modal from "../components/Modal"
 import Confirm from "../components/Confirm"
 import { getClientes, postCliente, patchCliente, deleteCliente } from "../api"
 import { exportCSV } from "../utils"
+import { coincide } from "../buscar"
 
 const TIPOS = ["Mayorista", "Frecuente", "Público", "General"]
 const emptyForm = { nombre: "", rfc: "", tipo: "General", telefono: "", email: "", direccion: "", notas: "" }
@@ -64,7 +65,7 @@ export default function ClientesPage({ addToast }) {
 
   const filtered = clientes.filter((c) => {
     if (tipoF !== "todos" && (c.Tipo ?? "General") !== tipoF) return false
-    if (search && !(c.Nombre ?? "").toLowerCase().includes(search.toLowerCase()) && !(c.RFC ?? "").includes(search)) return false
+    if (!coincide(search, c.Nombre, c.RFC, c.Telefono, c.Email)) return false
     return true
   })
 

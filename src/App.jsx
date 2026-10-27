@@ -26,6 +26,7 @@ import logoUrl from "./assets/logo.jpeg"
 import LogoAnimado from "./components/LogoAnimado"
 import { HOJAS, hojaGuardada, aplicarHoja } from "./impresion"
 import { puedeVer, esAdmin, puedeElegirSucursal, entraSinElegirSucursal, sucursalParaOperar, TODAS, esTodas } from "../shared/roles"
+import { coincide } from "./buscar"
 import VerComo from "./components/VerComo"
 
 function SplashScreen({ progress = 0, statusText = "Cargando negocio…", onDone }) {
@@ -505,34 +506,35 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
           <Icon name="search" size={14} className="icon" />
           <input
             ref={searchRef}
-            placeholder="Buscar… (Ctrl+K)"
+            placeholder="Ir a una pantalla… (Ctrl+K)"
             value={globalSearch}
             onChange={(e) => setGlobalSearch(e.target.value)}
           />
           {globalSearch && (
             <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "var(--bg-elev)", border: "1px solid var(--border)", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,.15)", zIndex: 100, maxHeight: 280, overflowY: "auto" }}>
-              {[
-                { label: "Productos",        page: "productos",        key: "productos" },
-                { label: "Clientes",          page: "clientes",         key: "clientes" },
-                { label: "Inventarios",       page: "inventarios",      key: "inventarios" },
-                { label: "Ventas",            page: "ventas",           key: "ventas" },
-                { label: "Pedidos Clientes",  page: "pedidos-clientes", key: "pedidos-clientes" },
-                { label: "Pedidos Mercancía", page: "pedidos-mercancia",key: "pedidos-mercancia" },
-                { label: "Facturas",          page: "facturas",         key: "facturas" },
-                { label: "Utilidades",        page: "utilidades",       key: "utilidades" },
-                { label: "Tianguis IA",       page: "ia",               key: "ia" },
-              ]
-                .filter((r) => r.label.toLowerCase().includes(globalSearch.toLowerCase()))
-                .map((r) => (
+              {(() => {
+                // Salen del propio menú: escrita a mano, la lista se quedaba
+                // corta (sin Caja ni Equipo) y ofrecía pantallas que esa
+                // persona no puede abrir.
+                const destinos = NAV
+                  .filter(n => n.id && puedeVer(user, n.rolMin))
+                  .filter(n => coincide(globalSearch, n.label))
+                if (!destinos.length) return (
+                  <div style={{ padding: "12px 14px", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                    Aquí se cambia de pantalla. Para buscar un <strong>producto</strong>,
+                    entra a Inventarios o Productos y usa el buscador de ahí.
+                  </div>
+                )
+                return destinos.map(n => (
                   <div
-                    key={r.key}
-                    style={{ padding: "10px 14px", cursor: "pointer", fontSize: 13, borderBottom: "1px solid var(--border)" }}
-                    onMouseDown={() => { navTo(r.page); setGlobalSearch("") }}
+                    key={n.id}
+                    style={{ padding: "10px 14px", cursor: "pointer", fontSize: 13, borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}
+                    onMouseDown={() => { navTo(n.id); setGlobalSearch("") }}
                   >
-                    {r.label}
+                    <Icon name={n.icon} size={14} /> {n.label}
                   </div>
                 ))
-              }
+              })()              }
             </div>
           )}
         </div>

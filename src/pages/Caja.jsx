@@ -10,6 +10,7 @@ import { getCaja, getCajaPorFolio, editarNotaCaja, cobrarNota, cancelarNota, get
 import { fmtMoney, todayISO, horaLocal, precioMenudeo } from "../utils"
 import { soloProductos, soloDescuentos, sumaDescuentos } from "../promos"
 import { SUCURSALES } from "../data"
+import { coincide } from "../buscar"
 
 const RANGOS = [
   { id: "1h",  label: "Última hora" },
@@ -627,7 +628,7 @@ export default function CajaPage({ addToast, sucursalActiva, user }) {
   const totals = calcTotals(items, selected ? getDescuentos(selected) : [])
 
   const filteredCatalogo = catalogo.filter(p =>
-    addSearch && (p.name.toLowerCase().includes(addSearch.toLowerCase()) || p.sku.includes(addSearch))
+    addSearch && coincide(addSearch, p.name, p.sku)
   ).slice(0, 8)
 
   return (

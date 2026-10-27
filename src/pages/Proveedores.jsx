@@ -5,6 +5,7 @@ import Modal from "../components/Modal"
 import Confirm from "../components/Confirm"
 import { getProveedores, postProveedor, patchProveedor, deleteProveedor, getDepositos } from "../api"
 import { exportCSV, fmtMoney, fmtFecha, hoyLocal } from "../utils"
+import { coincide } from "../buscar"
 
 const vacio = { nombre: "", contacto: "", telefono: "", correo: "", rfc: "", banco: "", cuenta: "", notas: "" }
 
@@ -90,7 +91,7 @@ export default function ProveedoresPage({ addToast }) {
 
   const q = search.trim().toLowerCase()
   const filtered = proveedores.filter(p =>
-    !q || [p.nombre, p.contacto, p.rfc, p.telefono, p.banco].some(v => (v || "").toLowerCase().includes(q)))
+    coincide(q, p.nombre, p.contacto, p.rfc, p.telefono, p.banco))
 
   const depositosDe = editing ? depositos.filter(d => d.proveedorId === editing.id) : []
   const totalDe     = depositosDe.reduce((s, d) => s + d.monto, 0)

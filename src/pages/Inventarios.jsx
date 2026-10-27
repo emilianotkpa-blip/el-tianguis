@@ -11,6 +11,7 @@ import Select from "../components/Select"
 import CountUp from "../components/CountUp"
 import AjusteStock from "../components/AjusteStock"
 import PastillaMantener from "../components/PastillaMantener"
+import { coincide } from "../buscar"
 
 // ── Modal Recepción masiva ─────────────────────────────
 function RecepcionModal({ productos, onClose, onDone, addToast }) {
@@ -255,13 +256,7 @@ export default function InventariosPage({ addToast, sucursalActiva, user }) {
 
   const filtered = productos.filter((p) => {
     if (tipoFiltro !== "all" && p.tipo !== tipoFiltro) return false
-    if (search) {
-      const q = search.toLowerCase()
-      const matchName    = p.name.toLowerCase().includes(q)
-      const matchSku     = p.sku.includes(search)
-      const matchBarcode = p.codigoBarras && p.codigoBarras.toLowerCase().includes(q)
-      if (!matchName && !matchSku && !matchBarcode) return false
-    }
+    if (search && !coincide(search, p.name, p.sku, p.codigoBarras, tipoLabel(p.tipo, TIPOS_CONFIG))) return false
     const v  = p.stock[suc] ?? 0
     const st = v <= 0 ? "agotado" : v < p.min ? "bajo" : "normal"
     if (statusFilter !== "todos" && st !== statusFilter) return false

@@ -3,6 +3,7 @@ import Icon from "../components/Icon"
 import { SUCURSALES } from "../data"
 import { getCatalogo, getPedidosMercancia, postPedidoMercancia } from "../api"
 import { todayISO, fmtDateTime } from "../utils"
+import { coincide } from "../buscar"
 
 // ── ESTADOS ────────────────────────────────────────────
 const ESTADOS = {
@@ -636,7 +637,7 @@ function SucursalView({ user, sucursal, usuarios, pedidos, onRefresh, addToast }
   }, [mode])
 
   const filtered = prods.filter(p =>
-    !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.includes(search)
+    coincide(search, p.name, p.sku)
   )
 
   // Cada línea del pedido lleva su presentación: sin eso, bodega no sabe si

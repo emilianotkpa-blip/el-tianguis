@@ -5,6 +5,7 @@ import Select from "../components/Select"
 import CountUp from "../components/CountUp"
 import { getFacturas, solicitarFactura, cancelarFactura } from "../api"
 import { fmtMoney } from "../utils"
+import { coincide } from "../buscar"
 
 const USOS_CFDI = [
   { id: "G01", label: "G01 – Adquisición de mercancias" },
@@ -115,7 +116,7 @@ export default function FacturasPage({ addToast }) {
   const filtered = ventas.filter(v => {
     if (filtroEstado !== "todas" && v.estadoCfdi !== filtroEstado) return false
     const q = search.toLowerCase()
-    if (q && !v.folio.toLowerCase().includes(q) && !v.cliente.toLowerCase().includes(q)) return false
+    if (!coincide(q, v.folio, v.cliente)) return false
     return true
   })
 

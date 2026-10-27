@@ -7,6 +7,7 @@ import Select from "../components/Select"
 import { getCatalogo, postNota, cobrarNota, getPromos } from "../api"
 import { fmtMoney, todayISO, precioMenudeo, horaLocal } from "../utils"
 import { evaluarPromos } from "../promos"
+import { coincide } from "../buscar"
 
 const METODOS = ["Efectivo", "Tarjeta", "Transferencia"]
 
@@ -120,7 +121,7 @@ export default function VentaRapida({ sucursal, user, addToast, onClose, onCobra
     const q = search.trim().toLowerCase()
     const base = productos.filter(p => (p.stock?.[suc] ?? 0) > 0)
     if (!q) return base.slice(0, 24)
-    return base.filter(p => p.name.toLowerCase().includes(q) || p.sku.includes(q)).slice(0, 24)
+    return base.filter(p => coincide(q, p.name, p.sku)).slice(0, 24)
   }, [productos, search, suc])
 
   // ── Cobro ────────────────────────────────────────────

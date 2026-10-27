@@ -7,6 +7,7 @@ import Select from "../components/Select"
 import { getDepositos, postDeposito, patchDeposito, deleteDeposito, getProveedores, getEquipoLista } from "../api"
 import { exportCSV, fmtMoney, fmtFecha, hoyLocal } from "../utils"
 import { veTodosLosDepositos, depositoVisible, DIAS_DEPOSITO_VISIBLE } from "../../shared/roles"
+import { coincide } from "../buscar"
 
 const PERIODOS = [
   { value: "mes",      label: "Este mes" },
@@ -87,7 +88,7 @@ export default function DepositosPage({ addToast, user }) {
   const filtered = depositos.filter(d => {
     if (!enPeriodo(d.fecha, periodo, hoy)) return false
     if (provF !== "todos" && String(d.proveedorId) !== provF) return false
-    if (q && ![d.proveedor, d.llevo, d.referencia, d.notas].some(v => (v || "").toLowerCase().includes(q))) return false
+    if (!coincide(q, d.proveedor, d.llevo, d.referencia, d.notas)) return false
     return true
   })
   const totalFiltrado = filtered.reduce((s, d) => s + d.monto, 0)
