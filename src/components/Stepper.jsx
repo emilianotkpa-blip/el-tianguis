@@ -1,6 +1,9 @@
-export default function Stepper({ steps, current }) {
+// `compacto` es para cuando la barra va en una columna angosta (la de la
+// nota): mismos pasos, círculos y letra más chicos, para que los tres quepan
+// sin partirse.
+export default function Stepper({ steps, current, compacto = false }) {
   return (
-    <div className="stepper">
+    <div className={"stepper" + (compacto ? " compacto" : "")}>
       {steps.map((step, i) => {
         const done    = i < current
         const active  = i === current

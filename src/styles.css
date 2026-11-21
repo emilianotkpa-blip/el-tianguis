@@ -608,19 +608,27 @@ input:disabled, select:disabled, textarea:disabled {
   box-shadow: 0 6px 18px rgba(20, 24, 32, .12);
 }
 [data-theme="dark"] .app-header.scrolled { box-shadow: 0 6px 18px rgba(0, 0, 0, .5); }
+/* En una línea siempre: con la miga de tres niveles ("Operación › Ventas ›
+   Punto de venta") una pantalla de 1280 la partía en dos y crecía el alto de
+   toda la cabecera. Quien cede es el buscador de pantallas, que se encoge. */
 .breadcrumb {
   font-size: 13px;
   color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
+  flex: none;
 }
+.header-user .nombre, .header-user > div { white-space: nowrap; }
 .breadcrumb .current { color: var(--text); font-weight: 600; }
 .breadcrumb .sep { opacity: .4; }
 .header-spacer { flex: 1; }
 .header-search {
   position: relative;
   width: 320px;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .header-search input {
   width: 100%;
@@ -1456,20 +1464,129 @@ input:disabled, select:disabled, textarea:disabled {
 }
 .stepper-item.done .stepper-line { background: var(--ok); }
 
+/* Versión para la columna de la nota (420 px): los tres pasos tienen que
+   caber en una línea sin partir ninguna etiqueta. */
+.stepper.compacto { margin-bottom: 0; padding: 9px 12px; }
+.stepper.compacto .stepper-circle { width: 21px; height: 21px; font-size: 11px; }
+.stepper.compacto .stepper-item.active .stepper-circle { box-shadow: 0 0 0 2px color-mix(in srgb, var(--wine-700) 25%, transparent); }
+.stepper.compacto .stepper-label { font-size: 11px; margin-left: 6px; }
+.stepper.compacto .stepper-line { margin: 0 6px; }
+
 .hover-row:hover { background: var(--bg-sunken); }
 tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparent) !important; }
 
 /* ============ SALES (CART) ============ */
+/* Dos columnas y dos filas. Los pasos ocupan la casilla de arriba a la
+   derecha (justo encima de la nota) y el catálogo se queda con TODA la
+   columna izquierda: antes la barra de pasos cruzaba de lado a lado y le
+   robaba una franja de alto al catálogo sin dar nada a cambio. */
 .sales-shell {
   display: grid;
   grid-template-columns: 1fr 420px;
-  gap: 16px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px 16px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
-.sales-products { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; }
-.sales-cart { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.sales-products {
+  grid-column: 1; grid-row: 1 / span 2;
+  display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden;
+}
+.sales-pasos { grid-column: 2; grid-row: 1; min-width: 0; }
+.sales-pasos .stepper { margin-bottom: 0; }
+.sales-cart {
+  grid-column: 2; grid-row: 2;
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
+
+/* ── Barra de arriba del catálogo: sucursal · buscador · filtros ──
+   Rejilla de tres columnas en vez de un flex: con flex el buscador se
+   desplaza según lo que midan los lados, y aquí tiene que quedar centrado
+   en la pantalla aunque a la derecha aparezca o desaparezca "Paquetes". */
+.pos-barra {
+  display: grid;
+  /* `minmax(max-content, 1fr)` en los lados: reparten a partes iguales, pero
+     NUNCA se encogen por debajo de lo que miden la sucursal y los filtros.
+     Con `1fr` a secas la columna se achicaba y su contenido se salía por
+     debajo del buscador (se veía "…uetes" tapado). El que cede es el
+     buscador, que para eso tiene un mínimo cómodo. */
+  grid-template-columns: minmax(max-content, 1fr) minmax(220px, 520px) minmax(max-content, 1fr);
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.pos-barra-izq { justify-self: start; display: flex; align-items: center; gap: 6px; }
+.pos-etiqueta {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted); white-space: nowrap;
+}
+.pos-barra-der { justify-self: end; display: flex; align-items: center; gap: 8px; }
+.pos-barra-der .paquetes-btn { align-self: center; }
+
+.pos-buscador { position: relative; width: 100%; }
+.pos-buscador input {
+  width: 100%;
+  padding: 9px 36px 9px 34px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: 13.5px;
+}
+.pos-buscador input::placeholder { color: var(--text-muted); }
+.pos-buscador input:focus {
+  outline: none;
+  border-color: var(--wine-700);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wine-700) 15%, transparent);
+}
+.pos-buscador .icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 15px; height: 15px; color: var(--text-muted); pointer-events: none;
+}
+.pos-escaner {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  opacity: .4; pointer-events: none; display: flex;
+}
+.pos-limpiar {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0;
+  border: 0; border-radius: 50%;
+  background: var(--bg-sunken); color: var(--text-muted); cursor: pointer;
+}
+.pos-limpiar:hover { background: var(--border); color: var(--text); }
+
+/* ── Paginador del catálogo ── */
+.pos-paginador {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 6px 4px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--text-muted);
+  flex: none;
+}
+.pos-paginas { display: flex; align-items: center; gap: 2px; }
+.pos-pagina-num {
+  font-family: var(--font-mono); font-size: 12px;
+  min-width: 52px; text-align: center;
+}
+
+/* Hasta 1360 px la barra ya no da de sí: las tres zonas piden unos 660 px y
+   la columna del catálogo se queda en ~630. En vez de apretarlas hasta que
+   se monten, el buscador se lleva su propia fila — donde además queda
+   centrado por definición — y debajo van sucursal y filtros. */
+@media (max-width: 1360px) {
+  .pos-barra {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "buscar  buscar"
+      "suc     filtros";
+    row-gap: 8px;
+  }
+  .pos-buscador  { grid-area: buscar; }
+  .pos-barra-izq { grid-area: suc; }
+  .pos-barra-der { grid-area: filtros; }
+}
 .products-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -1485,6 +1602,9 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
      de este contenedor de alto fijo, y las tarjetas (124 px) se montaban unas
      sobre otras. max-content fija cada fila al alto de su contenido. */
   grid-auto-rows: max-content;
+  /* Aire al final: sin esto la última fila queda cortada justo contra el
+     paginador y no se ve que la lista sigue. */
+  padding-bottom: 10px;
 }
 .product-tile {
   position: relative;
@@ -3868,10 +3988,24 @@ tr.selected td   { background: color-mix(in srgb, var(--wine-700) 6%, transparen
 @media (max-width: 900px) {
   .sales-shell {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
     overflow: visible;
   }
-  .sales-products { min-height: 0; }
+  /* En vertical se vuelven a apilar: los pasos arriba del todo y el catálogo
+     debajo. La nota ya no es una columna, es la hoja de abajo. */
+  .sales-pasos    { grid-column: 1; grid-row: 1; }
+  .sales-products { grid-column: 1; grid-row: 2; min-height: 0; }
   .products-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+  /* El buscador deja de ir centrado y pasa a ocupar el ancho: a 900 px no
+     hay sitio para tres zonas en una línea. */
+  .pos-barra {
+    grid-template-columns: 1fr;
+    grid-template-areas: "buscar" "suc" "filtros";
+    gap: 8px;
+  }
+  .pos-barra-izq, .pos-barra-der { justify-self: stretch; }
+  .pos-barra-der .select-wrap { flex: 1; min-width: 0; }
 
   .sales-cart {
     position: fixed;

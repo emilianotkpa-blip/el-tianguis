@@ -224,7 +224,9 @@ const NAV = [
 ]
 
 const PAGE_INFO = {
-  ventas:            { title: "Ventas",           parent: "Operación" },
+  // `sub` es una miga extra: el nombre largo de la pantalla vive aquí arriba
+  // y así no gasta una línea de alto dentro del contenido.
+  ventas:            { title: "Ventas",           parent: "Operación", sub: "Punto de venta" },
   balanza:           { title: "Báscula",          parent: "Operación" },
   productos:         { title: "Productos",        parent: "Operación" },
   facturas:          { title: "Facturas",         parent: "Operación" },
@@ -498,7 +500,11 @@ function AppShell({ user, usuarioReal, verComo, onVerComo, onLogout, theme, setT
         <div className="breadcrumb">
           <span>{PAGE_INFO[page]?.parent}</span>
           <span className="sep">›</span>
-          <span className="current">{PAGE_INFO[page]?.title}</span>
+          <span className={PAGE_INFO[page]?.sub ? "" : "current"}>{PAGE_INFO[page]?.title}</span>
+          {PAGE_INFO[page]?.sub && <>
+            <span className="sep">›</span>
+            <span className="current">{PAGE_INFO[page].sub}</span>
+          </>}
         </div>
         <div className="header-spacer"></div>
 

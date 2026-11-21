@@ -203,6 +203,24 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
       return true
     }), [productos, search, cat])
 
+  // El catálogo entero son cientos de tarjetas: de golpe es una pared y hay
+  // que rodar mucho para llegar al final. Se parte en páginas.
+  const POR_PAGINA = 48
+  const [pagina, setPagina] = useState(1)
+  const gridRef = useRef(null)
+  const totalPaginas = Math.max(1, Math.ceil(filtered.length / POR_PAGINA))
+  // Al cambiar de filtro, de sucursal o de búsqueda, volver al principio: si
+  // alguien estaba en la página 7 y filtra, la 7 ya no existe y se ve vacío.
+  useEffect(() => { setPagina(1) }, [search, cat, suc])
+  // Si la lista encoge, la página guardada puede quedar fuera de rango. Se
+  // recorta aquí al vuelo en vez de arreglarlo con otro efecto: dos efectos
+  // peleando por el mismo número hacían que al buscar desde la página 5
+  // cayeras en la ÚLTIMA página de resultados en lugar de la primera.
+  const paginaActual = Math.min(pagina, totalPaginas)
+  const visibles = filtered.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA)
+  // Cambiar de página y quedarse a media altura desorienta: se vuelve arriba.
+  useEffect(() => { gridRef.current?.scrollTo({ top: 0 }) }, [paginaActual])
+
   const handleSearchEnter = () => {
     if (!search.trim()) return
     const q = search.trim()
@@ -754,7 +772,8 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
   // ── STEP 0: Llenar carrito ───────────────────────────
   return (
     <div className="page" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden", paddingBottom: 0, paddingLeft: 12, paddingRight: 12 }}>
-      <Stepper steps={STEPS} current={0} />
+      {/* Los pasos ya no van aquí arriba: viven encima de la nota, en la
+          columna derecha, para no robarle alto al catálogo. */}
 
       {/* Modales */}
       <Modal
@@ -814,24 +833,23 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
 
       <div className="sales-shell">
         <div className="sales-products">
-          <div className="page-header" style={{ marginBottom: 0, paddingBottom: 8 }}>
-            <div>
-              <h1 className="page-title">Ventas · Punto de venta</h1>
-              <p className="page-subtitle">
-                Sucursal:&nbsp;
-                <Select
-                  value={suc}
-                  onChange={e => setSuc(e.target.value)}
-                  className="select-plano"
-                  ariaLabel="Sucursal"
-                  options={SUCURSALES.map(x => ({ value: x.id, label: x.name }))}
-                />
-              </p>
+          {/* Tres zonas: sucursal · buscador · filtros. El buscador va en la
+              columna de en medio para que quede centrado en la pantalla pase
+              lo que pase a los lados. */}
+          <div className="pos-barra">
+            <div className="pos-barra-izq">
+              <span className="pos-etiqueta">Sucursal</span>
+              <Select
+                value={suc}
+                onChange={e => setSuc(e.target.value)}
+                className="select-plano"
+                ariaLabel="Sucursal"
+                options={SUCURSALES.map(x => ({ value: x.id, label: x.name }))}
+              />
             </div>
-          </div>
-          <div className="filter-bar" style={{ marginBottom: 4 }}>
-            <div className="search-input" style={{ flex: 1, maxWidth: 400, position: "relative" }}>
-              <Icon name="search" size={14} className="icon" />
+
+            <div className="pos-buscador">
+              <Icon name="search" size={15} className="icon" />
               <input
                 ref={searchRef}
                 placeholder="Buscar por nombre, código o escanear…"
@@ -844,35 +862,37 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
                   else avanzarPaso()
                 }}
               />
-              <span title="Listo para escáner" style={{
-                position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)",
-                opacity: 0.4, pointerEvents: "none", display: "flex",
-              }}><Icon name="barcode" size={15} /></span>
+              {search
+                ? <button className="pos-limpiar" onClick={() => { setSearch(""); searchRef.current?.focus() }} title="Limpiar">
+                    <Icon name="x" size={13} />
+                  </button>
+                : <span className="pos-escaner" title="Listo para escáner"><Icon name="barcode" size={15} /></span>}
+            </div>
+
+            <div className="pos-barra-der">
+              {paquetesOfrecibles.length > 0 && (
+                <button className="btn btn-default btn-sm paquetes-btn" onClick={() => setVerPaquetes(true)}>
+                  <Icon name="sparkle" size={12} /> Paquetes
+                  <span className="paquetes-num">{paquetesOfrecibles.length}</span>
+                </button>
+              )}
+              <Select
+                value={cat}
+                onChange={e => setCat(e.target.value)}
+                ariaLabel="Filtrar por tipo de producto"
+                options={tipos.map(t => ({ value: t.id, label: t.name }))}
+              />
+              {cat !== "all" && (
+                <button className="btn btn-ghost btn-sm" onClick={() => setCat("all")} title="Quitar el filtro">
+                  <Icon name="x" size={12} /> Todos
+                </button>
+              )}
             </div>
           </div>
-          {paquetesOfrecibles.length > 0 && (
-            <button className="btn btn-default btn-sm paquetes-btn" onClick={() => setVerPaquetes(true)}>
-              <Icon name="sparkle" size={12} /> Paquetes
-              <span className="paquetes-num">{paquetesOfrecibles.length}</span>
-            </button>
-          )}
-          <div className="cart-cat-filtro">
-            <Select
-              value={cat}
-              onChange={e => setCat(e.target.value)}
-              ariaLabel="Filtrar por tipo de producto"
-              options={tipos.map(t => ({ value: t.id, label: t.name }))}
-            />
-            {cat !== "all" && (
-              <button className="btn btn-ghost btn-sm" onClick={() => setCat("all")} title="Quitar el filtro">
-                <Icon name="x" size={12} /> Todos
-              </button>
-            )}
-          </div>
-          <div className="products-grid">
+          <div className="products-grid" ref={gridRef}>
             {loading
               ? <TilesSkeleton count={8} />
-              : filtered.map(p => {
+              : visibles.map(p => {
                 const stock = disponibleDe(p)
                 const apartado = comprometido[p.sku] ?? 0
                 const out = stock <= 0, low = !out && stock < p.min
@@ -908,6 +928,33 @@ export default function VentasPage({ addToast, user, sucursalActiva, preloadedCa
                 )
               })}
           </div>
+
+          {!loading && filtered.length > 0 && (
+            <div className="pos-paginador">
+              <span className="pos-cuenta">
+                {filtered.length === 1
+                  ? "1 producto"
+                  : `${(paginaActual - 1) * POR_PAGINA + 1}–${Math.min(paginaActual * POR_PAGINA, filtered.length)} de ${filtered.length} productos`}
+              </span>
+              {totalPaginas > 1 && (
+                <div className="pos-paginas">
+                  {/* Con el número en la mano en vez de la forma de función,
+                      dos clics seguidos avanzaban una sola página. */}
+                  <button className="btn btn-ghost btn-sm" disabled={paginaActual === 1} onClick={() => setPagina(p => Math.max(1, Math.min(p, totalPaginas) - 1))} title="Página anterior">
+                    <Icon name="chevronLeft" size={13} />
+                  </button>
+                  <span className="pos-pagina-num">{paginaActual} / {totalPaginas}</span>
+                  <button className="btn btn-ghost btn-sm" disabled={paginaActual === totalPaginas} onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} title="Página siguiente">
+                    <Icon name="chevronRight" size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="sales-pasos">
+          <Stepper steps={STEPS} current={0} compacto />
         </div>
 
         <div className={"sales-cart" + (notaAbierta ? " abierta" : "")}>
